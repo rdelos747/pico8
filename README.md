@@ -8,7 +8,7 @@ I have a bash command that runs the following:
 
 ```
 cd ~/Library/Application\ Support/pico-8/carts
-gaa
+git add *
 git commit -m "`date`"
 git push origin master
 ```
