@@ -3,12 +3,12 @@ version 16
 __lua__
 //cols={
 //col=flr(rnd(1))
-//bk=0
+bk=0
 
 
 function _draw()
 	cls()
-	rectfill(0,0,128,128,7)
+	rectfill(0,0,128,128,8)
 	map(0,0,0,0,16,16)
 end
 __gfx__
