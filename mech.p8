@@ -14,6 +14,9 @@ lzr_col=12
 e_spawn_t=1
 e_spawn_t_max=100
 max_enemies=10
+hud_col=0
+hud_h=8
+hp_block=10
 
 --game
 --0:start,1:game
@@ -21,8 +24,10 @@ mode=0
 
 --start menu
 sm={
-pl=1,
+point=1,
 press=f,
+boxes={},
+tim=0
 }
 
 --cam
@@ -46,6 +51,9 @@ mov={0,0},
 drr={0,-1},
 sp=1,
 lzr=0,
+dam=0,
+max_hp=5,
+hp=0
 }
 
 --arrays
@@ -65,41 +73,147 @@ function chance(n)
 end
 
 function _init()	
+	--get menu boxes
+	
+	local r1=10
+	local r2=50
+	local r3=65
+	local r4=80
+	
+	--row 1
+	add(sm.boxes,{
+		s="solider",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="heavy",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="scout",x=0,y=0
+	})
+	-- row 2
+	add(sm.boxes,{
+		s="upgrade\n1",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="upgrade\n2",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="upgrade\n3",x=0,y=0
+	})
+	-- row 3
+	add(sm.boxes,{
+		s="upgrade\n4",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="upgrade\n5",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="upgrade\n6",x=0,y=0
+	})
+	-- row 4
+	add(sm.boxes,{
+		s="upgrade\n7",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="upgrade\n8",x=0,y=0
+	})
+	add(sm.boxes,{
+		s="upgrade\n9",x=0,y=0
+	})
+	
+end
+
+function restart()
+	-- clear everything from tables
+	-- can i just set array={}?
+	-- i dont trust it :(
+	for e in all(enemies) do
+		del(enemies,e)
+	end
+	for e in all(xplsns) do
+		del(xplsns,e)
+	end
+	for b in all(bldngs) do
+		del(bldngs,b)
+	end
+	for l in all(lzrs) do
+		del(lzrs,l)
+	end
+	for s in all(sky_lns) do
+		del(sky_lns,s)
+	end
+	camera(0,0)
+	mode=0
 end
 
 --draw
 function _draw()
 	cls()
-	rectfill(cam.x-2,cam.y-2,
-		cam.x+130,cam.y+130,bk_col)
-	camera(cam.x,cam.y)
 	if(mode==0)start_draw()
 	if(mode==1)game_draw()
 end
 
 function start_draw()
-	if sm.pl==1 then
-		line(50,70,81,70,12)
-		line(82,70,82,66,12)
-		print("1 player", 50,64,12)
-		print("2 player", 50,76,6)
-	else
-		line(50,82,81,82,11)
-		line(82,82,82,78,11)
-		print("1 player", 50,64,6)
-		print("2 player", 50,76,11)
+	//draw_grid()
+	-- rows
+	local r1=1
+	local r2=10
+	print("choose class",41,1,7)
+	print("upgrade",51,25,7)
+	print("next in n xp",41,32,7)
+	local cols={8,48,88}
+	local rows={10,50,65,80}
+	local h_sm=10
+	local h_lg=12
+	local idx=1
+	for r in all(rows) do
+	for c in all(cols) do
+		local h=h_lg
+		local b_col=7
+		local txt=sm.boxes[idx]
+		if(idx<4)h=h_sm
+		if idx==sm.point and
+				sm.tim>10 then
+			b_col=10	
+		end
+		rect(c,r,c+32,r+h,b_col)
+		print(txt.s,c+txt.x,r+txt.y,7)
+		idx+=1
+	end end
+	--[[
+	for i=1,#sm.boxes do
+		local b=sm.boxes[i]
+		local b_col=7
+		if i==sm.point and 
+				sm.tim>10 then
+			b_col=10
+		end
+		rect(b.x,b.y,b.x+32,b.y+b.h,b_col)
+	end
+	--]]
+end
+
+--debug
+function draw_grid()
+	for i=1,16 do
+		line(i*8,0,i*8,127,1)
+		line(0,i*8,127,i*8,1)
+	end
+	for i=1,8 do
+		line(i*16,0,i*16,127,2)
+		line(0,i*16,127,i*16,2)
 	end
 end
 
 function game_draw()
+	--bk/cam
+	rectfill(cam.x-2,cam.y-2,
+		cam.x+130,cam.y+130,bk_col)
+	camera(cam.x,cam.y)
+	--map
 	m_x=flr(cam.x/8)-1
 	m_y=flr(cam.y/8)-1
 	map(m_x,m_y,m_x*8,m_y*8,18,17)
-	--hud
-	line(cam.x+1,cam.y+127,
-		cam.x+127,cam.y+127,8)
-	line(cam.x+1,cam.y+119,
-		cam.x+127,cam.y+119,8)
 	--lazers
 	for l in all(lzrs) do
 		line(l.x1,l.y1,l.x2,l.y2,lzr_col)
@@ -109,8 +223,10 @@ function game_draw()
 			l.y2-1)
 	end
 	--player
-	spr(pp.sp,pp.x-4,pp.y-4,
-		1,1,pp.rot[1],pp.rot[2])
+	if flr(pp.dam)%2 ==0 then
+		spr(pp.sp,pp.x-4,pp.y-4,
+			1,1,pp.rot[1],pp.rot[2])
+	end
 	--enemies
 	for e in all(enemies) do
 		if e.spawn_t>0 then
@@ -138,6 +254,32 @@ function game_draw()
 			y-=8
 		end
 	end
+	--hud
+	draw_hud()
+end
+
+function draw_hud()
+	local hud_t=cam.y+(127-hud_h)
+	rectfill(cam.x,hud_t,
+		cam.x+127,hud_t+8,0)	
+	print("hp:",cam.x+2,hud_t+2,7)
+	print(pp.hp*hp_block,cam.x+100,hud_t+2,7)
+	--hp background
+	rectfill(cam.x+15,hud_t+2,
+		cam.x+15+(pp.max_hp*hp_block),
+		hud_t+6,1)
+	--hp foreground
+	rectfill(cam.x+15,hud_t+2,
+		cam.x+15+(pp.hp*hp_block),
+		hud_t+6,8)
+	--damage block
+	if flr(pp.dam)%2 != 0 then
+		rectfill(
+			cam.x+15+((pp.hp)*hp_block),
+			hud_t+2,
+			cam.x+15+((pp.hp+1)*hp_block),
+			hud_t+6,10)
+	end
 end
 
 function _update()
@@ -148,27 +290,42 @@ end
 
 function start_update()
 	if not sm.press then
-		if btn(3) and sm.pl<2 then
-			sm.pl=2
+		if btn(3) and sm.point<10 then
+			sm.point+=3
 			sm.press=t
-			shake_s()
-		elseif btn(2) and sm.pl>1 then
-			sm.pl=1
+		elseif btn(2) and sm.point>3 then
+			sm.point-=3
 			sm.press=t
-			shake_s()
+		elseif btn(0) and sm.point%3 != 1 then
+			sm.point-=1
+			sm.press=t
+		elseif btn(1) and sm.point%3 != 0 then
+			sm.point+=1
+			sm.press=t
 		end
+		if(sm.press)sm.tim=20
 	elseif not btn(2) and 
-								not btn(3) then
+								not btn(3) and
+								not btn(0) and
+								not btn(1) then
 		sm.press=f	
 	end
 	if btn(4) or btn(5) then
-		mode=1
-		game_init()
+		//mode=1
+		//game_init()
+	end
+	if sm.tim>0 then
+		sm.tim-=1
+	else
+		sm.tim=20
 	end
 end
 
 --game
 function game_init()
+	pp.hp=pp.max_hp
+	pp.dam=0
+	pp.lzr=0
 	// start comment for test
 	cam.x=rand(0,xmx)
 	cam.y=rand(0,ymx)
@@ -243,6 +400,11 @@ function game_update()
 		end
 	end
 	
+	--player damage
+	if pp.dam>0 then
+		pp.dam-=0.5
+	end
+	
 	if pp.lzr > 0 then
 		pp.lzr-=1
 	elseif press_lzr then
@@ -273,6 +435,14 @@ function can_move(x,y)
 		end
 	end
 	return mv
+end
+
+function damage_player()
+	if pp.dam == 0 then
+		pp.dam=50
+		pp.hp-=1
+	end
+	if(pp.hp==0)restart()
 end
 
 function inside_obj(x,y,o)
@@ -322,6 +492,7 @@ function shoot(x,y,drr,e)
 				draw=f
 				create_explosion(l.x2,l.y2,t)
 				shake_l()
+				damage_player()
 			end
 		else
 			for e in all(enemies) do
