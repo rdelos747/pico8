@@ -30,6 +30,13 @@ boxes={},
 tim=0
 }
 
+--upgrades
+upgrades={1,0,0,0,0,0,0,0,0}
+--class
+class=1
+--shake
+will_shake=f
+
 --cam
 cam={
 x=0,
@@ -82,45 +89,54 @@ function _init()
 	
 	--row 1
 	add(sm.boxes,{
-		s="solider",x=0,y=0
+		s="solider",x=3,y=3
 	})
 	add(sm.boxes,{
-		s="heavy",x=0,y=0
+		s="heavy",x=7,y=3
 	})
 	add(sm.boxes,{
-		s="scout",x=0,y=0
+		s="scout",x=7,y=3
 	})
 	-- row 2
 	add(sm.boxes,{
-		s="upgrade\n1",x=0,y=0
+		s="upgrade\n1",x=3,y=3
 	})
 	add(sm.boxes,{
-		s="upgrade\n2",x=0,y=0
+		s="upgrade\n2",x=3,y=3
 	})
 	add(sm.boxes,{
-		s="upgrade\n3",x=0,y=0
+		s="upgrade\n3",x=3,y=3
 	})
 	-- row 3
 	add(sm.boxes,{
-		s="upgrade\n4",x=0,y=0
+		s="upgrade\n4",x=3,y=3
 	})
 	add(sm.boxes,{
-		s="upgrade\n5",x=0,y=0
+		s="upgrade\n5",x=3,y=3
 	})
 	add(sm.boxes,{
-		s="upgrade\n6",x=0,y=0
+		s="upgrade\n6",x=3,y=3
 	})
 	-- row 4
 	add(sm.boxes,{
-		s="upgrade\n7",x=0,y=0
+		s="upgrade\n7",x=3,y=3
 	})
 	add(sm.boxes,{
-		s="upgrade\n8",x=0,y=0
+		s="upgrade\n8",x=3,y=3
 	})
 	add(sm.boxes,{
-		s="upgrade\n9",x=0,y=0
+		s="upgrade\n9",x=3,y=3
 	})
-	
+	-- row 5
+	add(sm.boxes,{
+		s="on",x=13,y=3
+	})
+	add(sm.boxes,{
+		s="off",x=11,y=3
+	})
+	add(sm.boxes,{
+		s="start",x=7,y=3
+	})
 end
 
 function restart()
@@ -159,38 +175,49 @@ function start_draw()
 	local r1=1
 	local r2=10
 	print("choose class",41,1,7)
-	print("upgrade",51,25,7)
+	print("upgrade",51,24,7)
 	print("next in n xp",41,32,7)
+	print("screen shake",20,104,7)
 	local cols={8,48,88}
-	local rows={10,50,65,80}
+	local rows={10,40,60,80,112}
 	local h_sm=10
-	local h_lg=12
+	local h_lg=16
 	local idx=1
 	for r in all(rows) do
 	for c in all(cols) do
-		local h=h_lg
-		local b_col=7
+		local h=h_sm
+		local b_col=5
 		local txt=sm.boxes[idx]
-		if(idx<4)h=h_sm
-		if idx==sm.point and
-				sm.tim>10 then
-			b_col=10	
+		if idx<4 then
+			b_col=7
+			if(class==idx)b_col=12
+		elseif idx==13 then
+			if(will_shake==t)b_col=12
+		elseif idx==14 then
+			if(will_shake==f)b_col=12
+		elseif idx==15 then
+			h=h_sm
+			b_col=9
+		else
+			h=h_lg
+			if(upgrades[idx-3]==1)b_col=7
+			if idx>3 and idx<10 then
+				if upgrades[idx-3]==1 then
+					line(c+16,r+h,c+16,r+h+3,7)
+				else
+					line(c+16,r+h,c+16,r+h+3,5)
+				end
+			end
 		end
-		rect(c,r,c+32,r+h,b_col)
-		print(txt.s,c+txt.x,r+txt.y,7)
-		idx+=1
-	end end
-	--[[
-	for i=1,#sm.boxes do
-		local b=sm.boxes[i]
-		local b_col=7
-		if i==sm.point and 
+		local t_col=b_col
+		if idx==sm.point and
 				sm.tim>10 then
 			b_col=10
 		end
-		rect(b.x,b.y,b.x+32,b.y+b.h,b_col)
-	end
-	--]]
+		rect(c,r,c+32,r+h,b_col)
+		print(txt.s,c+txt.x,r+txt.y,t_col)
+		idx+=1
+	end end
 end
 
 --debug
@@ -290,7 +317,7 @@ end
 
 function start_update()
 	if not sm.press then
-		if btn(3) and sm.point<10 then
+		if btn(3) and sm.point<13 then
 			sm.point+=3
 			sm.press=t
 		elseif btn(2) and sm.point>3 then
@@ -313,6 +340,15 @@ function start_update()
 	if btn(4) or btn(5) then
 		//mode=1
 		//game_init()
+		--select class
+		sm.tim=20
+		if sm.point<4 then
+			class=sm.point end
+		--select shake
+		if sm.point==13 then
+			will_shake=t end
+		if sm.point==14 then
+			will_shake=f end
 	end
 	if sm.tim>0 then
 		sm.tim-=1
