@@ -31,11 +31,15 @@ tim=0
 }
 
 --upgrades
-upgrades={1,0,0,0,0,0,0,0,0}
+upgrades={0,0,0,0,2,0,0,0,0}
 --class
 class=1
 --shake
 will_shake=f
+--xp
+xp_lvl={10,20,30,40,50}
+cur_lvl=1
+up_num=0
 
 --cam
 cam={
@@ -60,7 +64,8 @@ sp=1,
 lzr=0,
 dam=0,
 max_hp=5,
-hp=0
+hp=0,
+xp=20
 }
 
 --arrays
@@ -137,6 +142,7 @@ function _init()
 	add(sm.boxes,{
 		s="start",x=7,y=3
 	})
+	restart()
 end
 
 function restart()
@@ -160,6 +166,11 @@ function restart()
 	end
 	camera(0,0)
 	mode=0
+	--update upgrades
+	while pp.xp>=xp_lvl[cur_lvl] do
+		cur_lvl+=1
+		up_num+=1
+	end
 end
 
 --draw
@@ -175,35 +186,55 @@ function start_draw()
 	local r1=1
 	local r2=10
 	print("choose class",41,1,7)
-	print("upgrade",51,24,7)
-	print("next in n xp",41,32,7)
+	print("xp:"..pp.xp,8,24,5)
+	print("next upgrade in "
+			..xp_lvl[cur_lvl]-pp.xp.."xp"
+			,38,24,5)
+	if up_num==1 then
+		print(""..up_num..
+		" upgrade available",25,32,7)
+	elseif up_num>1 then
+		print(""..up_num..
+		" upgrades available",25,32,7)
+	else
+		print("no upgrades available",23,32,7)
+	end
 	print("screen shake",20,104,7)
 	local cols={8,48,88}
 	local rows={10,40,60,80,112}
 	local h_sm=10
 	local h_lg=16
 	local idx=1
+	--draw boxes
 	for r in all(rows) do
 	for c in all(cols) do
 		local h=h_sm
 		local b_col=5
 		local txt=sm.boxes[idx]
 		if idx<4 then
+			--classes
 			b_col=7
 			if(class==idx)b_col=12
 		elseif idx==13 then
+			--shake t
 			if(will_shake==t)b_col=12
 		elseif idx==14 then
+			--shake f
 			if(will_shake==f)b_col=12
 		elseif idx==15 then
+			--start
 			h=h_sm
 			b_col=9
 		else
+			--upgrades
 			h=h_lg
 			if(upgrades[idx-3]==1)b_col=7
+			if(upgrades[idx-3]==2)b_col=12
 			if idx>3 and idx<10 then
 				if upgrades[idx-3]==1 then
 					line(c+16,r+h,c+16,r+h+3,7)
+				elseif upgrades[idx-3]==2 then
+					line(c+16,r+h,c+16,r+h+3,12)
 				else
 					line(c+16,r+h,c+16,r+h+3,5)
 				end
@@ -290,7 +321,7 @@ function draw_hud()
 	rectfill(cam.x,hud_t,
 		cam.x+127,hud_t+8,0)	
 	print("hp:",cam.x+2,hud_t+2,7)
-	print(pp.hp*hp_block,cam.x+100,hud_t+2,7)
+	//print(pp.hp*hp_block,cam.x+100,hud_t+2,7)
 	--hp background
 	rectfill(cam.x+15,hud_t+2,
 		cam.x+15+(pp.max_hp*hp_block),
@@ -307,6 +338,11 @@ function draw_hud()
 			cam.x+15+((pp.hp+1)*hp_block),
 			hud_t+6,10)
 	end
+	--xp
+	local xps="xp:"..pp.xp
+	print(xps,cam.x+75,hud_t+2,7)
+	print("/"..xp_lvl[cur_lvl],
+		cam.x+75+(#xps)*4,hud_t+2,5)
 end
 
 function _update()
@@ -338,22 +374,50 @@ function start_update()
 		sm.press=f	
 	end
 	if btn(4) or btn(5) then
-		//mode=1
-		//game_init()
-		--select class
 		sm.tim=20
-		if sm.point<4 then
-			class=sm.point end
+		--start
+		if sm.point==15 then
+			mode=1
+			game_init()
+		--select class
+		elseif sm.point<4 then
+			class=sm.point
 		--select shake
-		if sm.point==13 then
-			will_shake=t end
-		if sm.point==14 then
-			will_shake=f end
+		elseif sm.point==13 then
+			will_shake=t
+		elseif sm.point==14 then
+			will_shake=f
+		--upgrades
+		elseif upgrades[sm.point-3]==1 then
+			upgrades[sm.point-3]=2
+			up_num-=1
+		end
 	end
 	if sm.tim>0 then
 		sm.tim-=1
 	else
 		sm.tim=20
+	end
+	
+	-- calculate updates
+	if up_num > 0 then
+		for i=1,3 do
+			if upgrades[i] !=2 then
+				upgrades[i]=1
+			end
+		end
+		for i=4,9 do
+			if upgrades[i-3]==2 and
+					upgrades[i]<2 then
+				upgrades[i]=1
+			end
+		end
+	else
+		for i=1,9 do
+			if upgrades[i]==1 then
+				upgrades[i]=0
+			end
+		end
 	end
 end
 
@@ -733,6 +797,7 @@ function damage_enemy(e)
 		ej=flr(e.y/8)
 		mset(ei,ej,25)
 		del(enemies,e)
+		pp.xp+=5
 	end
 end
 
@@ -786,6 +851,10 @@ end
 
 --shake
 function shake()
+	if not will_shake then
+		cam.shake=0
+		return
+	end
 	if cam.shake>0 then
 		if cam.shake%2==0 then
 			cam.x+=cam.samt*2
