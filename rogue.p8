@@ -6,7 +6,7 @@ __lua__
 --cam
 cam={x=0,y=0}
 --player
-pp={x=8,y=8,sp=1}
+pp={x=8,y=8,sp=1,sx=8,sy=8}
 change_room=nil
 change_dly=2
 --menus
@@ -32,9 +32,9 @@ mm={
 }
 --level
 xmax_min=16
-xmax_max=16
+xmax_max=26
 ymax_min=16
-ymax_max=16
+ymax_max=26
 xmax=-1
 ymax=-1
 lvl={}
@@ -65,7 +65,6 @@ function _draw()
 	cls()
 	--cam
 	camera(cam.x*8,cam.y*8)
- 
  if change_room==nil then
  	--level
 		draw_lvl()
@@ -239,15 +238,38 @@ function anim_change()
 	else
 		change_dly=1
 	end
-	if pp.x != change_room.tx or
-				pp.y != change_room.ty then
+	local change=false
+	if change_room.step_x>0 then
+		change_room.step_x-=1
 		pp.x+=change_room.dx
-		pp.y+=change_room.dy
-	else
-		change_room=nil
-		new_lvl()
-		change_dly=2
+		change=true
 	end
+	if change_room.step_y>0 then
+		change_room.step_y-=1
+		pp.y+=change_room.dy
+		change=true
+	end
+	if(change)return
+	new_lvl()
+	if change_room.side=="x" then
+		if change_room.dx==1 then
+			pp.x=xmax-1 else pp.x=0
+		end
+		printh("ymax "..ymax)
+		printh("end y0 "..pp.y)
+		if pp.y>8 then
+			pp.y=(ymax-1)-(15-pp.y)
+			printh("end y1 "..pp.y)
+		else
+			printh("end y2 "..pp.y)
+		end
+	else
+		if change_room.dy==1 then
+			pp.y=ymax-1 else pp.y=0
+		end
+	end
+	move_cam()
+	change_room=nil
 end
 
 function move_p(mv)
@@ -261,36 +283,61 @@ function move_p(mv)
 	if lvl[ny][nx]==t_wall then
 		return
 	end
-	if lvl[ny][nx]==t_door then
-		create_change(mv)
-	end
 	pp.x=nx
 	pp.y=ny
+	if lvl[pp.y][pp.x]==t_door then
+		create_change(mv)
+	end
 end
 
 --creators
 --=============
 function create_change(mv)
-	//new_level()
+	//local dy=0
+	//local dx=0
+	//if mv.x!=0 then
+	//	dy=rand
+	//else
+	//end
+	printh(".....")
+	printh("y "..pp.y)
+	local side=""
+	local step_x=0
+	local step_y=0
 	local dx=mv.x*-1
 	local dy=mv.y*-1
-	local tx=pp.x
-	local ty=pp.y
-	if(dx==1)tx=pp.x+14
-	if(dx==-1)tx=pp.x-14
-	if(dy==1)ty=pp.y+14
-	if(dy==-1)ty=pp.y-14
+	if mv.x!=0 then
+		side="x"
+		step_x=15
+		pp.y-=cam.y
+		local ny=rand(1,14)
+		printh("to y "..ny)
+		step_y=abs(ny-pp.y)
+		printh("y% "..pp.y)
+		printh("sy "..step_y)
+		if(ny>pp.y)dy=1
+		if(ny<pp.y)dy=-1
+	else
+		side="y"
+		step_y=15
+		pp.x=pp.x-cam.x
+		local nx=rand(1,14)
+		printh("to x "..nx)
+		step_x=abs(nx-pp.x)
+		printh("x% "..pp.x)
+		if(nx>pp.x)dx=1
+		if(nx<pp.x)dx=-1
+	end
 	change_room={
-		dx=dx,
-		dy=dy,
-		tx=tx,
-		ty=ty
+		side=side,
+		step_x=step_x,
+		step_y=step_y,
+		dx=dx,dy=dy
 	}
-	printh(".....")
+	printh("side"..side)
 	printh("dx"..dx)
 	printh("dy"..dy)
-	printh("tx"..tx)
-	printh("ty"..ty)
+	
 end
 
 function create_item(n)
@@ -330,7 +377,7 @@ end
 function add_door()
 	while 1 do
 		local rx=rand(0,xmax-1)
-		local ry=rand(0,ymax-1)
+		local ry=rand(1,ymax-2)
 		if lvl[ry][rx]==t_wall then
 			lvl[ry][rx]=t_door
 			return
