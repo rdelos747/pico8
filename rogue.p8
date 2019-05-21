@@ -53,8 +53,10 @@ l_itms={}
 
 --items
 item_tps={
-{sp=4,fnd=false,disp="hp+"},
-{sp=5,fnd=false,disp="mana+"}
+hp={sp=4,fnd=false,disp="hp+",
+	hp=2,mn=0},
+mn={sp=5,fnd=false,disp="mana+",
+	hp=0,mn=2}
 }
 	
 -- helpers
@@ -140,7 +142,7 @@ function draw_menu()
 	--draw bag
 	local i=1
 	local hl_c=8
-	for idx in all(bag) do
+	for key in all(bag) do
 		if i==mm.point-1 then
 			local hl_c=2
 			if(mm.in_sub==1)hl_c=1
@@ -153,11 +155,11 @@ function draw_menu()
 				draw_sub_m(mx,my+15+((i-1)*8))
 			end 
 		end
-		local sp=item_tps[idx].sp
-		local disp=item_tps[idx].disp
+		local sp=item_tps[key].sp
+		local disp=item_tps[key].disp
 		spr(sp,mx+2,
 				my+14+((i-1)*8))
-		if item_tps[idx].fnd then
+		if item_tps[key].fnd then
 			print(disp,mx+10,
 				my+17+((i-1)*8),7)
 		else
@@ -206,7 +208,7 @@ function draw_lvl()
 		for it in all(l_itms) do
 			if i==it.x and j==it.y then
 				dd=false
-				spr(item_tps[it.idx].sp,
+				spr(item_tps[it.key].sp,
 					i*8,j*8)
 		end end
 		--enemies
@@ -286,6 +288,9 @@ function update_menu(mv)
 			//do item action
 			use_item(mm.point-1,mm.sub_pt)
 			mm.open=-1
+			mm.in_sub=-1
+			mm.point=1
+			mm.sub_pt=1
 			return
 		end
 	end
@@ -343,13 +348,13 @@ function move_p(mv)
 	for it in all(l_itms) do
 		if it.x==nx and it.y==ny then
 			if #bag < bag_l then
-				if item_tps[it.idx].fnd then
+				if item_tps[it.key].fnd then
 					message("picked up "..
-						item_tps[it.idx].disp)
+						item_tps[it.key].disp)
 				else
 					message("picked up ??")
 				end
-				add(bag,it.idx)
+				add(bag,it.key)
 				del(l_itms,it)
 			else	
 				message("bag full")
@@ -365,14 +370,18 @@ function move_p(mv)
 	return true
 end
 
-function use_item(it,action)
-	if action==1 then
-		itx=bag[it]
-		item_tps[idx].fnd=true
-		message("used "..
-			item_tps[idx].disp)
-		del(bag,bag[it])
-		end
+function use_item(idx,action)
+	key=bag[idx]
+	if action==1 then --use
+		item_tps[key].fnd=true
+		message("used "..item_tps[key].disp)
+		pp.hp+=item_tps[key].hp
+		pp.mn+=item_tps[key].mn
+		del(bag,bag[idx])
+	elseif action==2 then --throw
+	elseif action==3 then --drop
+		if
+	end
 end
 
 function attack_p(e)
@@ -481,9 +490,12 @@ function add_i()
 	for j=1,ymax-2 do
 	for i=1,xmax-2 do
 		if chance(1) then
-			idx=rand(1,#item_tps)
+			local keys={
+				"hp","mn"
+			}
 			add(l_itms,{
-				x=i,y=j,idx=idx
+				x=i,y=j,
+				key=keys[rand(1,#keys)]
 			})
 	end end end
 end
