@@ -14,7 +14,7 @@ hud_m3="..."
 
 --menus
 menu_w=32
-menu_h=47
+menu_h=53
 sub_w=22
 sub_menu_i={"use","throw","drop"}
 mm={
@@ -42,6 +42,9 @@ t_cdor=37
 pp={x=8,y=8,sp=1,sx=8,sy=8,
 	ax=0,ay=0,as=0,//attack anim
 	hp=5,mn=5}
+
+throw={open=-1,idx=nil,
+	x=-1,y=-1}
 	
 --bag
 bag={}
@@ -53,6 +56,7 @@ l_itms={}
 
 --items
 item_tps={
+k={sp=6,fnd=true,disp="key"},
 hp={sp=4,fnd=false,disp="hp+",
 	hp=2,mn=0},
 mn={sp=5,fnd=false,disp="mana+",
@@ -94,6 +98,7 @@ function _draw()
 	(pp.y*8)+pp.ay)
 	
 	if(mm.open==1)draw_menu()
+	if(throw.open==1)draw_throw()
 end
 
 function draw_hud()
@@ -130,7 +135,7 @@ function draw_menu()
 	end
 	line(mx,my+8,mx+menu_w,my+8,7)
 	--help item
-	if mm.point==1 then
+	if mm.point>0 and mm.point<3 then
 	rectfill(mx+1,
 		my+9+((mm.point-1)*6),
 		mx+menu_w-1,
@@ -138,33 +143,34 @@ function draw_menu()
 		2)
 	end
 	print("help",mx+2,my+10,12)
+	print("log",mx+2,my+16,12)
 		
 	--draw bag
 	local i=1
 	local hl_c=8
 	for key in all(bag) do
-		if i==mm.point-1 then
+		if i==mm.point-2 then
 			local hl_c=2
 			if(mm.in_sub==1)hl_c=1
 			rectfill(mx+1,
-				my+15+((i-1)*8),
+				my+21+((i-1)*8),
 				mx+menu_w-1,
-				my+22+((i-1)*8),
+				my+28+((i-1)*8),
 				hl_c)
 			if mm.sub_m==1 then
-				draw_sub_m(mx,my+15+((i-1)*8))
+				draw_sub_m(mx,my+20+((i-1)*8))
 			end 
 		end
 		local sp=item_tps[key].sp
 		local disp=item_tps[key].disp
-		spr(sp,mx+2,
-				my+14+((i-1)*8))
+		spr(sp,mx+1,
+				my+20+((i-1)*8))
 		if item_tps[key].fnd then
 			print(disp,mx+10,
-				my+17+((i-1)*8),7)
+				my+23+((i-1)*8),7)
 		else
 			print("??",mx+10,
-				my+17+((i-1)*8),5)
+				my+23+((i-1)*8),5)
 		end
 		i+=1
 	end
@@ -198,6 +204,17 @@ function draw_sub_m(x,y)
 	if mm.sub_pt>#sub_menu then
 		mm.sub_pt=#sub_menu
 	end
+end
+
+function draw_throw()
+	local imin=max(pp.x-2,1)
+	local imax=min(pp.x+2,xmax-2)
+	local jmin=max(pp.y-2,1)
+	local jmax=min(pp.y+2,ymax-2)
+	rect(imin*8,jmin*8,
+		(imax*8)+8,(jmax*8)+8,9)
+	rect(throw.x*8,throw.y*8,
+		(throw.x*8)+8,(throw.y*8)+8,10)
 end
 
 function draw_lvl()
@@ -259,6 +276,9 @@ function _update()
 		update_menu(mv)
 	elseif mv.b==1 then
 		mm.open=1
+		throw.open=-1
+	elseif throw.open==1 then
+		update_throw(mv)
 	else
 		if(move_p(mv))move_e()
 		move_cam()
@@ -284,9 +304,11 @@ function update_menu(mv)
 		elseif mm.point==1 then
 			show_help=true
 			mm.open=-1
+		elseif mm.point==2 then
+			//log
 		elseif mm.in_sub==1 then
 			//do item action
-			use_item(mm.point-1,mm.sub_pt)
+			use_item(mm.point-2,mm.sub_pt)
 			mm.open=-1
 			mm.in_sub=-1
 			mm.point=1
@@ -304,7 +326,7 @@ function update_menu(mv)
 	else
 		if mv.y==-1 and mm.point>0 then
 			mm.point-=1
-		elseif mv.y==1 and mm.point<#bag+1 then
+		elseif mv.y==1 and mm.point<#bag+2 then
 			mm.point+=1
 		end
 	end
@@ -320,6 +342,48 @@ function update_menu(mv)
 	
 	--special arrow stuff
 	if mm.point==0 and mv.x==-1 then
+		mm.open=-1
+	end
+end
+
+function update_throw(mv)
+	local imin=max(pp.x-2,1)
+	local imax=min(pp.x+2,xmax-2)
+	local jmin=max(pp.y-2,1)
+	local jmax=min(pp.y+2,ymax-2)
+	throw.x+=mv.x
+	throw.y+=mv.y
+	throw.x=max(throw.x,imin)
+	throw.x=min(throw.x,imax)
+	throw.y=max(throw.y,jmin)
+	throw.y=min(throw.y,jmax)
+	
+	if mv.a==1 then
+		key=bag[throw.idx]
+		if item_tps[key].fnd then
+			//only set fnd if hits player
+			// or enemy
+			message("threw "..
+				item_tps[key].disp)
+		else
+			message("threw ??")
+		end
+		if throw.x==pp.x and
+				throw.y==pp.y then
+			apply_item(pp)
+		else
+			local hit_e=false
+			for e in all(ens) do
+				if throw.x==e.x and
+						throw.y==e.y then
+					hit_e=true
+					apply_item(e)
+				end
+			end
+			if(not hit_e)apply_item(nil)
+		end
+		del(bag,bag[throw.idx])
+		throw.open=-1
 		mm.open=-1
 	end
 end
@@ -372,6 +436,10 @@ end
 
 function use_item(idx,action)
 	key=bag[idx]
+	if key=="k" then
+		message("you cant do that")
+		return end
+		
 	if action==1 then --use
 		item_tps[key].fnd=true
 		message("used "..item_tps[key].disp)
@@ -379,8 +447,24 @@ function use_item(idx,action)
 		pp.mn+=item_tps[key].mn
 		del(bag,bag[idx])
 	elseif action==2 then --throw
+		throw.open=1
+		throw.idx=idx
+		throw.x=pp.x
+		throw.y=pp.y
 	elseif action==3 then --drop
-		if
+		if item_tps[key].fnd then
+			message("dropped "..
+				item.tps[key].disp)
+		else
+			message("dropped ??")
+		end
+		del(bag,bag[idx])
+	end
+end
+
+function apply_item(key,o)
+	if o==nil then
+		// some items can spread yeah?
 	end
 end
 
@@ -455,6 +539,7 @@ function new_lvl()
 	make_square()
 	add_e()
 	add_i()
+	add_k()
 	//add_door()
 end
 
@@ -487,17 +572,32 @@ function add_e()
 end
 
 function add_i()
+	local keys={}
+	for k,v in pairs(item_tps) do
+		if(k!="k")add(keys,k) 
+	end
+		
 	for j=1,ymax-2 do
 	for i=1,xmax-2 do
 		if chance(1) then
-			local keys={
-				"hp","mn"
-			}
 			add(l_itms,{
 				x=i,y=j,
 				key=keys[rand(1,#keys)]
 			})
 	end end end
+end
+
+function add_k()
+	while true do
+	local rx=rand(1,xmax-2)
+	local ry=rand(1,ymax-2)
+	for it in all(l_itms) do
+		if rx!=it.x and ry!=it.y then
+			add(l_itms,{
+				x=rx,y=ry,key="k"
+			})
+			return
+		end end end
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -508,14 +608,14 @@ __gfx__
 0070070000a00aa00000700000070000000080000000c000000aaa00000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000a0000000007000007000000000000000000000000a0a00000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000aaaa00007770000700000000080000000c000000aaa00000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60000006000000009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000002222220000990000001100000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000011000000000010022000022000990000001100000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000010000000000100020000002000990000001100000000000000000000000000000000000000000000000000000000000000000000000000000000000
