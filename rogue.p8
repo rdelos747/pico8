@@ -190,7 +190,7 @@ function move_p(mv)
 	for it in all(l_itms) do
 		if it.x==nx and it.y==ny then
 			if #bag < bag_l then
-				if item_tps[it.idx].found then
+				if item_tps[it.idx].fnd then
 					message("picked up "..
 						item_tps[it.idx].disp)
 				else
