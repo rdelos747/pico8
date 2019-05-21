@@ -12,6 +12,17 @@ hud_m1="..."
 hud_m2="..."
 hud_m3="..."
 
+--menus
+menu_w=32
+menu_h=47
+sub_w=22
+sub_menu_i={"use","throw","drop"}
+mm={
+	open=-1,point=1,
+	sub_m=0, in_sub=0, sub_pt=1,
+	sub_pos=1
+}
+
 --level
 xmax_min=16
 xmax_max=16
@@ -79,6 +90,8 @@ function _draw()
 		--player
 	spr(pp.sp,(pp.x*8)+pp.ax,
 	(pp.y*8)+pp.ay)
+	
+	if(mm.open==1)draw_menu()
 end
 
 function draw_hud()
@@ -96,6 +109,93 @@ function draw_hud()
 	print(hud_m1,cx+50,r1,5)
 	print(hud_m2,cx+50,r2,6)
 	print(hud_m3,cx+50,r3,7)
+end
+
+function draw_menu()
+	--draw box
+	local mx=(pp.x*8)+8
+	local my=(pp.y*8)+8
+	if(xmax-pp.x<8)mx-=menu_w+8
+	if(ymax-pp.y<8)my-=menu_h+8
+	rect(mx,my,mx+menu_w,my+menu_h,7)
+	--draw title
+	if mm.point==0 then
+		rectfill(mx+1,my+1,mx+5,my+7,2)
+		print("<",mx+2,my+2,7)
+		print("menu",mx+6,my+2,7)
+	else
+		print("menu",mx+2,my+2,7)
+	end
+	line(mx,my+8,mx+menu_w,my+8,7)
+	--help item
+	if mm.point==1 then
+	rectfill(mx+1,
+		my+9+((mm.point-1)*6),
+		mx+menu_w-1,
+		my+15+((mm.point-1)*6),
+		2)
+	end
+	print("help",mx+2,my+10,12)
+		
+	--draw bag
+	local i=1
+	local hl_c=8
+	for idx in all(bag) do
+		if i==mm.point-1 then
+			local hl_c=2
+			if(mm.in_sub==1)hl_c=1
+			rectfill(mx+1,
+				my+15+((i-1)*8),
+				mx+menu_w-1,
+				my+22+((i-1)*8),
+				hl_c)
+			if mm.sub_m==1 then
+				draw_sub_m(mx,my+15+((i-1)*8))
+			end 
+		end
+		local sp=item_tps[idx].sp
+		local disp=item_tps[idx].disp
+		spr(sp,mx+2,
+				my+14+((i-1)*8))
+		if item_tps[idx].fnd then
+			print(disp,mx+10,
+				my+17+((i-1)*8),7)
+		else
+			print("??",mx+10,
+				my+17+((i-1)*8),5)
+		end
+		i+=1
+	end
+end
+
+function draw_sub_m(x,y)
+	local sx=x+menu_w
+	local sy=y
+	mm.sub_pos=1
+	if x<=pp.x*8 then
+		sx-=(menu_w+sub_w)
+		mm.sub_pos=-1
+	end
+	rect(sx,sy,sx+sub_w,sy+20,7)
+	-- get correct sub menu
+	local sub_menu=sub_menu_i
+	
+	local i=1
+	for t in all(sub_menu) do
+		if mm.in_sub==1 and 
+					mm.sub_pt==i then
+			rectfill(sx+1,sy+1+((i-1)*6),
+				sx+sub_w-1,sy+7+((i-1)*6),
+				2)
+		end
+		print(t,sx+2,sy+2+((i-1)*6),7)
+		i+=1
+	end
+	
+	//hack, 2 lazy
+	if mm.sub_pt>#sub_menu then
+		mm.sub_pt=#sub_menu
+	end
 end
 
 function draw_lvl()
@@ -153,8 +253,14 @@ function _update()
 		end
 	end
 	
-	if(move_p(mv))move_e()
-	move_cam()
+	if mm.open==1 then
+		update_menu(mv)
+	elseif mv.b==1 then
+		mm.open=1
+	else
+		if(move_p(mv))move_e()
+		move_cam()
+	end
 end
 
 function move_cam()
@@ -164,6 +270,53 @@ function move_cam()
 	if(cam.y<0)cam.y=0
 	if(cam.x>xmax-16)cam.x=xmax-16
 	if(cam.y>ymax-(16-hud_h))cam.y=ymax-(16-hud_h)
+end
+
+function update_menu(mv)
+	-- o button
+	if(mv.b==1)mm.open=-1
+	-- x button
+	if mv.a==1 then
+		if mm.point==0 then
+			mm.open=-1
+		elseif mm.point==1 then
+			show_help=true
+			mm.open=-1
+		elseif mm.in_sub==1 then
+			//do item action
+			use_item(mm.point-1,mm.sub_pt)
+			mm.open=-1
+			return
+		end
+	end
+	-- up/down
+	if mm.in_sub==1 then
+		if mv.y==-1 and mm.sub_pt>1 then
+			mm.sub_pt-=1
+		elseif mv.y==1 and mm.sub_pt<3 then
+			mm.sub_pt+=1
+		end
+	else
+		if mv.y==-1 and mm.point>0 then
+			mm.point-=1
+		elseif mv.y==1 and mm.point<#bag+1 then
+			mm.point+=1
+		end
+	end
+	
+	-- toggle sub menu
+	if mm.point>1 then
+		mm.sub_m=1
+		if(mv.x!=0)mm.in_sub=mv.x*mm.sub_pos
+	else
+		mm.sub_m=0
+		mm.in_sub=0
+	end
+	
+	--special arrow stuff
+	if mm.point==0 and mv.x==-1 then
+		mm.open=-1
+	end
 end
 
 function move_p(mv)
@@ -210,6 +363,16 @@ function move_p(mv)
 	-- door
 	
 	return true
+end
+
+function use_item(it,action)
+	if action==1 then
+		itx=bag[it]
+		item_tps[idx].fnd=true
+		message("used "..
+			item_tps[idx].disp)
+		del(bag,bag[it])
+		end
 end
 
 function attack_p(e)
