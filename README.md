@@ -2,7 +2,7 @@
 
 backups for all of my pico8 games :)
 
-### source control
+## Source Control
 
 I have a bash command that runs the following:
 
@@ -12,6 +12,13 @@ git add *
 git commit -m "`date`"
 git push origin master
 ```
+
+## Tips
+
+### Exporting cartrage
+
+- fn+f2 to capture cart image
+- "save cart-name.bin" to get app
 
 ## Current Projects
 
