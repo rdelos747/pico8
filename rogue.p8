@@ -390,6 +390,7 @@ function move_cam()
 	if(cam.y>ymax-(16-hud_h))cam.y=ymax-(16-hud_h)
 end
 
+--test
 function update_menu(mv)
 	-- o button
 	if(mv.b==1)mm.open=-1
