@@ -17,8 +17,8 @@ git push origin master
 
 ### Exporting cartrage
 
-- fn+f2 to capture cart image
-- "save cart-name.bin" to get app
+- `fn+f2` to capture cart image
+- `save cart-name.bin` to get app
 
 ## Current Projects
 
