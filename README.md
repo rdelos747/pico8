@@ -34,11 +34,11 @@ For now I'm using this to track the current state of what I'm working on. Most r
 - done: items and enemies hide in grass
 - done: basic hud (hp, mana, xp, log)
 
-- todo: leveling system (attack power=level?)
-- todo: new level after door
-- todo: spike damage
-- todo: advanced potions (eg fire damage)
-- todo: if fire damage will be a thing, need to do fire spreading
-- todo: enemy status indicators (psn, par, on fire, etc)
-- todo: spells (will player hold multiple spells, will they be accessed from menu or quick select?). if from menu, consider removing "log" from menu since it probably isnt needed for a simple game like this. Either way, I should show active spell in hud?
-- todo: death and restart
+- `todo:` leveling system (attack power=level?)
+- `todo:` new level after door
+- `todo:` spike damage
+- `todo:` advanced potions (eg fire damage)
+- `todo:` if fire damage will be a thing, need to do fire spreading
+- `todo:` enemy status indicators (psn, par, on fire, etc)
+- `todo:` spells (will player hold multiple spells, will they be accessed from menu or quick select?). if from menu, consider removing "log" from menu since it probably isnt needed for a simple game like this. Either way, I should show active spell in hud?
+- `todo:` death and restart
