@@ -39,15 +39,24 @@ t_door=36
 t_cdor=37
 t_grss=38
 t_soil=39
+t_spke=40
+t_drlk=41
 
---level gen
-levels={
+--terrain types
+t_norm={
 --empty
 {sp=t_emt0,autos=0,prob=0},
 --thick grass
 {sp=t_grss,autos=2,prob=20},
 --thin grass
-{sp=t_grss,autos=2,prob=10}
+{sp=t_grss,autos=2,prob=10},
+}
+
+t_spec={
+--empty
+{sp=t_emt0,autos=0,prob=0},
+--spikes
+{sp=t_spke,autos=0,prob=5}
 }
 
 --player
@@ -105,11 +114,8 @@ end
 --=============
 function _init()
 	init_items()
-	local ll=levels[
-		rand(1,#levels)
-	]
-	new_lvl(ll)
-	item_test()
+	new_lvl()
+	//item_test()
 end
 
 function init_items()
@@ -293,29 +299,33 @@ end
 function draw_lvl()
 	for j=cam.y,cam.y+(15-hud_h)do
 	for i=cam.x,cam.x+15 do
-		local dd=true
-		--items
-		for it in all(l_itms) do
-			if i==it.x and j==it.y then
-				dd=false
-				spr(item_tps[it.key].sp,
-					i*8,j*8)
-		end end
-		--enemies
-		--items
-		for e in all(ens) do
-			if e.inv_tm==0 then
-				if i==e.x and j==e.y then
+		if lvl[j][i]==t_grss then
+			spr(lvl[j][i],i*8,j*8)
+		else
+			local dd=true
+			--items
+			for it in all(l_itms) do
+				if i==it.x and j==it.y then
 					dd=false
-					spr(e.sp,(i*8)+e.ax,
-						(j*8)+e.ay)
-					if e.see then
-						spr(18,(e.x*8)+6,e.y*8)
+					spr(item_tps[it.key].sp,
+						i*8,j*8)
+			end end
+			--enemies
+			--items
+			for e in all(ens) do
+				if e.inv_tm==0 then
+					if i==e.x and j==e.y then
+						dd=false
+						spr(e.sp,(i*8)+e.ax,
+							(j*8)+e.ay)
+						if e.see then
+							spr(18,(e.x*8)+6,e.y*8)
+						end
 					end
-				end
-		end end
-		if(pp.x==i and pp.y==j)dd=false
-		if(dd)spr(lvl[j][i],i*8,j*8)
+			end end
+			if(pp.x==i and pp.y==j)dd=false
+			if(dd)spr(lvl[j][i],i*8,j*8)
+		end
 	end end
 end
 
@@ -492,7 +502,21 @@ function move_p(mv)
 				ny<0 or ny>ymax-1 then
 		return false
 	end
+	--wall collision
 	if lvl[ny][nx]==t_wall then
+		return false
+	end
+	--locked doors
+	if lvl[ny][nx]==t_drlk then
+		for key in all(bag) do
+			if key=="k" then
+				del(bag,key)
+				lvl[ny][nx]=t_door
+				message("unlocked door")
+				return false
+			end
+		end
+		message("need key")
 		return false
 	end
 	for e in all(ens) do
@@ -501,6 +525,9 @@ function move_p(mv)
 			pp.ay=mv.y*4
 			pp.as=3
 			attack_e(e)
+			if lvl[e.y][e.x]==t_grss then
+				lvl[e.y][e.x]=t_soil
+			end
 			return true
 		end
 	end
@@ -531,6 +558,8 @@ function move_p(mv)
 	end
 	
 	-- door
+	if lvl[pp.y][pp.x]==t_door then
+	end
 	
 	return true
 end
@@ -645,6 +674,9 @@ function move_e()
 			e.ay=(ny-e.y)*4
 			e.as=3
 			attack_p(e)
+			if lvl[e.y][e.y]==t_grss then
+				lvl[e.y][e.x]=t_soil
+			end
 			return
 		end
 		if lvl[ny][nx] != t_wall and
@@ -686,36 +718,67 @@ function message(t)
 end
 
 --level gen
-function new_lvl(config)
+function new_lvl()
 	xmax=rand(xmax_min,xmax_max)
 	ymax=rand(ymax_min,ymax_max)
 	
+	--empty lvl
 	lvl={}
 	for j=0,ymax-1 do
 		lvl[j]={}
 		for i=0,xmax-1 do
 			lvl[j][i]=t_emt0
 	end end
-	local cells = cell_auto(
-		config.autos,config.prob
+	
+	--get normal terrain
+	local norm=t_norm[
+		rand(1,#t_norm)]
+	--get special layer
+	local spec=t_spec[
+		rand(1,#t_spec)]
+	
+	--get normal terrain cells
+	local c_norm = cell_auto(
+		norm.autos,norm.prob
+	)
+	--get special layer cells
+	local c_spec = cell_auto(
+		spec.autos,spec.prob
 	)
 	
+	--apply normal layer
+	for j=0,ymax-1 do
+	for i=0,xmax-1 do
+		if c_norm[j][i]==1 then
+			lvl[j][i]=norm.sp
+		end
+	end end
+	--apply special layer
+	for j=0,ymax-1 do
+	for i=0,xmax-1 do
+		if c_spec[j][i]==1 and
+				lvl[j][i]==t_emt0 then
+			lvl[j][i]=spec.sp
+		end
+	end end
+	
+	--fill in the rest
 	for j=0,ymax-1 do
 		for i=0,xmax-1 do
-			if cells[j][i]==1 then
-				lvl[j][i]=config.sp
-			elseif chance(50) then
-				lvl[j][i]=t_emt1
-			elseif chance(50) then
-				lvl[j][i]=t_emt2
+			if lvl[j][i]==t_emt0 then
+				if chance(50) then
+					lvl[j][i]=t_emt1
+				elseif chance(50) then
+					lvl[j][i]=t_emt2
+				end
 			end
 	end end
 	
 	make_walls()
 	add_e()
-	//add_i()
-	//add_k()
-	//add_door()
+	add_i()
+	local did_k = add_k()
+	add_door(did_k)
 end
 
 function make_walls()
@@ -726,6 +789,26 @@ function make_walls()
 	for i=0,xmax-1 do
 		lvl[0][i]=t_wall
 		lvl[ymax-1][i]=t_wall
+	end
+end
+
+function add_door(did_k)
+	while true do
+		local ry=rand(0,ymax-1)
+		local rx=rand(0,xmax-1)
+		if ry!=0 or 
+					rx!=0 or
+					ry!=ymax-1 or 
+					rx!=xmax-1 then
+			if lvl[ry][rx]==t_wall then
+				if did_k then
+					lvl[ry][rx]=t_drlk
+				else
+					lvl[ry][rx]=t_door
+				end
+				return
+			end
+		end
 	end
 end
 
@@ -845,20 +928,27 @@ function item_test()
 end
 
 function add_k()
-	while true do
-	local rx=rand(1,xmax-2)
-	local ry=rand(1,ymax-2)
-	local place=true
-	for it in all(l_itms) do
-		if rx==it.x and ry==it.y then
-			place=false
-	end end
-	if place then
-		add(l_itms,{
-			x=rx,y=ry,key="k"
-		})
-		return
-	end end
+	if chance(100) then
+		while true do
+			local rx=rand(1,xmax-2)
+			local ry=rand(1,ymax-2)
+			local place=true
+			for it in all(l_itms) do
+				if rx==it.x and ry==it.y then
+					place=false
+			end end
+			if place then
+				add(l_itms,{
+					x=rx,y=ry,key="k"
+				})
+				return true
+			else
+				return false
+			end
+		end
+	else
+		return false
+	end
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -877,11 +967,11 @@ __gfx__
 0000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000aaa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000aaa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000002222220000990000001100000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000011000000000010022000022000990000001100000030000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000010000000000100020000002000990000001100000303030000003000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000020000002999999991111111103000300003000000000000000000000000000000000000000000000000000000000000000000000
-00000000000001000000000020000002999999991111111100030000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000020000002000990000001100000303030000003000000000000000000000000000000000000000000000000000000000000000000
-00000000000100000000100022000022000990000001100003000300003000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000001000002222220000990000001100000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000002222220000990000001100000000000000000000000000000088000000000000000000000000000000000000000000000000000
+00000000011000000000010022000022000990000001100000030000000000000060000000088000000000000000000000000000000000000000000000000000
+00000000010000000000100020000002000990000001100000303030000003000060000000088000000000000000000000000000000000000000000000000000
+00000000000000000000000020000002999999991111111103000300003000000606000088888888000000000000000000000000000000000000000000000000
+00000000000001000000000020000002999999991111111100030000000000000606060088888888000000000000000000000000000000000000000000000000
+00000000000000000000000020000002000990000001100000303030000003000000060000088000000000000000000000000000000000000000000000000000
+00000000000100000000100022000022000990000001100003000300003000000000606000088000000000000000000000000000000000000000000000000000
+00000000000000000001000002222220000990000001100000000000000000000000606000088000000000000000000000000000000000000000000000000000
