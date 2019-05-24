@@ -13,3 +13,10 @@ git commit -m "`date`"
 git push origin master
 ```
 
+## Current Projects
+
+For now I'm using this to track the current state of what I'm working on.
+
+### Rouge
+
+- <implemented>
