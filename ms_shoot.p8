@@ -31,6 +31,7 @@ pp={x=20,y=20,
 
 --arrays
 bullets={}
+sprinkles={}
 	
 -- helpers
 --=============
@@ -49,6 +50,10 @@ end
 
 function set_pause()
 	pause=2
+end
+
+function set_shake()
+	shake=4
 end
 
 -- init
@@ -77,6 +82,8 @@ function draw_game()
 	draw_player()
 	--bullets
 	draw_bullets()
+	--sprinkles
+	draw_sprinkles()
 end
 
 function draw_player()
@@ -87,6 +94,12 @@ end
 function draw_bullets()
 	for b in all(bullets) do
 		spr(11,b.x-4,b.y-4)
+	end
+end
+
+function draw_sprinkles()
+	for s in all(sprinkles) do
+		spr(12,s.x,s.y)
 	end
 end
 
@@ -107,6 +120,7 @@ function _update()
 	player_move(drr)
 	player_shoot(sht)
 	update_bullets()
+	update_sprinkles()
 	update_cam()
 end
 
@@ -181,12 +195,23 @@ function update_bullets()
 			b.y+=b.drr.y*b_speed
 		else
 			set_pause()
+			add_sprinkle(b.x-4,b.y-4)
 			del(bullets,b)
 		end
-		if b.x<0 or b.x>xmax*8 or
-					b.y<0 or b.y>ymax*8 then
+		if b.x<cam.x or b.x>cam.x+128 or
+					b.y<cam.y or b.y>cam.y+128
+					then
 			del(bullets,b)
 		end
+	end
+end
+
+function update_sprinkles()
+	for s in all(sprinkles) do
+		s.x+=s.dx
+		s.y+=s.dy
+		s.dy+=1
+		if(s.dy>5)del(sprinkles,s)
 	end
 end
 
@@ -240,7 +265,6 @@ function update_opens()
 		end
 	end end
 end
---1234567
 
 -- creators
 -- =================
@@ -314,23 +338,28 @@ function set_map()
 		--clear the current
 		mset(i,j,0)
 		--set all closed tiles
-		--[[
-		if lvl[j][i].val==-1 then
-			mset(i,j,18)
-		elseif lvl[j][i].val>0 then
-			mset(i,j,lvl[j][i].val+18)
-		end
-		]]--
 		if lvl[j][i].open==false then
 			mset(i,j,17)
 		end
 	end end
 end
+
+-- sprinkles
+function add_sprinkle(x,y)
+	add(sprinkles,{
+		x=x+4,y=y+4,dx=1,dy=-2})
+	add(sprinkles,{
+		x=x+4,y=y-4,dx=1,dy=-2})
+	add(sprinkles,{
+		x=x-4,y=y+4,dx=-1,dy=-2})
+	add(sprinkles,{
+		x=x-4,y=y-4,dx=-1,dy=-2})
+end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000c7770000777c0000c77c00007777000000000000000000000000000000000000777700007777000000000000000000000000000000000000000000
 00700700007777000077770000777700007777000000000000000000007777000077770000877800008778000000000000000000000000000000000000000000
-0007700000c7770000777c000077770000c77c00000000000000000000877800008778000077770000777700000aa00000000000000000000000000000000000
+0007700000c7770000777c000077770000c77c00000000000000000000877800008778000077770000777700000aa000000f0000000000000000000000000000
 0007700000000000000000000000000000000000007777000077770000788700007887000078870000788700000aa00000000000000000000000000000000000
 00700700000000000000000000000000000000000070070000700700007000000000070000777700007777000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000070000700000000000000000000000700000000007000000000000000000000000000000000000000000
