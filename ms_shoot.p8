@@ -33,6 +33,13 @@ pp={x=20,y=20,
 	max_hp=10
 }
 
+--drop
+drop={
+	x=-1,tm=0,y_end=-1,
+	dy_bot=0,dy_top=0,
+	go=false,landed=false
+}
+
 --arrays
 bullets={}
 sprinkles={}
@@ -94,6 +101,13 @@ function draw_game()
 	if(pause>0)m_filter=1	
 	map(m_x,m_y,m_x*8,m_y*8,
 		18,18,m_filter)
+	--drop
+	if drop.go then
+		draw_drop()
+		if not drop.landed then
+			return
+		end
+	end
 	--objects
 	draw_hud()
 	draw_player()
@@ -104,9 +118,11 @@ function draw_game()
 end
 
 function draw_hud()
-	local hud_t=cam.y+121
+	local hud_t=cam.y+120
 	local hp_x=cam.x+4
-	draw_hp(hp_x,hud_t)
+	rectfill(cam.x,hud_t,cam.x+128,
+		hud_t+8,0)
+	draw_hp(hp_x,hud_t+2)
 end
 
 function draw_hp(x,y)
@@ -169,15 +185,38 @@ function draw_sheets()
 	pal()
 end
 
+function draw_drop()
+	pal(7,flr(drop.tm)+8)
+		rectfill(
+			drop.x,
+			cam.y+drop.dy_top,
+			drop.x+8,
+			cam.y+drop.dy_bot,
+			7
+		)
+	pal()
+end
+
 -- update
 -- =================
 function _update()
+	--update cam
+	update_cam()
+	
 	--counter updates
 	if pause>0 then
 		pause-=1
 		return
 	end
 	if(hit>0)hit-=0.5
+	
+	--drop update
+	if drop.go then
+		update_drop()
+		if not drop.landed then
+			return
+		end
+	end
 	
 	--main update
 	local drr=nil
@@ -193,7 +232,6 @@ function _update()
 	update_sprinkles()
 	update_explosions()
 	update_sheets()
-	update_cam()
 end
 
 function update_cam()
@@ -345,6 +383,9 @@ function update_sheets()
 	end
 end
 
+-- drop stuff
+-- =================
+
 function place_player()
 	--at this time,all tiles should
 	--be closed, so create opening
@@ -352,7 +393,7 @@ function place_player()
 	local rj=rand(0,ymax-1)
 	while true do
 		if lvl[rj][ri].val==0 then
-			open_tile(ri,rj)
+			//open_tile(ri,rj)
 			break
 		else
 			ri=rand(0,xmax-1)
@@ -361,6 +402,27 @@ function place_player()
 	end
 	pp.x=ri*8
 	pp.y=rj*8
+	drop.x=pp.x-4
+	drop.y_end=pp.y-12
+	drop.go=true
+end
+
+function update_drop()
+	if drop.dy_bot<drop.y_end then
+		drop.dy_bot+=8
+	elseif drop.dy_top<drop.y_end then
+		if not drop.landed then
+			drop.landed=true
+			open_tile(flr(pp.x/8),
+				flr(pp.y/8))
+			update_opens()
+			set_shake()
+		end
+		drop.dy_top+=5
+	else
+		drop.go=false
+	end
+	drop.tm+=1
 end
 
 -- minesweeper stuff
