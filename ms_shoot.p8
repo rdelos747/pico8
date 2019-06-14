@@ -76,6 +76,7 @@ bullets={}
 sprinkles={}
 explosions={}
 sheets={}
+hearts={}
 	
 -- helpers
 --=============
@@ -134,6 +135,9 @@ function reset_level()
 	end
 	for s in all(sheets)do
 		del(sheets,s)
+	end
+	for h in all(hearts)do
+		del(hearts,h)
 	end
 	--reset drop
 	drop.tm=0
@@ -272,6 +276,7 @@ function draw_game()
 	draw_explosions()
 	draw_sheets()
 	draw_door()
+	draw_hearts()
 	--hud
 	draw_hud()
 	--message
@@ -369,6 +374,13 @@ function draw_door()
 	spr(27,door.i*8,
 		(door.j*8)+door.y)
 	pal()
+end
+
+function draw_hearts()
+	for h in all(hearts)do
+		spr(35,(h.i*8)+1,(h.j*8)+2)
+		spr(36,(h.i*8)+1,(h.j*8)+2)
+	end
 end
 
 function draw_drop()
@@ -542,6 +554,9 @@ function player_move(drr)
 		pp.x+=drr.x
 		pp.y+=drr.y
 	end
+	
+	--touch heart
+	touch_heart()
 		
 	--update feet anim
 	if pp.walk==0 then
@@ -570,6 +585,18 @@ function player_shoot(sht)
 			x=pp.x,y=pp.y,
 			drr=pp.drr,tm=0
 		})
+	end
+end
+
+function touch_heart()
+	for h in all(hearts)do
+		if flr(pp.x/8)==h.i and
+					flr(pp.y/8)==h.j then
+			del(hearts,h)
+			add_sheet(pp.x-4,pp.y-4)
+			pp.hp+=2
+			if(pp.hp>pp.max_hp)pp.hp=pp.max_hp
+		end
 	end
 end
 
@@ -734,6 +761,15 @@ function update_door()
 	door.tm+=0.5
 end
 
+--hearts stuff
+function place_heart(i,j)
+	if(not chance(2))return
+	add(hearts,{
+		i=i,
+		j=j
+	})
+end
+
 -- minesweeper stuff
 -- =================
 function open_tile(i,j)
@@ -742,6 +778,7 @@ function open_tile(i,j)
 	if lvl[j][i].val>0 then
 		return
 	end
+	place_heart(i,j)
 	local imin=max(i-1,0)
 	local imax=min(i+1,xmax-1)
 	local jmin=max(j-1,0)
