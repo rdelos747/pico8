@@ -10,17 +10,6 @@ todo:
 				as door
 		-add key door, same as door
 				but shows a key sprite ontop
-	-add bombs found/hit to 
-			l_stat
-	-add bombs found to t_stat
-	-add h_next (next heart) 
-			levels
-	-calculate h_next stuff in
-			game, and add animation when
-			new heart is added in game
-	-show total bombs found in
-			hud
-	
 ]]--
 
 
@@ -29,32 +18,27 @@ todo:
 --constants
 b_speed=6
 hud_h=8
+num_b=30
 --modes
 mode_start=0
 mode_game=1
 mode_middle=2
 mode_inst=3
-mode=mode_middle
-
+mode=mode_game
 --cam
 cam={x=0,y=0,sx=0,sy=0,s_tm=0}
 samt=2
 --level
 lvl={}
-num_b=30
 xmax=16
 ymax=16
 --level stats
-l_stat={
-	b_found=11,
-	b_hit=2
-}
+l_stat={b_found=0,b_hit=0}
 --total stats
-t_stat={
-	b_found=0,
-	h_next=10
-}
-
+t_stat={b_found=0}
+--heart levels
+h_lvl=1
+h_levels={10,20,50,100}
 --player
 pp={x=20,y=20,
 	walk=0,--walking counter
@@ -65,14 +49,12 @@ pp={x=20,y=20,
 	hp=1,
 	max_hp=10
 }
-
 --middle helper
 middle={
 	p_tm=0,
 	b_tm=0,
 	t_tm=0
 }
-
 --drop/undrop
 drop={
 	x=-1,tm=0,y_end=-1,
@@ -89,7 +71,6 @@ door={
 	i=-1,j=-1,tm=0,y=0,dy=-1,
 	found=false
 }
-
 --arrays
 bullets={}
 sprinkles={}
@@ -125,10 +106,18 @@ function set_hit()
 	hit=10
 end
 
+function set_found()
+	found=10
+end
+
+function set_message()
+	message=100
+end
+
 -- init
 -- =================
 function _init()
-	//xreset_level()
+	reset_level()
 end
 
 --reset
@@ -172,6 +161,8 @@ function reset_level()
 	--reset game stuff
 	pause=0
 	hit=0
+	found=0
+	message=0
 	--generate stuff
 	new_level()
 	place_player()
@@ -225,12 +216,19 @@ function draw_middle()
 		print("=",55,50,7)
 		print(t_stat.b_found,
 			61,50,11)
-		print("next",24,60,7)
-		spr(35,43,59)
-		spr(36,43,59)
-		print("in",54,60,7)
-		print(t_stat.h_next-t_stat.b_found,
-			64,60,11)
+		if h_lvl<=#h_levels then
+			print("next",24,60,7)
+			spr(35,43,59)
+			spr(36,43,59)
+			print("in",54,60,7)
+			print(h_levels[h_lvl]-t_stat.b_found,
+				64,60,11)
+		else
+			print("all",24,60,7)
+			spr(35,43,59)
+			spr(36,43,59)
+			print("acquired",54,60,7)
+		end
 	end
 	--player
 	spr(4,60,103)
@@ -266,6 +264,7 @@ function draw_game()
 		draw_undrop()
 		return
 	end
+	
 	--objects
 	draw_player()
 	draw_bullets()
@@ -275,6 +274,8 @@ function draw_game()
 	draw_door()
 	--hud
 	draw_hud()
+	--message
+	if(message>0)draw_message()
 end
 
 function draw_hud()
@@ -282,7 +283,24 @@ function draw_hud()
 	local hp_x=cam.x+4
 	rectfill(cam.x,hud_t,cam.x+128,
 		hud_t+8,0)
-	draw_hp(hp_x,hud_t+2)
+	--found bombs
+	draw_found(hp_x+100,hud_t)
+	--hearts
+	draw_hp(hp_x,hud_t+1)
+end
+
+function draw_found(x,y)
+	--found bombs
+	if flr(found)%2==1 then
+		pal(7,10)
+		pal(11,10)
+		pal(3,10)
+	end
+	spr(49,x,y)
+	print("=",x+10,y+2,7)
+	print(t_stat.b_found,
+		x+17,y+2,11)
+	pal()
 end
 
 function draw_hp(x,y)
@@ -377,6 +395,25 @@ function draw_undrop()
 	pal()
 end
 
+function draw_message()
+	rectfill(32,48,96,80,0)
+	rect(32,48,96,80,1)
+	print("new",37,56,7)
+	spr(35,51,55)
+	spr(36,51,55)
+	print("acquired",62,56,7)
+	if h_lvl<=#h_levels then
+		print("next at",39,66,7)
+		print(h_levels[h_lvl],70,66,11)
+		spr(49,83,64)
+	else
+		print("all",39,66,7)
+		spr(35,51,65)
+		spr(36,51,65)
+		print("acquired",62,66,7)
+	end
+end
+
 -- update
 -- =================
 function _update()
@@ -416,6 +453,7 @@ function update_game()
 		return
 	end
 	if(hit>0)hit-=0.5
+	if(found>0)found-=0.5
 	
 	--drop update
 	if drop.go then
@@ -424,9 +462,14 @@ function update_game()
 			return
 		end
 	end
-	
+	--undrop update
 	if undrop.go then
 		update_undrop()
+		return
+	end
+	
+	if message>0 then
+		message-=1
 		return
 	end
 	
@@ -563,7 +606,7 @@ function damage_block(x,y)
 		if lvl[j][i].val==-1 then
 			set_pause()
 			set_hit()
-			open_bomb(j,i)
+			hit_bomb(j,i)
 		else
 			open_tile(i,j)
 		end
@@ -730,9 +773,10 @@ function update_opens()
 	end end
 end
 
-function open_bomb(j,i)
+function hit_bomb(j,i)
 	lvl[j][i].open=true
 	mset(i,j,22)
+	l_stat.b_hit+=1
 end
 
 function check_bomb(j,i)
@@ -741,6 +785,23 @@ function check_bomb(j,i)
 		lvl[j][i].open=true
 		mset(i,j,21)
 		add_sheet(i*8,j*8)
+		set_found()
+		l_stat.b_found+=1
+		t_stat.b_found+=1
+	end
+	check_level()
+end
+
+function check_level()
+	if h_lvl>#h_levels then
+		return
+	end
+	if t_stat.b_found>=
+				h_levels[h_lvl] then
+		h_lvl+=1
+		pp.max_hp+=2
+		set_message()
+		set_hit()
 	end
 end
 
