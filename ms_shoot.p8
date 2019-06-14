@@ -61,7 +61,7 @@ pp={x=20,y=20,
 	shoot=0,--shooting counter
 	sp_ft=6,	--feet sprite
 	sp_hd=1,	--head sprite
-	drr={0,1},--direction
+	drr={x=-1,y=0},--direction
 	hp=1,
 	max_hp=10
 }
@@ -128,7 +128,7 @@ end
 -- init
 -- =================
 function _init()
-	reset_level()
+	//xreset_level()
 end
 
 --reset
@@ -393,6 +393,16 @@ function update_middle()
 		middle.b_tm+=0.5
 	else
 		middle.t_tm=1
+	end
+	
+	if btnp(5) then
+		if middle.t_tm==0 then
+			middle.b_tm=num_b-1
+			middle.t_tm=1
+		else
+			reset_level()
+			mode=mode_game
+		end
 	end
 end
 
