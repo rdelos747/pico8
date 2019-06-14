@@ -10,9 +10,17 @@ todo:
 				as door
 		-add key door, same as door
 				but shows a key sprite ontop
-	-screen between levels that
-			shows overall progress
-			and progress from last level
+	-add bombs found/hit to 
+			l_stat
+	-add bombs found to t_stat
+	-add h_next (next heart) 
+			levels
+	-calculate h_next stuff in
+			game, and add animation when
+			new heart is added in game
+	-show total bombs found in
+			hud
+	
 ]]--
 
 
@@ -65,55 +73,28 @@ middle={
 	t_tm=0
 }
 
+--drop/undrop
+drop={
+	x=-1,tm=0,y_end=-1,
+	dy_bot=0,dy_top=0,
+	go=false,landed=false
+}
+undrop={
+	x=-1,tm=0,y_end=-1,
+	dy_bot=0,dy_top=0,
+	go=false
+}
+--door
+door={
+	i=-1,j=-1,tm=0,y=0,dy=-1,
+	found=false
+}
+
 --arrays
 bullets={}
 sprinkles={}
 explosions={}
 sheets={}
-
---reset
-function reset_level()
-	--clear arrays :(
-	for b in all(bullets)do
-		del(bullets,b)
-	end
-	for s in all(sprinkles)do
-		del(sprinkles,s)
-	end
-	for e in all(explosions)do
-		del(explosions,e)
-	end
-	for s in all(sheets)do
-		del(sheets,s)
-	end
-	--reset objects
-	--drop/undrop
-	drop={
-		x=-1,tm=0,y_end=-1,
-		dy_bot=0,dy_top=0,
-		go=false,landed=false
-	}
-	undrop={
-		x=-1,tm=0,y_end=-1,
-		dy_bot=0,dy_top=0,
-		go=false
-	}
-	--door
-	door={
-		i=-1,j=-1,tm=0,y=0,dy=-1,
-		found=false
-	}
-	--reset middle stuff
-	middle.b_tm=0
-	middle.p_tm=0
-	--game stuff
-	pause=0
-	hit=0
-	--generate stuff
-	new_level()
-	place_player()
-	place_door()
-end
 	
 -- helpers
 --=============
@@ -148,6 +129,53 @@ end
 -- =================
 function _init()
 	reset_level()
+end
+
+--reset
+function reset_level()
+	--clear arrays :(
+	for b in all(bullets)do
+		del(bullets,b)
+	end
+	for s in all(sprinkles)do
+		del(sprinkles,s)
+	end
+	for e in all(explosions)do
+		del(explosions,e)
+	end
+	for s in all(sheets)do
+		del(sheets,s)
+	end
+	--reset drop
+	drop.tm=0
+	drop.dy_bot=0
+	drop.dy_top=0
+	drop.go=false
+	drop.landed=false
+	--reset undrop
+	undrop.tm=0
+	undrop.dy_bot=0
+	undrop.dy_top=0
+	undrop.go=false
+	--reset door
+	door.tm=0
+	door.y=0
+	door.dy=-1
+	door.found=false
+	--reset middle stuff
+	middle.b_tm=0
+	middle.p_tm=0
+	middle.t_tm=0
+	--reset l_stat
+	l_stat.b_found=0
+	l_stat.b_hit=0
+	--reset game stuff
+	pause=0
+	hit=0
+	--generate stuff
+	new_level()
+	place_player()
+	place_door()
 end
 
 -- draw
