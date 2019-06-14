@@ -757,9 +757,11 @@ end
 function update_enemies()
 	for e in all(enemies)do
 		e.tm+=0.1
+		-- shooting
 		if e.shoot and chance(1) then
 			//enemy shooting
 		end
+		-- movement
 	end
 end
 
