@@ -77,6 +77,8 @@ sprinkles={}
 explosions={}
 sheets={}
 hearts={}
+spawners={}
+enemies={}
 	
 -- helpers
 --=============
@@ -139,6 +141,12 @@ function reset_level()
 	for h in all(hearts)do
 		del(hearts,h)
 	end
+	for s in all(spawners)do
+		del(spawners,s)
+	end
+	for e in all(enemies)do
+		del(enemies,e)
+	end
 	--reset drop
 	drop.tm=0
 	drop.dy_bot=0
@@ -163,6 +171,7 @@ function reset_level()
 	l_stat.b_found=0
 	l_stat.b_hit=0
 	--reset game stuff
+	spawn_tm=100
 	pause=0
 	hit=0
 	found=0
@@ -277,6 +286,8 @@ function draw_game()
 	draw_sheets()
 	draw_door()
 	draw_hearts()
+	draw_spawners()
+	draw_enemies()
 	--hud
 	draw_hud()
 	--message
@@ -407,6 +418,20 @@ function draw_undrop()
 	pal()
 end
 
+function draw_spawners()
+	for s in all(spawners)do
+		circ((s.i*8)+4,(s.j*8)+4,
+			flr(s.tm)%3,7)
+	end
+end
+
+function draw_enemies()
+	for e in all(enemies)do
+		spr(e.sp+flr(e.tm)%2,
+			e.x,e.y)
+	end
+end
+
 function draw_message()
 	rectfill(32,48,96,80,0)
 	rect(32,48,96,80,1)
@@ -500,6 +525,8 @@ function update_game()
 	update_explosions()
 	update_sheets()
 	update_door()
+	update_spawners()
+	update_enemies()
 end
 
 function update_cam()
@@ -676,6 +703,66 @@ function update_sheets()
 	end
 end
 
+-- enemy stuff
+-- =================
+function add_spawner()
+	local ri=rand(0,xmax-1)
+	local rj=rand(0,ymax-1)
+	while true do
+		if lvl[rj][ri].open and
+					lvl[rj][ri].val>=0 then
+			add(spawners,{
+				i=ri,
+				j=rj,
+				tm=0
+			})
+			break
+		else
+			ri=rand(0,xmax-1)
+			rj=rand(0,ymax-1)
+		end
+	end
+end
+
+function update_spawners()
+	if spawn_tm==0 then
+		spawn_tm=100
+		add_spawner()
+	else
+		spawn_tm-=1
+	end
+	for s in all(spawners)do
+		s.tm+=0.5
+		if s.tm>24 then
+			add_enemy((s.i*8)+1,(s.j*8)+1)
+			del(spawners,s)
+		end
+	end
+end
+
+function add_enemy(x,y)
+	if chance(60) then
+		add(enemies,{
+			sp=7,hp=1,x=x,y=y,tm=1,
+			shoot=false
+		})
+	else
+		add(enemies,{
+			sp=9,hp=3,x=x,y=y,tm=1,
+			shoot=true
+		})
+	end
+end
+
+function update_enemies()
+	for e in all(enemies)do
+		e.tm+=0.1
+		if e.shoot and chance(1) then
+			//enemy shooting
+		end
+	end
+end
+
 -- drop stuff
 -- =================
 function place_player()
@@ -747,7 +834,6 @@ function place_door()
 	end
 	door.i=ri
 	door.j=rj
-	printh("door "..rj.." "..ri)
 end
 
 function update_door()
@@ -766,10 +852,7 @@ end
 --hearts stuff
 function place_heart(i,j)
 	if(not chance(2))return
-	add(hearts,{
-		i=i,
-		j=j
-	})
+	add(hearts,{i=i,j=j})
 end
 
 -- minesweeper stuff
