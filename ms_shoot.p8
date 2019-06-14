@@ -41,6 +41,11 @@ l_stat={
 	b_found=11,
 	b_hit=2
 }
+--total stats
+t_stat={
+	b_found=0,
+	h_next=10
+}
 
 --player
 pp={x=20,y=20,
@@ -56,7 +61,8 @@ pp={x=20,y=20,
 --middle helper
 middle={
 	p_tm=0,
-	b_tm=0
+	b_tm=0,
+	t_tm=0
 }
 
 --arrays
@@ -97,6 +103,9 @@ function reset_level()
 		i=-1,j=-1,tm=0,y=0,dy=-1,
 		found=false
 	}
+	--reset middle stuff
+	middle.b_tm=0
+	middle.p_tm=0
 	--game stuff
 	pause=0
 	hit=0
@@ -165,11 +174,10 @@ function draw_grid()
 end
 
 function draw_middle()
-	draw_grid()
+	//draw_grid()
 	--draw bombs found
 	local b_left=24
 	local b_top=10
-	//for b=0,num_b-1 do
 	for b=0,flr(middle.b_tm) do
 		local bs=51
 		if b<l_stat.b_found then
@@ -181,6 +189,20 @@ function draw_middle()
 		spr(bs,
 			b_left+(b%10)*8,
 			b_top+flr(b/10)*8)
+	end
+	--totals
+	if middle.t_tm==1 then
+		print("total",24,50,7)
+		spr(49,45,48)
+		print("=",55,50,7)
+		print(t_stat.b_found,
+			61,50,11)
+		print("next",24,60,7)
+		spr(35,43,59)
+		spr(36,43,59)
+		print("in",54,60,7)
+		print(t_stat.h_next-t_stat.b_found,
+			64,60,11)
 	end
 	--player
 	spr(4,60,103)
@@ -341,6 +363,8 @@ function update_middle()
 	middle.p_tm+=0.1
 	if middle.b_tm<num_b-1 then
 		middle.b_tm+=0.5
+	else
+		middle.t_tm=1
 	end
 end
 
