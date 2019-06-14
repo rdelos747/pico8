@@ -550,7 +550,9 @@ function player_move(drr)
 		undrop.dy_bot=door.j*8
 		undrop.go=true
 	end
-	if place_free(nx,ny) then
+	if place_free(nx,ny) and
+				nx>=0 and nx<=xmax*8 and
+				ny>=0 and ny<=ymax*8 then
 		pp.x+=drr.x
 		pp.y+=drr.y
 	end
@@ -679,15 +681,15 @@ end
 function place_player()
 	--at this time,all tiles should
 	--be closed, so create opening
-	local ri=rand(0,xmax-1)
-	local rj=rand(0,ymax-1)
+	local ri=rand(1,xmax-2)
+	local rj=rand(1,ymax-2)
 	while true do
 		if lvl[rj][ri].val==0 then
 			//open_tile(ri,rj)
 			break
 		else
-			ri=rand(0,xmax-1)
-			rj=rand(0,ymax-1)
+			ri=rand(1,xmax-2)
+			rj=rand(1,ymax-2)
 		end
 	end
 	pp.x=ri*8
