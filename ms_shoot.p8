@@ -16,6 +16,13 @@ todo:
 	-add enemy berserk mode: if
 			e.hp==1, increase their speed
 			and render them red/black
+	-or
+	-press z to switch weapon:
+		1.slow shooter: inf amo
+		2.machine gun: limited/amo pickup
+		3.bomb: limited/amo pickup
+			-should bomb be throw, or
+					drop?
 ]]--
 
 
@@ -59,7 +66,10 @@ pp={x=20,y=20,
 	h_dy=0,--hit y direction
 	d_tm=0,--die time
 	d_y=0, --die y offset
-	d_dy=0 --die y direction
+	d_dy=0,--die y direction
+	a_m=10,--mg ammo
+	a_b=2, --bomb amo,
+	wpn=0  --weapon index
 }
 --middle helper
 middle={
@@ -91,6 +101,7 @@ sheets={}
 hearts={}
 spawners={}
 enemies={}
+m_ammo={}
 	
 -- helpers
 --=============
@@ -159,6 +170,9 @@ function reset_level()
 	for e in all(enemies)do
 		del(enemies,e)
 	end
+	for m in all(m_ammo)do
+		del(m_ammo,m)
+	end
 	--reset player stuff
 	pp.h_tm=0
 	pp.h_dx=0
@@ -220,7 +234,7 @@ function draw_grid()
 		line(0,i*8,127,i*8,1)
 	end
 	for i=1,8 do
-		line(i*16,0,i*16,127,2)
+		line(i*16,0,i*16,1,2)
 		line(0,i*16,127,i*16,2)
 	end
 end
@@ -312,6 +326,7 @@ function draw_game()
 	draw_sheets()
 	draw_door()
 	draw_hearts()
+	draw_m_ammo()
 	draw_spawners()
 	draw_enemies()
 	--hud
@@ -323,12 +338,26 @@ end
 function draw_hud()
 	local hud_t=cam.y+120
 	local hp_x=cam.x+4
+	--border
 	rectfill(cam.x,hud_t,cam.x+128,
 		hud_t+8,0)
-	--found bombs
+	draw_guns(hp_x+60,hud_t)
 	draw_found(hp_x+100,hud_t)
-	--hearts
 	draw_hp(hp_x,hud_t+1)
+end
+
+function draw_guns(x,y)
+	if(pp.wpn==0)pal(1,7)
+	spr(27,x,y+1)
+	pal()
+	if(pp.wpn==1)pal(1,7)
+	spr(28,x+10,y+1)
+	print(pp.a_m,x+16,y+2,1)
+	pal()
+	if(pp.wpn==2)pal(1,7)
+	spr(29,x+26,y+1)
+	print(pp.a_b,x+33,y+2,1)
+	pal()
 end
 
 function draw_found(x,y)
@@ -426,7 +455,7 @@ end
 function draw_door()
 	if(not door.found)return
 	pal(7,(door.tm%8)+8)
-	spr(27,door.i*8,
+	spr(26,door.i*8,
 		(door.j*8)+door.y)
 	pal()
 end
@@ -437,6 +466,15 @@ function draw_hearts()
 		if(flr(h.tm)%2==0)pal(8,10)
 		spr(35,(h.i*8)+1,(h.j*8)+2)
 		spr(36,(h.i*8)+1,(h.j*8)+2)
+		pal()
+	end
+end
+
+function draw_m_ammo()
+	for m in all(m_ammo)do
+		m.tm+=0.1
+		if(flr(m.tm)%2==0)pal(9,10)
+		spr(30,(m.i*8)+1,(m.j*8)+2)
 		pal()
 	end
 end
@@ -587,6 +625,10 @@ function update_game()
 	if(btn(2))drr={x=0,y=-1}
 	if(btn(3))drr={x=0,y=1}
 	if(btn(5))sht=true
+	if btnp(4) then
+		pp.wpn+=1
+		if(pp.wpn>2)pp.wpn=0
+	end
 	
 	--player stuff
 	if(pp.h_tm>0)pp.h_tm-=0.5
@@ -667,8 +709,9 @@ function player_move(drr)
 		pp.y+=drr.y
 	end
 	
-	--touch heart
+	--touch stuff
 	touch_heart()
+	touch_m_ammo()
 		
 	--update feet anim
 	if pp.walk==0 then
@@ -692,12 +735,35 @@ function player_shoot(sht)
 	if sht==false then
 		return
 	elseif pp.shoot==0 then
-		pp.shoot=5
+		if(pp.wpn==0)p_shoot_g()
+		if(pp.wpn==1)p_shoot_m()
+		if(pp.wpn==2)p_shoot_b()
+	end
+end
+
+function p_shoot_g()
+	pp.shoot=20
+	add(bullets,{
+		x=pp.x,y=pp.y,
+		drr=pp.drr,tm=0
+	})
+end
+
+function p_shoot_m()
+	pp.shoot=5
+	if pp.a_m>0 then
+		pp.a_m-=1
 		add(bullets,{
 			x=pp.x,y=pp.y,
 			drr=pp.drr,tm=0
 		})
+	else
+		pp.wpn=0
 	end
+end
+
+function p_shoot_b()
+
 end
 
 function touch_heart()
@@ -708,6 +774,18 @@ function touch_heart()
 			add_sheet(pp.x-4,pp.y-4)
 			pp.hp+=2
 			if(pp.hp>pp.max_hp)pp.hp=pp.max_hp
+		end
+	end
+end
+
+function touch_m_ammo()
+	for m in all(m_ammo)do
+		if flr(pp.x/8)==m.i and
+					flr(pp.y/8)==m.j then
+			del(m_ammo,m)
+			add_sheet(pp.x-4,pp.y-4)
+			pp.a_m+=10
+			if(pp.a_m>99)pp.a_m=99
 		end
 	end
 end
@@ -950,6 +1028,8 @@ function damage_enemy(e)
 	if	e.hp<=0 then
 		add_explosion(e.x-4,e.y-4)
 		set_shake()
+		place_heart(flr((e.x-4)/8),
+			flr((e.y-4)/8))
 		del(enemies,e)
 	end
 end
@@ -1046,6 +1126,12 @@ function place_heart(i,j)
 	add(hearts,{i=i,j=j,tm=0})
 end
 
+--ammo stuff
+function place_m_ammo(i,j)
+	if(chance(90))return
+	add(m_ammo,{i=i,j=j,tm=0})
+end
+
 -- minesweeper stuff
 -- =================
 function open_tile(i,j)
@@ -1054,7 +1140,8 @@ function open_tile(i,j)
 	if lvl[j][i].val>0 then
 		return
 	end
-	place_heart(i,j)
+	//place_heart(i,j)
+	place_m_ammo(i,j)
 	local imin=max(i-1,0)
 	local imax=min(i+1,xmax-1)
 	local jmin=max(j-1,0)
@@ -1257,14 +1344,14 @@ __gfx__
 00700700000000000000000000000000000000000070070000700700007000000000070000777700007777000000000000000000007777007777777700000000
 00000000000000000000000000000000000000000000070000700000000000000000000000700000000007000000000000000000000000007777777700000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1000000007777770022222200eeeeee0088888800bbbbbb008888880000000000000000001111110100000000000000000000000000000000000000000000000
-000000007000000720000002e000000e80000008bb1111bb88111188000000000000000011000011000000000000000000000000000000000000000000000000
-000000007000000720000002e000000e80000008b333333b82222228000000000000000010000001000555000000000000000000000000000000000000000000
-000000007000005720000012e00000de80000028b333333b82222228000000000000000010000001000505000000000000000000000000000000000000000000
-0000000070000567200001d2e0000d2e800002e8bb3333bb88222288000000000000000011000011000555007777777700000000000000000000000000000000
-000000007000566720001dd2e000d22e80002ee83bbbbbb328888882777777777777777710111101000505007000000700000000000000000000000000000000
-00000000700566772001dd22e00d22ee8002ee881333333112222221777777777777777710000001000555007000000700000000000000000000000000000000
-0000000007777770022222200eeeeee0088888800111111001111110000000000000000001111110000000007777777700000000000000000000000000000000
+1000000007777770022222200eeeeee0088888800bbbbbb008888880000000000000000001111110000000000111000001110000111100000000070000000000
+000000007000000720000002e000000e80000008bb1111bb881111880000000000000000110000110000000010000000101010001000100000f0777000000000
+000000007000000720000002e000000e80000008b333333b82222228000000000000000010000001000000001001100010101000101100000f99070000000000
+000000007000005720000012e00000de80000028b333333b82222228000000000000000010000001000000001000100010001000100010000f99000000000000
+0000000070000567200001d2e0000d2e800002e8bb3333bb88222288000000000000000011000011777777770111000010001000111100000999000000000000
+000000007000566720001dd2e000d22e80002ee83bbbbbb328888882777777777777777710111101700000070000000000000000000000000000000000000000
+00000000700566772001dd22e00d22ee8002ee881333333112222221777777777777777710000001700000070000000000000000000000000f99000000000000
+0000000007777770022222200eeeeee0088888800111111001111110000000000000000001111110777777770000000000000000000000000000000000000000
 100000000777777000000d0d08800000000088000220000000002200000000001000000010000000100000001000000010000000100000001000000010000000
 0000000070000007000000d082280000000088802002000000000020000000000000000000000000000000000000000000000000000000000000000000000000
 000000007000000700dd0d0d82880000000088802000000000000020000000000005500000055500000555000005050000055500000500000005550000055500
