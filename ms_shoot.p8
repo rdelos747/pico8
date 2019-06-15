@@ -59,7 +59,7 @@ pp={x=20,y=20,
 	sp_ft=6,	--feet sprite
 	sp_hd=1,	--head sprite
 	drr={x=-1,y=0},--direction
-	hp=1,
+	hp=6,
 	max_hp=6,
 	h_tm=0,--hit time
 	h_dx=0,--hit x direction
@@ -891,7 +891,7 @@ function damage_block(x,y)
 			hit_bomb(j,i)
 			set_shake()
 		else
-			open_tile(i,j)
+			open_tile(i,j,false)
 			set_shake()
 		end
 		//set_pause()
@@ -1064,7 +1064,7 @@ function update_drop()
 		if not drop.landed then
 			drop.landed=true
 			open_tile(flr(pp.x/8),
-				flr(pp.y/8))
+				flr(pp.y/8),true)
 			update_opens()
 			set_shake()
 		end
@@ -1122,26 +1122,30 @@ end
 
 --hearts stuff
 function place_heart(i,j)
-	if(not chance(2))return
+	if(chance(2))return
 	add(hearts,{i=i,j=j,tm=0})
 end
 
 --ammo stuff
-function place_m_ammo(i,j)
-	if(chance(90))return
+function place_m_ammo(i,j,ch)
+	if(chance(ch))return
 	add(m_ammo,{i=i,j=j,tm=0})
 end
 
 -- minesweeper stuff
 -- =================
-function open_tile(i,j)
+function open_tile(i,j,start)
 	lvl[j][i].open=true
 	add_explosion(i*8,j*8)
 	if lvl[j][i].val>0 then
 		return
 	end
 	//place_heart(i,j)
-	place_m_ammo(i,j)
+	if start then
+		place_m_ammo(i,j,90)
+	else
+		place_m_ammo(i,j,1)
+	end
 	local imin=max(i-1,0)
 	local imax=min(i+1,xmax-1)
 	local jmin=max(j-1,0)
@@ -1150,7 +1154,7 @@ function open_tile(i,j)
 	for ii=imin,imax do
 		if lvl[jj][ii].open==false and
 					lvl[jj][ii].val!=-1 then
-			open_tile(ii,jj)
+			open_tile(ii,jj,start)
 		end
 	end end
 end
@@ -1371,3 +1375,5 @@ __gfx__
 __gff__
 0000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+__sfx__
+00010000320503205032050320503105031050300502e0502d0502b05027050240501e0501a0501805015050110500e0500a050070500205001050020500105001050207501c6501f7501b6501a6500000018650
