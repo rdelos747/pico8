@@ -10,6 +10,12 @@ todo:
 				as door
 		-add key door, same as door
 				but shows a key sprite ontop
+	-add cooldown on gun: if gun
+			over heats the player has
+			to wait until it cools off
+	-add enemy berserk mode: if
+			e.hp==1, increase their speed
+			and render them red/black
 ]]--
 
 
@@ -273,6 +279,7 @@ function draw_game()
 	--die
 	if die>0 then
 		draw_player()
+		draw_die()
 		return
 	end
 	--map
@@ -360,13 +367,16 @@ function draw_hp(x,y)
 end
 
 function draw_player()
-	if die>0 then
+	if die==2 then
+		spr(55,pp.x-4,
+				(pp.y-4)+pp.d_y)
+		return
+	elseif die==1 then
 		if pp.d_tm<3 then
 			spr(52+flr(pp.d_tm),
 				pp.x-4,pp.y-4)
 		else
-			spr(55,pp.x-4,
-				(pp.y-4)+pp.d_y)
+			spr(55,pp.x-4,pp.y-4)
 		end
 		return
 	end
@@ -490,6 +500,19 @@ function draw_message()
 		spr(36,51,65)
 		print("acquired",62,66,7)
 	end
+end
+
+function draw_die()
+	if(die<2)return
+	--totals
+	print("total",24,50,7)
+	spr(49,45,48)
+	print("=",55,50,7)
+	print(t_stat.b_found,
+		61,50,11)
+	--continue
+	print("press ❎ to continue", 
+		25,112,7)
 end
 
 -- update
@@ -715,21 +738,21 @@ end
 
 function player_die()
 	pp.d_tm+=0.1
-	local in_mid=true
+	die=2
 	if flr(pp.x)>cam.x+64 then
 		pp.x-=0.5 
-		in_mid=false end
+		die=1 end
 	if flr(pp.x)<cam.x+64 then
 		pp.x+=0.5
-		in_mid=false end
+		die=1 end
 	if flr(pp.y)>cam.y+64 then
 		pp.y-=0.5
-		in_mid=false end
+		die=1 end
 	if flr(pp.y)<cam.y+64 then
 		pp.y+=0.5 
-		in_mid=false end
+		die=1 end
 	
-	if in_mid then
+	if die==2 then
 		if pp.d_y<=0 and 
 					pp.d_dy==-1 then
 			pp.d_dy=1 
@@ -739,6 +762,12 @@ function player_die()
 			pp.d_dy=-1 
 		end
 		pp.d_y+=(pp.d_dy)*0.3
+		if btnp(5) then
+			mode=mode_game
+			pp.max_hp=6
+			pp.hp=6
+			reset_level()
+		end
 	end
 end
 
