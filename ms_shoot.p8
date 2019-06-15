@@ -47,7 +47,13 @@ pp={x=20,y=20,
 	sp_hd=1,	--head sprite
 	drr={x=-1,y=0},--direction
 	hp=1,
-	max_hp=10
+	max_hp=6,
+	h_tm=0,--hit time
+	h_dx=0,--hit x direction
+	h_dy=0,--hit y direction
+	d_tm=0,--die time
+	d_y=0, --die y offset
+	d_dy=0 --die y direction
 }
 --middle helper
 middle={
@@ -147,6 +153,13 @@ function reset_level()
 	for e in all(enemies)do
 		del(enemies,e)
 	end
+	--reset player stuff
+	pp.h_tm=0
+	pp.h_dx=0
+	pp.h_dy=0
+	pp.d_tm=0
+	pp.d_y=0
+	pp.d_dy=-1
 	--reset drop
 	drop.tm=0
 	drop.dy_bot=0
@@ -176,6 +189,7 @@ function reset_level()
 	hit=0
 	found=0
 	message=0
+	die=0
 	--generate stuff
 	new_level()
 	place_player()
@@ -256,6 +270,11 @@ function draw_middle()
 end
 
 function draw_game()
+	--die
+	if die>0 then
+		draw_player()
+		return
+	end
 	--map
 	camera(cam.x+cam.sx,
 		cam.y+cam.sy)
@@ -341,8 +360,23 @@ function draw_hp(x,y)
 end
 
 function draw_player()
+	if die>0 then
+		if pp.d_tm<3 then
+			spr(52+flr(pp.d_tm),
+				pp.x-4,pp.y-4)
+		else
+			spr(55,pp.x-4,
+				(pp.y-4)+pp.d_y)
+		end
+		return
+	end
+	if	flr(pp.h_tm)%2==1 then
+		pal(7,0)
+		pal(12,0)
+	end
 	spr(pp.sp_ft,pp.x-4,pp.y-4)
 	spr(pp.sp_hd,pp.x-4,pp.y-4)
+	pal()
 end
 
 function draw_bullets()
@@ -389,8 +423,11 @@ end
 
 function draw_hearts()
 	for h in all(hearts)do
+		h.tm+=0.1
+		if(flr(h.tm)%2==0)pal(8,10)
 		spr(35,(h.i*8)+1,(h.j*8)+2)
 		spr(36,(h.i*8)+1,(h.j*8)+2)
+		pal()
 	end
 end
 
@@ -427,8 +464,12 @@ end
 
 function draw_enemies()
 	for e in all(enemies)do
+		if flr(e.p_tm)%2==1 then
+			pal(7,8)
+		end
 		spr(e.sp+flr(e.tm)%2,
-			e.x,e.y)
+			e.x-4,e.y-4)
+		pal()
 	end
 end
 
@@ -481,6 +522,11 @@ function update_middle()
 end
 
 function update_game()
+	--die animation
+	if die>0 then
+		player_die()
+		return
+	end
 	--update cam
 	update_cam()
 	
@@ -518,8 +564,22 @@ function update_game()
 	if(btn(2))drr={x=0,y=-1}
 	if(btn(3))drr={x=0,y=1}
 	if(btn(5))sht=true
-	player_move(drr)
-	player_shoot(sht)
+	
+	--player stuff
+	if(pp.h_tm>0)pp.h_tm-=0.5
+	if pp.h_tm>17 then
+		player_hit()
+	else
+		if pp.hp<=0 then
+			die=1
+			return
+		end
+		player_move(drr)
+		player_shoot(sht)
+	end
+	if(pp.h_tm<=0)touch_enemy()
+	
+	--object updates
 	update_bullets()
 	update_sprinkles()
 	update_explosions()
@@ -560,7 +620,7 @@ function player_move(drr)
 	if drr==nil then
 		pp.walk=0
 		return
-	end
+	end	
 	--get direction
 	if(drr.x==-1)pp.sp_hd=1
 	if(drr.x==1)pp.sp_hd=2
@@ -629,6 +689,59 @@ function touch_heart()
 	end
 end
 
+function touch_enemy()
+	for e in all(enemies)do
+		if in_enemy(e,pp.x,pp.y) then
+			pp.h_tm=20
+			pp.hp-=1
+			if(pp.x>e.x)pp.h_dx=1
+			if(pp.x<e.x)pp.h_dx=-1
+			if(pp.y>e.y)pp.h_dy=1
+			if(pp.y<e.y)pp.h_dy=-1
+		end
+	end
+end
+
+function player_hit()
+	local nx=pp.x+(pp.h_dx*2)
+	local ny=pp.y+(pp.h_dy*2)
+	if place_free(nx,ny) and
+				nx>=0 and nx<=xmax*8 and
+				ny>=0 and ny<=ymax*8 then
+		pp.x=nx
+		pp.y=ny
+	end
+end
+
+function player_die()
+	pp.d_tm+=0.1
+	local in_mid=true
+	if flr(pp.x)>cam.x+64 then
+		pp.x-=0.5 
+		in_mid=false end
+	if flr(pp.x)<cam.x+64 then
+		pp.x+=0.5
+		in_mid=false end
+	if flr(pp.y)>cam.y+64 then
+		pp.y-=0.5
+		in_mid=false end
+	if flr(pp.y)<cam.y+64 then
+		pp.y+=0.5 
+		in_mid=false end
+	
+	if in_mid then
+		if pp.d_y<=0 and 
+					pp.d_dy==-1 then
+			pp.d_dy=1 
+		end
+		if pp.d_y>=8 and 
+					pp.d_dy==1 then
+			pp.d_dy=-1 
+		end
+		pp.d_y+=(pp.d_dy)*0.3
+	end
+end
+
 function update_bullets()
 	for b in all(bullets) do
 		local nx=b.x+(b.drr.x*b_speed)
@@ -640,7 +753,7 @@ function update_bullets()
 		else
 			//set_pause()
 			damage_block(nx,ny)
-			set_shake()
+			//set_shake()
 			add_sprinkle(b.x-4,b.y-4)
 			del(bullets,b)
 		end
@@ -648,6 +761,12 @@ function update_bullets()
 					b.y<cam.y or b.y>cam.y+128
 					then
 			del(bullets,b)
+		end
+		for e in all(enemies)do
+			if in_enemy(e,b.x,b.y) then
+				damage_enemy(e)
+				del(bullets,b)
+			end
 		end
 	end
 end
@@ -663,8 +782,10 @@ function damage_block(x,y)
 			set_pause()
 			set_hit()
 			hit_bomb(j,i)
+			set_shake()
 		else
 			open_tile(i,j)
+			set_shake()
 		end
 		//set_pause()
 		update_opens()
@@ -734,7 +855,7 @@ function update_spawners()
 	for s in all(spawners)do
 		s.tm+=0.5
 		if s.tm>24 then
-			add_enemy((s.i*8)+1,(s.j*8)+1)
+			add_enemy((s.i*8)+4,(s.j*8)+4)
 			del(spawners,s)
 		end
 	end
@@ -743,12 +864,14 @@ end
 function add_enemy(x,y)
 	if chance(60) then
 		add(enemies,{
-			sp=7,hp=1,x=x,y=y,tm=1,
+			sp=7,hp=3,x=x,y=y,
+			tm=1,p_tm=0,
 			shoot=false
 		})
 	else
 		add(enemies,{
-			sp=9,hp=3,x=x,y=y,tm=1,
+			sp=9,hp=6,x=x,y=y,
+			tm=1,p_tm=0,
 			shoot=true
 		})
 	end
@@ -761,7 +884,44 @@ function update_enemies()
 		if e.shoot and chance(1) then
 			//enemy shooting
 		end
+		-- paused
+		if e.p_tm>0 then
+			e.p_tm-=0.5
+		else
 		-- movement
+			local nx=e.x
+			local ny=e.y
+			if(pp.x>flr(e.x))nx+=0.2
+			if(pp.x<flr(e.x))nx-=0.2
+			if(pp.y>flr(e.y))ny+=0.2
+			if(pp.y<flr(e.y))ny-=0.2
+			local horz=place_free(nx,e.y)
+			local vert=place_free(e.x,ny)
+			if horz and nx>=0 and 
+						nx<=xmax*8 then 
+				e.x=nx
+			end
+			if vert and ny>=0 and 
+						ny<=ymax*8 then
+				e.y=ny
+			end
+		end
+	end
+end
+
+function in_enemy(e,x,y)
+	return (x>=e.x-4 and x<=e.x+4
+		and y>=e.y-4 and y<=e.y+4)
+end
+
+function damage_enemy(e)
+	add_sprinkle(e.x-4,e.y-4)
+	e.hp-=1
+	e.p_tm=5
+	if	e.hp<=0 then
+		add_explosion(e.x-4,e.y-4)
+		set_shake()
+		del(enemies,e)
 	end
 end
 
@@ -854,7 +1014,7 @@ end
 --hearts stuff
 function place_heart(i,j)
 	if(not chance(2))return
-	add(hearts,{i=i,j=j})
+	add(hearts,{i=i,j=j,tm=0})
 end
 
 -- minesweeper stuff
@@ -1085,12 +1245,13 @@ __gfx__
 00000000700566770d00d00000000000000000000000000000000000000000000005550000055500000555000000050000055500000555000000500000055500
 000000000777777000dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000001000000010000000100000001000000010000000100000001000000010000000
-0000000000bbbb000088880005111150000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000b3333b0082222800151151000000000000000000000000000000000000cc000000bbb0000088800000d0d0000022200000300000001110000055500
-000000000b0000b00800008001055010000000000000000000000000000000000000c00000000b0000000800000d0d0000020000000300000000010000050500
-0000000003bbbb300288882001155110000000000000000000000000000000000000c000000bbb0000008800000ddd0000022200000333000000010000055500
-00000000030000300200002001500510000000000000000000000000000000000000c000000b00000000080000000d0000000200000303000000100000050500
-0000000000333300002222000511115000000000000000000000000000000000000ccc00000bbb000008880000000d0000022200000333000000100000055500
+0000000000bbbb000088880005111150007777000007777000000700000000000000000000000000000000000000000000000000000000000000000000000000
+000000000b3333b0082222800151151000777700000c77700000c77000007c70000cc000000bbb0000088800000d0d0000022200000300000001110000055500
+000000000b0000b0080000800105501000c77c0000777c0000077777000777700000c00000000b0000000800000d0d0000020000000300000000010000050500
+0000000003bbbb3002888820011551100077770000777700007777c000777c700000c000000bbb0000008800000ddd0000022200000333000000010000055500
+00000000030000300200002001500510007007000070070000707700070770000000c000000b00000000080000000d0000000200000303000000100000050500
+0000000000333300002222000511115000700700070007000700700007007000000ccc00000bbb000008880000000d0000022200000333000000100000055500
+00000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000000000000000000000000
 __gff__
 0000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
