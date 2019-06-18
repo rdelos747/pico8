@@ -69,7 +69,8 @@ pp={x=20,y=20,
 	d_dy=0,--die y direction
 	ammo=20,
 	max_ammo=50,
-	r_tm=0--reload time
+	r_tm=0,--reload time
+	a_tm=0--ammo animation time
 }
 --middle helper
 middle={
@@ -101,6 +102,7 @@ sheets={}
 hearts={}
 spawners={}
 enemies={}
+ammo={}
 	
 -- helpers
 --=============
@@ -169,8 +171,8 @@ function reset_level()
 	for e in all(enemies)do
 		del(enemies,e)
 	end
-	for m in all(m_ammo)do
-		del(m_ammo,m)
+	for a in all(ammo)do
+		del(ammo,a)
 	end
 	--reset player stuff
 	pp.h_tm=0
@@ -205,6 +207,7 @@ function reset_level()
 	l_stat.b_hit=0
 	--reset game stuff
 	spawn_tm=100
+	spawn_max=100
 	pause=0
 	hit=0
 	found=0
@@ -346,9 +349,12 @@ function draw_hud()
 end
 
 function draw_ammo(x,y)
+	local a_clr=7
+	if(pp.ammo<=10)a_clr=8
+	if(flr(pp.a_tm)%2==1)a_clr=10
 	if pp.ammo>0 then
 		print("ammo:"..pp.ammo.."/"..
-			pp.max_ammo,x,y+2,7)
+			pp.max_ammo,x,y+2,a_clr)
 	elseif flr(pp.r_tm)%2==0 then
 		print("reloading",x,y+2,7)
 	end
@@ -624,6 +630,7 @@ function update_game()
 		player_shoot(sht)
 	end
 	if(pp.h_tm<=0)touch_enemy()
+	if(pp.a_tm>0)pp.a_tm-=0.5
 	if pp.r_tm>0 then
 		pp.r_tm-=0.1
 		if(pp.r_tm<=0)pp.ammo=pp.max_ammo
@@ -722,7 +729,7 @@ function player_shoot(sht)
 	elseif pp.shoot==0 then
 		pp.ammo-=1
 		if pp.ammo==0 then
-			pp.r_tm=20
+			pp.r_tm=10
 			return
 		end
 		pp.shoot=5
@@ -909,7 +916,9 @@ end
 
 function update_spawners()
 	if spawn_tm==0 then
-		spawn_tm=100
+		spawn_tm=spawn_max
+		spawn_max-=1
+		if(spawn_max<20)spawn_max=20
 		add_spawner()
 	else
 		spawn_tm-=1
@@ -1076,7 +1085,7 @@ end
 
 --hearts stuff
 function place_heart(x,y)
-	if(chance(2))return
+	if(chance(90))return
 	add(hearts,{x=x,y=y,tm=0})
 end
 
@@ -1136,6 +1145,12 @@ function check_bomb(j,i)
 		set_found()
 		l_stat.b_found+=1
 		t_stat.b_found+=1
+		
+		pp.a_tm=10
+		pp.ammo+=10
+		if pp.ammo>pp.max_ammo then
+			pp.ammo=pp.max_ammo
+		end
 	end
 	check_level()
 end
