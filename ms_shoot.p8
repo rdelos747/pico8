@@ -67,9 +67,8 @@ pp={x=20,y=20,
 	d_tm=0,--die time
 	d_y=0, --die y offset
 	d_dy=0,--die y direction
-	a_m=10,--mg ammo
-	a_b=2, --bomb amo,
-	wpn=0  --weapon index
+	tp=0,--gun temp
+	max_tp=20--max temp
 }
 --middle helper
 middle={
@@ -101,7 +100,6 @@ sheets={}
 hearts={}
 spawners={}
 enemies={}
-m_ammo={}
 	
 -- helpers
 --=============
@@ -326,7 +324,6 @@ function draw_game()
 	draw_sheets()
 	draw_door()
 	draw_hearts()
-	draw_m_ammo()
 	draw_spawners()
 	draw_enemies()
 	--hud
@@ -341,23 +338,13 @@ function draw_hud()
 	--border
 	rectfill(cam.x,hud_t,cam.x+128,
 		hud_t+8,0)
-	draw_guns(hp_x+60,hud_t)
+	draw_temp(hp_x+50,hud_t)
 	draw_found(hp_x+100,hud_t)
 	draw_hp(hp_x,hud_t+1)
 end
 
-function draw_guns(x,y)
-	if(pp.wpn==0)pal(1,7)
-	spr(27,x,y+1)
-	pal()
-	if(pp.wpn==1)pal(1,7)
-	spr(28,x+10,y+1)
-	print(pp.a_m,x+16,y+2,1)
-	pal()
-	if(pp.wpn==2)pal(1,7)
-	spr(29,x+26,y+1)
-	print(pp.a_b,x+33,y+2,1)
-	pal()
+function draw_temp(x,y)
+
 end
 
 function draw_found(x,y)
@@ -464,17 +451,8 @@ function draw_hearts()
 	for h in all(hearts)do
 		h.tm+=0.1
 		if(flr(h.tm)%2==0)pal(8,10)
-		spr(35,(h.i*8)+1,(h.j*8)+2)
-		spr(36,(h.i*8)+1,(h.j*8)+2)
-		pal()
-	end
-end
-
-function draw_m_ammo()
-	for m in all(m_ammo)do
-		m.tm+=0.1
-		if(flr(m.tm)%2==0)pal(9,10)
-		spr(30,(m.i*8)+1,(m.j*8)+2)
+		spr(35,h.x-4,h.y-4)
+		spr(36,h.x-4,h.y-4)
 		pal()
 	end
 end
@@ -711,7 +689,6 @@ function player_move(drr)
 	
 	--touch stuff
 	touch_heart()
-	touch_m_ammo()
 		
 	--update feet anim
 	if pp.walk==0 then
@@ -735,57 +712,26 @@ function player_shoot(sht)
 	if sht==false then
 		return
 	elseif pp.shoot==0 then
-		if(pp.wpn==0)p_shoot_g()
-		if(pp.wpn==1)p_shoot_m()
-		if(pp.wpn==2)p_shoot_b()
+		p_shoot()
 	end
 end
 
-function p_shoot_g()
-	pp.shoot=20
+function p_shoot()
+	pp.shoot=5
 	add(bullets,{
 		x=pp.x,y=pp.y,
 		drr=pp.drr,tm=0
 	})
 end
 
-function p_shoot_m()
-	pp.shoot=5
-	if pp.a_m>0 then
-		pp.a_m-=1
-		add(bullets,{
-			x=pp.x,y=pp.y,
-			drr=pp.drr,tm=0
-		})
-	else
-		pp.wpn=0
-	end
-end
-
-function p_shoot_b()
-
-end
-
 function touch_heart()
 	for h in all(hearts)do
-		if flr(pp.x/8)==h.i and
-					flr(pp.y/8)==h.j then
+		if abs(pp.x-h.x)<4 and
+					abs(pp.y-h.y)<4 then
 			del(hearts,h)
 			add_sheet(pp.x-4,pp.y-4)
 			pp.hp+=2
 			if(pp.hp>pp.max_hp)pp.hp=pp.max_hp
-		end
-	end
-end
-
-function touch_m_ammo()
-	for m in all(m_ammo)do
-		if flr(pp.x/8)==m.i and
-					flr(pp.y/8)==m.j then
-			del(m_ammo,m)
-			add_sheet(pp.x-4,pp.y-4)
-			pp.a_m+=10
-			if(pp.a_m>99)pp.a_m=99
 		end
 	end
 end
@@ -891,7 +837,7 @@ function damage_block(x,y)
 			hit_bomb(j,i)
 			set_shake()
 		else
-			open_tile(i,j,false)
+			open_tile(i,j)
 			set_shake()
 		end
 		//set_pause()
@@ -1024,12 +970,11 @@ end
 function damage_enemy(e)
 	add_sprinkle(e.x-4,e.y-4)
 	e.hp-=1
-	e.p_tm=5
+	//e.p_tm=5
 	if	e.hp<=0 then
 		add_explosion(e.x-4,e.y-4)
 		set_shake()
-		place_heart(flr((e.x-4)/8),
-			flr((e.y-4)/8))
+		place_heart(e.x,e.y)
 		del(enemies,e)
 	end
 end
@@ -1064,7 +1009,7 @@ function update_drop()
 		if not drop.landed then
 			drop.landed=true
 			open_tile(flr(pp.x/8),
-				flr(pp.y/8),true)
+				flr(pp.y/8))
 			update_opens()
 			set_shake()
 		end
@@ -1121,31 +1066,21 @@ function update_door()
 end
 
 --hearts stuff
-function place_heart(i,j)
+function place_heart(x,y)
 	if(chance(2))return
-	add(hearts,{i=i,j=j,tm=0})
-end
-
---ammo stuff
-function place_m_ammo(i,j,ch)
-	if(chance(ch))return
-	add(m_ammo,{i=i,j=j,tm=0})
+	add(hearts,{x=x,y=y,tm=0})
 end
 
 -- minesweeper stuff
 -- =================
-function open_tile(i,j,start)
+function open_tile(i,j)
 	lvl[j][i].open=true
 	add_explosion(i*8,j*8)
 	if lvl[j][i].val>0 then
 		return
 	end
 	//place_heart(i,j)
-	if start then
-		place_m_ammo(i,j,90)
-	else
-		place_m_ammo(i,j,1)
-	end
+	
 	local imin=max(i-1,0)
 	local imax=min(i+1,xmax-1)
 	local jmin=max(j-1,0)
@@ -1154,7 +1089,7 @@ function open_tile(i,j,start)
 	for ii=imin,imax do
 		if lvl[jj][ii].open==false and
 					lvl[jj][ii].val!=-1 then
-			open_tile(ii,jj,start)
+			open_tile(ii,jj)
 		end
 	end end
 end
@@ -1348,13 +1283,13 @@ __gfx__
 00700700000000000000000000000000000000000070070000700700007000000000070000777700007777000000000000000000007777007777777700000000
 00000000000000000000000000000000000000000000070000700000000000000000000000700000000007000000000000000000000000007777777700000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1000000007777770022222200eeeeee0088888800bbbbbb008888880000000000000000001111110000000000111000001110000111100000000070000000000
-000000007000000720000002e000000e80000008bb1111bb881111880000000000000000110000110000000010000000101010001000100000f0777000000000
-000000007000000720000002e000000e80000008b333333b82222228000000000000000010000001000000001001100010101000101100000f99070000000000
-000000007000005720000012e00000de80000028b333333b82222228000000000000000010000001000000001000100010001000100010000f99000000000000
-0000000070000567200001d2e0000d2e800002e8bb3333bb88222288000000000000000011000011777777770111000010001000111100000999000000000000
+1000000007777770022222200eeeeee0088888800bbbbbb008888880000000000000000001111110000000000111000001110000111100000000000000000000
+000000007000000720000002e000000e80000008bb1111bb88111188000000000000000011000011000000001000000010101000100010000000000000000000
+000000007000000720000002e000000e80000008b333333b82222228000000000000000010000001000000001001100010101000101100000000000000000000
+000000007000005720000012e00000de80000028b333333b82222228000000000000000010000001000000001000100010001000100010000000000000000000
+0000000070000567200001d2e0000d2e800002e8bb3333bb88222288000000000000000011000011777777770111000010001000111100000000000000000000
 000000007000566720001dd2e000d22e80002ee83bbbbbb328888882777777777777777710111101700000070000000000000000000000000000000000000000
-00000000700566772001dd22e00d22ee8002ee881333333112222221777777777777777710000001700000070000000000000000000000000f99000000000000
+00000000700566772001dd22e00d22ee8002ee881333333112222221777777777777777710000001700000070000000000000000000000000000000000000000
 0000000007777770022222200eeeeee0088888800111111001111110000000000000000001111110777777770000000000000000000000000000000000000000
 100000000777777000000d0d08800000000088000220000000002200000000001000000010000000100000001000000010000000100000001000000010000000
 0000000070000007000000d082280000000088802002000000000020000000000000000000000000000000000000000000000000000000000000000000000000
