@@ -37,8 +37,8 @@ l_stat={b_found=0,b_hit=0}
 --total stats
 t_stat={b_found=0}
 --heart levels
-h_lvl=5
-h_levels={10,20,50,100}
+h_lvl=1
+h_levels={20,50,100,200}
 --player
 pp={x=20,y=20,
 	walk=0,--walking counter
@@ -1349,6 +1349,27 @@ function add_sheet(x,y)
 		})
 	end
 end
+
+--instruction text
+--[[
+oh no! evil space-noids have
+covered space-world in space-
+cement, and also some 
+space-bombs!!!!!
+
+clear the surrounding blocks to
+defuse each space-bomb, but
+dont shoot the bombs before 
+they are captured!
+!!!!!
+!
+
+arrows: move
+    ❎: shoot
+]]--
+
+
+
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000c7770000777c0000c77c00007777000000000000000000000000000000000000777700007777000000000000000000000000000000000000000000
