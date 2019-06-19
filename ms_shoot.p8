@@ -24,7 +24,7 @@ mode_start=0
 mode_game=1
 mode_middle=2
 mode_inst=3
-mode=mode_game
+mode=mode_middle
 --cam
 cam={x=0,y=0,sx=0,sy=0,s_tm=0}
 samt=2
@@ -37,7 +37,7 @@ l_stat={b_found=0,b_hit=0}
 --total stats
 t_stat={b_found=0}
 --heart levels
-h_lvl=1
+h_lvl=5
 h_levels={10,20,50,100}
 --player
 pp={x=20,y=20,
@@ -261,6 +261,7 @@ function draw_middle()
 	--totals
 	if middle.t_tm==1 then
 		rect(24,48,104,72,1)
+		line(24,73,104,73,1)
 		print("total",44,52,7)
 		spr(49,65,50)
 		print("=",75,52,7)
@@ -274,10 +275,10 @@ function draw_middle()
 			print(h_levels[h_lvl]-t_stat.b_found,
 				80,64,11)
 		else
-			print("all",24,60,7)
-			spr(35,43,59)
-			spr(36,43,59)
-			print("acquired",54,60,7)
+			print("all",36,64,7)
+			spr(35,51,63)
+			spr(36,51,63)
+			print("acquired",62,64,7)
 		end
 	end
 	--player
@@ -541,11 +542,14 @@ function draw_die()
 		if(m.sparkle)pal()
 	end
 	--totals
-	print("total",24,50,7)
-	spr(49,45,48)
-	print("=",55,50,7)
+	rect(24,24,104,48,1)
+	line(24,49,104,49,1)
+	line(24,50,104,50,1)
+	print("total",42,34,7)
+	spr(49,63,32)
+	print("=",72,34,7)
 	print(t_stat.b_found,
-		61,50,11)
+		79,34,11)
 	--continue
 	print("press ❎ to continue", 
 		25,112,7)
@@ -829,7 +833,7 @@ function player_die()
 					pp.d_dy==1 then
 			pp.d_dy=-1 
 		end
-		pp.d_y+=(pp.d_dy)*0.3
+		pp.d_y+=(pp.d_dy)*0.2
 		if btnp(5) then
 			mode=mode_game
 			pp.max_hp=6
