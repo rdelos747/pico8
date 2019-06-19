@@ -10,19 +10,6 @@ todo:
 				as door
 		-add key door, same as door
 				but shows a key sprite ontop
-	-add cooldown on gun: if gun
-			over heats the player has
-			to wait until it cools off
-	-add enemy berserk mode: if
-			e.hp==1, increase their speed
-			and render them red/black
-	-or
-	-press z to switch weapon:
-		1.slow shooter: inf amo
-		2.machine gun: limited/amo pickup
-		3.bomb: limited/amo pickup
-			-should bomb be throw, or
-					drop?
 ]]--
 
 
@@ -76,7 +63,8 @@ pp={x=20,y=20,
 middle={
 	p_tm=0,
 	b_tm=0,
-	t_tm=0
+	t_tm=0,
+	par_tm=0
 }
 --drop/undrop
 drop={
@@ -103,6 +91,7 @@ hearts={}
 spawners={}
 enemies={}
 ammo={}
+m_parts={}
 	
 -- helpers
 --=============
@@ -174,6 +163,9 @@ function reset_level()
 	for a in all(ammo)do
 		del(ammo,a)
 	end
+	for m in all(m_parts)do
+		del(m_parts,m)
+	end
 	--reset player stuff
 	pp.h_tm=0
 	pp.h_dx=0
@@ -244,6 +236,13 @@ end
 
 function draw_middle()
 	//draw_grid()
+	--draw background
+	for m in all(m_parts)do
+		if(m.sparkle)pal(1,(m.tm%8)+8)
+		rectfill(m.x,m.y,
+			m.x+m.sz,m.y+m.sz,1)
+		if(m.sparkle)pal()
+	end
 	--draw bombs found
 	local b_left=24
 	local b_top=10
@@ -261,18 +260,19 @@ function draw_middle()
 	end
 	--totals
 	if middle.t_tm==1 then
-		print("total",24,50,7)
-		spr(49,45,48)
-		print("=",55,50,7)
+		rect(24,48,104,72,1)
+		print("total",44,52,7)
+		spr(49,65,50)
+		print("=",75,52,7)
 		print(t_stat.b_found,
-			61,50,11)
+			81,52,11)
 		if h_lvl<=#h_levels then
-			print("next",24,60,7)
-			spr(35,43,59)
-			spr(36,43,59)
-			print("in",54,60,7)
+			print("next",40,64,7)
+			spr(35,59,63)
+			spr(36,59,63)
+			print("in",70,64,7)
 			print(h_levels[h_lvl]-t_stat.b_found,
-				64,60,11)
+				80,64,11)
 		else
 			print("all",24,60,7)
 			spr(35,43,59)
@@ -533,6 +533,13 @@ end
 
 function draw_die()
 	if(die<2)return
+	--m_parts
+	for m in all(m_parts)do
+		if(m.sparkle)pal(1,(m.tm%8)+8)
+		rectfill(m.x,m.y,
+			m.x+m.sz,m.y+m.sz,1)
+		if(m.sparkle)pal()
+	end
 	--totals
 	print("total",24,50,7)
 	spr(49,45,48)
@@ -556,6 +563,7 @@ end
 
 function update_middle()
 	middle.p_tm+=0.1
+	update_m_parts()
 	if middle.b_tm<num_b-1 then
 		middle.b_tm+=0.5
 	else
@@ -569,6 +577,25 @@ function update_middle()
 		else
 			reset_level()
 			mode=mode_game
+		end
+	end
+end
+
+function update_m_parts()
+	if chance(30) then
+		add(m_parts,{
+			x=cam.x+128,
+			y=rand(cam.y,cam.y+128),
+			tm=0,spd=1.4,sz=rand(1,3),
+			sparkle=chance(10)
+		})
+	end
+	for m in all(m_parts)do
+		m.x-=m.spd
+		m.spd*=1.2
+		m.tm+=1
+		if m.x<cam.x then
+			del(m_parts,m)
 		end
 	end
 end
@@ -793,6 +820,7 @@ function player_die()
 		die=1 end
 	
 	if die==2 then
+		update_m_parts_d()
 		if pp.d_y<=0 and 
 					pp.d_dy==-1 then
 			pp.d_dy=1 
@@ -807,6 +835,25 @@ function player_die()
 			pp.max_hp=6
 			pp.hp=6
 			reset_level()
+		end
+	end
+end
+
+function update_m_parts_d()
+	if chance(20) then
+		add(m_parts,{
+			x=rand(cam.x,cam.x+128),
+			y=cam.y+128,
+			tm=0,spd=0.5,sz=rand(1,3),
+			sparkle=chance(10)
+		})
+	end
+	for m in all(m_parts)do
+		m.y-=m.spd
+		m.spd*=1.01
+		m.tm+=1
+		if m.y<cam.y then
+			del(m_parts,m)
 		end
 	end
 end
