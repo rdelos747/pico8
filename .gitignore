@@ -1,5 +1,6 @@
 demos/
 downloads/
+z_apps/
 .DS_Store
 *.bin
 *.zip
