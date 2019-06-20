@@ -68,7 +68,10 @@ middle={
 	par_tm=0
 }
 --start helper
-start={tm=0,blow_up=0}
+start={
+	tm=0,blow_up=0,
+	p_y=0,p_dy=-1
+}
 --instruction helper
 inst={idx=0}
 --drop/undrop
@@ -205,6 +208,8 @@ function reset_level()
 	--reset start stuff
 	start.tm=0
 	start.blow_up=0
+	start.p_y=0
+	start.p_dy=-1
 	--rest instruction stuff
 	inst.idx=0
 	--reset l_stat
@@ -265,6 +270,8 @@ function draw_inst()
 end
 
 function draw_start()
+	//draw_grid()
+	draw_m_parts()
 	camera(cam.x+cam.sx,
 		cam.y+cam.sy)
 	if start.tm<8 then
@@ -273,35 +280,37 @@ function draw_start()
 			pal(7,7+i)
 			for sp=0,4 do
 				spr(65+sp,45+(sp*8),
-					41+(off*i))
+					31+(off*i))
 			end
 			for sp=0,6 do
 				spr(81+sp,37+(sp*8),
-					51+(off*i))
+					41+(off*i))
 			end
 			pal()
 		end
 	elseif start.tm>9 then
 		pal(7,(flr(start.tm)%8)+8)
 		for sp=0,4 do
-			spr(65+sp,45+(sp*8),41)
+			spr(65+sp,45+(sp*8),31)
 		end
 		for sp=0,6 do
-			spr(81+sp,37+(sp*8),51)
+			spr(81+sp,37+(sp*8),41)
 		end
 		pal()
 	end
 	
 	if(start.tm<10)pal(7,1)
 	for sp=0,4 do
-		spr(65+sp,45+(sp*8),40)
+		spr(65+sp,45+(sp*8),30)
 	end
 	for sp=0,6 do
-		spr(81+sp,37+(sp*8),50)
+		spr(81+sp,37+(sp*8),40)
 	end
 	pal()
 	
 	if start.tm>12 then 
+		print("by raf @ goldteam",31,60)
+		spr(52,61,80+flr(start.p_y))
 		print("press ❎ to continue", 
 			25,112,7)
 	end
@@ -685,6 +694,18 @@ function update_start()
 				add_explosion(i*8,j*8)
 			end
 		end end
+	elseif start.tm>11 then
+		update_m_parts()
+		
+		if start.p_y<0 and 
+					start.p_dy==-1 then
+			start.p_dy=1
+		elseif start.p_y>=8 and
+					start.p_dy==1 then
+			start.p_dy=-1
+		end
+		start.p_y+=start.p_dy*0.2
+		
 	end
 	if btnp(5) then
 		if start.tm<10 then
