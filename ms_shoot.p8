@@ -38,6 +38,7 @@ l_stat={b_found=0,b_hit=0}
 t_stat={b_found=0}
 --heart levels
 h_lvl=1
+--max mp= 08 10  12  14
 h_levels={20,50,100,200}
 --player
 pp={x=20,y=20,
@@ -68,6 +69,8 @@ middle={
 }
 --start helper
 start={tm=0,blow_up=0}
+--instruction helper
+inst={idx=0}
 --drop/undrop
 drop={
 	x=-1,tm=0,y_end=-1,
@@ -176,6 +179,9 @@ function reset_level()
 	pp.d_y=0
 	pp.d_dy=-1
 	pp.ammo=pp.max_ammo
+	--reset cam
+	cam.x=0
+	cam.y=0
 	--reset drop
 	drop.tm=0
 	drop.dy_bot=0
@@ -199,6 +205,8 @@ function reset_level()
 	--reset start stuff
 	start.tm=0
 	start.blow_up=0
+	--rest instruction stuff
+	inst.idx=0
 	--reset l_stat
 	l_stat.b_found=0
 	l_stat.b_hit=0
@@ -226,6 +234,8 @@ function _draw()
 		draw_middle()
 	elseif mode==mode_start then
 		draw_start()
+	elseif mode==mode_inst then
+		draw_inst()
 	end
 end
 
@@ -241,6 +251,19 @@ function draw_grid()
 	end
 end
 
+function draw_inst()
+	//draw_grid()
+	draw_m_parts()
+	print(sub(inst_txt,0,
+		flr(inst.idx)),0,0,6)
+	if inst.idx>=#inst_txt then
+		print("arrows:move",43,90,7)
+		print("❎/x:shoot",45,98,7)
+		print("press ❎ to continue", 
+			25,112,7)
+	end
+end
+
 function draw_start()
 	camera(cam.x+cam.sx,
 		cam.y+cam.sy)
@@ -249,32 +272,32 @@ function draw_start()
 		for i=1,8 do
 			pal(7,7+i)
 			for sp=0,4 do
-				spr(65+sp,40+(sp*8),
+				spr(65+sp,45+(sp*8),
 					41+(off*i))
 			end
 			for sp=0,6 do
-				spr(81+sp,32+(sp*8),
+				spr(81+sp,37+(sp*8),
 					51+(off*i))
 			end
 			pal()
 		end
-	elseif start.tm>10 then
+	elseif start.tm>9 then
 		pal(7,(flr(start.tm)%8)+8)
 		for sp=0,4 do
-			spr(65+sp,40+(sp*8),41)
+			spr(65+sp,45+(sp*8),41)
 		end
 		for sp=0,6 do
-			spr(81+sp,32+(sp*8),51)
+			spr(81+sp,37+(sp*8),51)
 		end
 		pal()
 	end
 	
 	if(start.tm<10)pal(7,1)
 	for sp=0,4 do
-		spr(65+sp,40+(sp*8),40)
+		spr(65+sp,45+(sp*8),40)
 	end
 	for sp=0,6 do
-		spr(81+sp,32+(sp*8),50)
+		spr(81+sp,37+(sp*8),50)
 	end
 	pal()
 	
@@ -287,13 +310,7 @@ end
 
 function draw_middle()
 	//draw_grid()
-	--draw background
-	for m in all(m_parts)do
-		if(m.sparkle)pal(1,(m.tm%8)+8)
-		rectfill(m.x,m.y,
-			m.x+m.sz,m.y+m.sz,1)
-		if(m.sparkle)pal()
-	end
+	draw_m_parts()
 	--draw bombs found
 	local b_left=24
 	local b_top=10
@@ -395,7 +412,7 @@ function draw_hud()
 	--border
 	rectfill(cam.x,hud_t,cam.x+128,
 		hud_t+8,0)
-	draw_ammo(hp_x+50,hud_t)
+	draw_ammo(hp_x+57,hud_t-1)
 	draw_found(hp_x+98,hud_t)
 	draw_hp(hp_x,hud_t+1)
 end
@@ -420,9 +437,9 @@ function draw_found(x,y)
 		pal(3,10)
 	end
 	spr(49,x,y)
-	print("=",x+9,y+2,7)
+	print("=",x+9,y+1,7)
 	print(t_stat.b_found,
-		x+14,y+2,11)
+		x+14,y+1,11)
 	pal()
 end
 
@@ -583,9 +600,21 @@ function draw_message()
 	end
 end
 
+function draw_m_parts()
+	--draw background
+	for m in all(m_parts)do
+		if(m.sparkle)pal(1,(m.tm%8)+8)
+		rectfill(m.x,m.y,
+			m.x+m.sz,m.y+m.sz,1)
+		if(m.sparkle)pal()
+	end
+end
+
 function draw_die()
 	if(die<2)return
-	--m_parts
+	draw_m_parts()
+	
+	--draw background
 	for m in all(m_parts)do
 		if(m.sparkle)pal(1,(m.tm%8)+8)
 		rectfill(m.x,m.y,
@@ -615,6 +644,25 @@ function _update()
 		update_middle()
 	elseif mode==mode_start then
 		update_start()
+	elseif mode==mode_inst then
+		update_inst()
+	end
+end
+
+function update_inst()
+	update_m_parts()
+	if inst.idx<#inst_txt then
+		inst.idx+=0.5
+	end
+	if btnp(5) then
+		if inst.idx<#inst_txt then
+			inst.idx=#inst_txt
+		else
+			mode=mode_game
+			pp.max_hp=6
+			pp.hp=6
+			reset_level()
+		end
 	end
 end
 
@@ -622,14 +670,14 @@ function update_start()
 	update_shake()
 	update_explosions()
 	
-	if (start.tm>10 and
-				start.blow_up==0)
-				or
-				(start.tm>11 and
-				start.blow_up==1)
-				or
-				(start.tm>12 and
-				start.blow_up==2) then
+	if(start.tm>9 and
+			start.blow_up==0)
+			or
+			(start.tm>10 and
+			start.blow_up==1)
+			or
+			(start.tm>11 and
+			start.blow_up==2) then
 		start.blow_up+=1
 		set_shake()
 		for j=0,15 do for i=0,15 do
@@ -642,10 +690,7 @@ function update_start()
 		if start.tm<10 then
 			start.tm=10
 		else
-			mode=mode_game
-			pp.max_hp=6
-			pp.hp=6
-			reset_level()
+			mode=mode_inst
 		end
 	end
 	start.tm+=0.2
@@ -878,6 +923,8 @@ function touch_enemy()
 			if(pp.x<e.x)pp.h_dx=-1
 			if(pp.y>e.y)pp.h_dy=1
 			if(pp.y<e.y)pp.h_dy=-1
+			set_hit()
+			return
 		end
 	end
 end
@@ -886,8 +933,8 @@ function player_hit()
 	local nx=pp.x+(pp.h_dx*2)
 	local ny=pp.y+(pp.h_dy*2)
 	if place_free(nx,ny) and
-				nx>=0 and nx<=xmax*8 and
-				ny>=0 and ny<=ymax*8 then
+				nx>=0 and nx<xmax*8 and
+				ny>=0 and ny<ymax*8 then
 		pp.x=nx
 		pp.y=ny
 	end
@@ -989,6 +1036,7 @@ function damage_block(x,y)
 			set_hit()
 			hit_bomb(j,i)
 			set_shake()
+			pp.hp-=1
 		else
 			open_tile(i,j)
 			set_shake()
@@ -1222,7 +1270,7 @@ end
 
 --hearts stuff
 function place_heart(x,y)
-	if(chance(90))return
+	if(chance(95))return
 	add(hearts,{x=x,y=y,tm=0})
 end
 
@@ -1436,8 +1484,7 @@ function add_sheet(x,y)
 	end
 end
 
---instruction text
---[[
+inst_txt=[[
 oh no! evil space-noids have
 covered space-world in space-
 cement, and also some 
@@ -1447,12 +1494,7 @@ clear the surrounding blocks to
 defuse each space-bomb, but
 dont shoot the bombs before 
 they are captured!
-!!!!!
-!
-
-arrows: move
-    ❎: shoot
-]]--
+]]
 
 
 
