@@ -17,6 +17,7 @@ mode_game=1
 mode_middle=2
 mode_inst=3
 mode_logo=4
+mode_setting=5
 mode=mode_logo
 --logo
 logo={
@@ -74,6 +75,10 @@ start={
 }
 --instruction helper
 inst={idx=0}
+--setting helper
+setting={idx=0,p_y=0,p_dy=-1}
+s_flash=true
+s_shake=true
 --drop/undrop
 drop={
 	x=-1,tm=0,y_end=-1,
@@ -123,10 +128,12 @@ function set_pause()
 end
 
 function set_shake()
+	if(not s_shake)return
 	cam.s_tm=1
 end
 
 function set_hit()
+	if(not s_flash)return
 	hit=10
 end
 
@@ -243,6 +250,8 @@ function _draw()
 		draw_inst()
 	elseif mode==mode_logo then
 		draw_logo()
+	elseif mode==mode_setting then
+		draw_setting()
 	end
 end
 
@@ -256,6 +265,48 @@ function draw_grid()
 		line(i*16,0,i*16,1,2)
 		line(0,i*16,127,i*16,2)
 	end
+end
+
+function draw_setting()
+	//draw_grid()
+	print([[
+this game uses some flashes
+    and screen shakes.
+
+you can toggle these effects 
+          below.]],
+ 11,10,7)
+ if setting.idx==0 then
+ 	print("flashes",29,60,7)
+ else
+ 	print("flashes",29,60,6)
+ end
+ if s_flash then
+ 	print("on",76,60,7)
+ 	print("off",90,60,2)
+ else
+ 	print("on",76,60,2)
+ 	print("off",90,60,7)
+ end
+ 
+ if setting.idx==1 then
+ 	print("screen shake",20,70,7)
+ else
+ 	print("screen shake",20,70,6)
+ end
+ if s_shake then
+ 	print("on",76,70,7)
+ 	print("off",90,70,2)
+ else
+ 	print("on",76,70,2)
+ 	print("off",90,70,7)
+ end
+ 
+ spr(52,10,
+ 57+(setting.idx*8)+setting.p_y)
+ 
+ print("press 🅾️ for title screen", 
+			12,112,7)
 end
 
 function draw_logo()
@@ -309,7 +360,11 @@ function draw_start()
 	if start.tm<8 then
 		local off=(8-start.tm)*0.9
 		for i=1,8 do
-			pal(7,7+i)
+			if s_flash then
+				pal(7,7+i)
+			else
+				pal(7,2)
+			end
 			for sp=0,4 do
 				spr(65+sp,45+(sp*8),
 					31+(off*i))
@@ -321,7 +376,11 @@ function draw_start()
 			pal()
 		end
 	elseif start.tm>9 then
-		pal(7,(flr(start.tm)%8)+8)
+		if s_flash then
+			pal(7,(flr(start.tm)%8)+8)
+		else
+			pal(7,2)
+		end
 		for sp=0,4 do
 			spr(65+sp,45+(sp*8),31)
 		end
@@ -345,6 +404,8 @@ function draw_start()
 		spr(52,61,80+flr(start.p_y))
 		print("press ❎ to continue", 
 			25,112,7)
+		print("press 🅾️ for settings", 
+			23,120,2)
 	end
 	draw_explosions()
 end
@@ -461,7 +522,10 @@ end
 function draw_ammo(x,y)
 	local a_clr=7
 	if(pp.ammo<=10)a_clr=8
-	if(flr(pp.a_tm)%2==1)a_clr=10
+	if flr(pp.a_tm)%2==1 and
+				s_flash then
+		a_clr=10
+	end
 	if pp.ammo>0 then
 		print("ammo:"..pp.ammo.."/"..
 			pp.max_ammo,x,y+2,a_clr)
@@ -472,7 +536,8 @@ end
 
 function draw_found(x,y)
 	--found bombs
-	if flr(found)%2==1 then
+	if flr(found)%2==1 and
+		s_flash then
 		pal(7,10)
 		pal(11,10)
 		pal(3,10)
@@ -545,7 +610,9 @@ end
 function draw_explosions()
 	for e in all(explosions) do
 		if e.tm>=0 then
-			pal(7,flr(e.tm)+8)
+			if s_flash then
+				pal(7,flr(e.tm)+8)
+			end
 			spr(13,e.x,e.y)
 		end
 	end
@@ -564,7 +631,9 @@ end
 
 function draw_door()
 	if(not door.found)return
-	pal(7,(door.tm%8)+8)
+	if s_flash then
+		pal(7,(door.tm%8)+8)
+	end
 	spr(26,door.i*8,
 		(door.j*8)+door.y)
 	pal()
@@ -581,7 +650,9 @@ function draw_hearts()
 end
 
 function draw_drop()
-	pal(7,flr(drop.tm)+8)
+	if s_flash then
+		pal(7,flr(drop.tm)+8)
+	end
 		rectfill(
 			drop.x,
 			cam.y+drop.dy_top,
@@ -593,7 +664,9 @@ function draw_drop()
 end
 
 function draw_undrop()
-	pal(7,flr(undrop.tm)+8)
+	if s_flash then
+		pal(7,flr(undrop.tm)+8)
+	end
 		rectfill(
 			undrop.x,
 			cam.y+undrop.dy_top,
@@ -644,7 +717,9 @@ end
 function draw_m_parts()
 	--draw background
 	for m in all(m_parts)do
-		if(m.sparkle)pal(1,(m.tm%8)+8)
+		if m.sparkle and s_flash then
+			pal(1,(m.tm%8)+8)
+		end
 		rectfill(m.x,m.y,
 			m.x+m.sz,m.y+m.sz,1)
 		if(m.sparkle)pal()
@@ -687,11 +762,40 @@ function _update()
 		update_start()
 	elseif mode==mode_inst then
 		update_inst()
+	elseif mode==mode_setting then
+		update_setting()
 	end
 end
 
-function update_logo()
-
+function update_setting()
+	if setting.p_y<=0 and
+				setting.p_dy==-1 then
+		setting.p_dy=1
+	elseif setting.p_y>=4 and
+					 setting.p_dy==1 then
+		setting.p_dy=-1
+	end
+	setting.p_y+=setting.p_dy*0.2
+	if btnp(3) and setting.idx==0 then
+		setting.idx=1
+		setting.p_y=0
+		setting.p_dy=-1
+		end
+	if btnp(2) and setting.idx==1 then
+		setting.idx=0 
+		setting.p_y=0
+		setting.p_dy=-1
+		end
+		
+	if btnp(5) then
+		if setting.idx==0 then
+			s_flash=not s_flash
+		else
+			s_shake=not s_shake
+		end
+	end
+	
+	if(btnp(4))mode=mode_start
 end
 
 function update_inst()
@@ -749,6 +853,9 @@ function update_start()
 		else
 			mode=mode_inst
 		end
+	end
+	if btnp(4) then
+		mode=mode_setting
 	end
 	start.tm+=0.2
 end
@@ -1564,13 +1671,13 @@ __gfx__
 00700700000000000000000000000000000000000070070000700700007000000000070000777700007777000000000000000000007777007777777700000000
 00000000000000000000000000000000000000000000070000700000000000000000000000700000000007000000000000000000000000007777777700000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1000000007777770022222200eeeeee0088888800bbbbbb008888880000000000000000001111110000000000111000001110000111100000000070000000000
-000000007000000720000002e000000e80000008bb1111bb881111880000000000000000110000110000000010000000101010001000100000f0777000000000
-000000007000000720000002e000000e80000008b333333b82222228000000000000000010000001000000001001100010101000101100000f99070000000000
-000000007000005720000012e00000de80000028b333333b82222228000000000000000010000001000000001000100010001000100010000f99000000000000
-0000000070000567200001d2e0000d2e800002e8bb3333bb88222288000000000000000011000011777777770111000010001000111100000999000000000000
-000000007000566720001dd2e000d22e80002ee83bbbbbb328888882777777777777777710111101700000070000000000000000000000000000000000000000
-00000000700566772001dd22e00d22ee8002ee881333333112222221777777777777777710000001700000070000000000000000000000000f99000000000000
+1000000007777770022222200eeeeee0088888800bbbbbb00888888000000000000000000111111000000000011100000111000011110000000007000000a000
+000000007000000720000002e000000e80000008bb1111bb881111880000000000000000110000110000000010000000101010001000100000f077700000aa00
+000000007000000720000002e000000e80000008b333333b82222228000000000000000010000001000000001001100010101000101100000f990700aaaaaaa0
+000000007000005720000012e00000de80000028b333333b82222228000000000000000010000001000000001000100010001000100010000f9900000aaaaaaa
+0000000070000567200001d2e0000d2e800002e8bb3333bb882222880000000000000000110000117777777701110000100010001111000009990000aaaaaaa0
+000000007000566720001dd2e000d22e80002ee83bbbbbb32888888277777777777777771011110170000007000000000000000000000000000000000000aa00
+00000000700566772001dd22e00d22ee8002ee881333333112222221777777777777777710000001700000070000000000000000000000000f9900000000a000
 0000000007777770022222200eeeeee0088888800111111001111110000000000000000001111110777777770000000000000000000000000000000000000000
 100000000777777000000d0d08800000000088000220000000002200000000001000000010000000100000001000000010000000100000001000000010000000
 0000000070000007000000d082280000000088802002000000000020000000000000000000000000000000000000000000000000000000000000000000000000
