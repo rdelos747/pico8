@@ -18,6 +18,9 @@ jumper
 - player should have double or
 			tripple jump, so they can
 			correct themselves in mid-air
+- perhaps player cannot advance
+		until they collect a special 
+		item on the stage (eg, a key)
 ]]--
 
 -- ==========
@@ -81,7 +84,8 @@ end
 -- init
 -- ===================
 function _init()
-	//printh("====starting up====")
+	last_level=nil
+	scroll=0
 	init_parallax()
 	init_level()
 end
@@ -95,7 +99,11 @@ function _draw()
 	rectfill(0,0,128,128,0)
 	map(0,0,0,-64,16,16)
 	draw_parallax()
-	draw_level()
+	if scroll==0 then
+		draw_level()
+	else
+		draw_scroll()
+	end
 end
 
 -- ==========
@@ -104,6 +112,32 @@ end
 
 function _update()
 	update_parallax()
+	if scroll>0 then
+		update_scroll()
+	end
+	if(btnp(5))init_scroll()
+end
+
+-- ==========
+-- scrolling
+-- ===================
+
+function init_scroll()
+	scroll=1
+	for c in all(coins)do
+		del(coins,c)
+	end
+	last_level=copy_table(level)
+	init_level()
+end
+
+function update_scroll()
+	if(scroll==0)return
+	if scroll<128 then
+		scroll+=1
+	else
+		scroll=0
+	end
 end
 
 -- ==========
@@ -134,19 +168,6 @@ function init_level()
 	cell_auto()
 	add_terrain()
 	add_coins()
-end
-
-function add_coins()
-	coins={}
-	for j=0,ymax-1 do
-	for i=0,xmax-1 do
-		if level[j][i]==0 and
-					chance(coin_chance) then
-			add(coins,{
-				i=i,j=j,tm=0
-			})
-		end
-	end end
 end
 
 function add_terrain()
@@ -223,10 +244,38 @@ function draw_level()
 	for j=0,ymax-1 do
 	for i=0,xmax-1 do
 		if level[j][i]>1 then
-			spr(level[j][i],i*8,j*8)
+			spr(level[j][i],i*8,
+				(j*8)-scroll)
 		end
 	end end
 	draw_coins()
+end
+
+function draw_scroll()
+	for j=0,ymax-1 do
+	for i=0,xmax-1 do
+		if level[j][i]>1 then
+			spr(level[j][i],i*8,
+				(j*8)+(128-scroll))
+		end
+		if last_level[j][i]>1 then
+			spr(last_level[j][i],i*8,
+				(j*8)-scroll)
+		end
+	end end
+end
+
+function add_coins()
+	coins={}
+	for j=0,ymax-1 do
+	for i=0,xmax-1 do
+		if level[j][i]==0 and
+					chance(coin_chance) then
+			add(coins,{
+				i=i,j=j,tm=0
+			})
+		end
+	end end
 end
 
 function draw_coins()
