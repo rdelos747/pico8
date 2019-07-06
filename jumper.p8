@@ -201,7 +201,8 @@ function init_player()
 		can_die=false,
 		coin=0,
 		water=p_max_water,
-		shoot=0
+		shoot=0,
+		w_tm=0
 	}
 end
 
@@ -225,21 +226,30 @@ function draw_player()
 	end
 	
 	--water splash
-	if pp.x>0 and pp.x<128 and
-				pp.y>0 and pp.y<128 then
-	local pi=flr(pp.x/8)
-	local pj=flr(pp.y/8)
-	if level[pj][pi]==pas_watr then
+	
+	if touch_water() then
 		spr((flr(l_tm)%3)+40,
 			pp.x-4,pp.y-4)
 	end
-	end
 	
 	--water meter
-	if pp.shoot>0 then
-		line(p_max_water/2
-		rect(pp.x-2,pp.y-7,
-							pp.x+2,pp.y-5,7)
+	if pp.shoot>0 or btn(❎) or
+				(touch_water() and 
+					pp.water<p_max_water)
+				then
+		local ws=flr(p_max_water/4)+1
+		if pp.water>0 or 
+					flr(l_tm)%2==0 then
+			rectfill(pp.x-(ws+1),pp.y-7,
+				pp.x+ws,pp.y-5,0)
+			rect(pp.x-(ws+1),pp.y-7,
+				pp.x+ws,pp.y-5,7)
+		end
+		if pp.water>0 then
+			line(pp.x-ws,pp.y-6,
+				(pp.x-ws)+ceil(pp.water/2),
+				pp.y-6,12)
+		end
 	end
 end
 
@@ -272,6 +282,17 @@ function update_player()
 	player_jump()
 	player_shoot()
 	touch_coin()
+	
+	if(pp.w_tm>0)pp.w_tm-=1
+	
+	if touch_water() and 
+				pp.w_tm==0 then
+		pp.w_tm=5
+		pp.water+=1
+		if pp.water>p_max_water then
+			pp.water=p_max_water
+		end
+	end
 end
 
 function player_jump()
@@ -334,6 +355,17 @@ function touch_coin()
 			pp.coin+=1
 			return
 		end
+	end
+end
+
+function touch_water()
+	if pp.x>0 and pp.x<128 and
+				pp.y>0 and pp.y<128 then
+		local pi=flr(pp.x/8)
+		local pj=flr(pp.y/8)
+		return level[pj][pi]==pas_watr
+	else
+		return false
 	end
 end
 
