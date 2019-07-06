@@ -21,6 +21,9 @@ jumper
 - perhaps player cannot advance
 		until they collect a special 
 		item on the stage (eg, a key)
+- player has a water gun. to
+			refil, player must stand
+			under water.
 ]]--
 
 -- ==========
@@ -59,6 +62,8 @@ s_coin_hud=48
 p_accel=0.3
 p_max=4
 p_num_jumps=3
+p_max_water=12
+p_max_coin=1000
 
 -- ==========
 -- helpers
@@ -107,9 +112,13 @@ end
 -- init
 -- ===================
 function _init()
+	--vars
 	last_level=nil
 	scroll=0
 	l_tm=0
+	sprinkles={}
+	bullets={}
+	--functions
 	init_parallax()
 	init_level()
 	init_player()
@@ -128,6 +137,8 @@ function _draw()
 	
 	if scroll==0 then
 		draw_level()
+		draw_sprinkles()
+		draw_bullets()
 	else
 		draw_scroll()
 	end
@@ -145,6 +156,7 @@ function _update()
 		update_scroll()
 	else
 		update_player()
+		update_bullets()
 	end
 	//if(btnp(5))init_scroll()
 end
@@ -161,7 +173,13 @@ function draw_hud()
 	spr(flr(hud.tm)%4+s_coin_hud,
 		2,2)
 	print("=",11,3,7)
-	print(pp.coin,16,3,7)
+	local b=p_max_coin
+	local s=""
+	while b>pp.coin and b>10 do
+		b=b/10
+		if(b>pp.coin)s=s.."0"
+	end
+	print(s..pp.coin,16,3,7)
 end
 
 -- ==========
@@ -175,37 +193,19 @@ function init_player()
 	pp={
 		x=(pt.i*8)+4,
 		y=(pt.j*8)+4,
-		drr=0, -- -1:left,1:right
+		drr=1, -- -1:left,1:right
 		tm=0,
 		jump=0,
 		jump_press=false,
 		dy=0,
 		can_die=false,
 		coin=0,
-		last={}
+		water=p_max_water,
+		shoot=0
 	}
-	init_lasts()
-end
-
-function init_lasts()
-	for n=1,8 do
-		add(pp.last,{x=nil,y=nil})
-	end
 end
 
 function draw_player()
-	--lasts
-	if scroll==0 then
-	for n=8,1,-1 do
-		if pp.last[n].x!=nil and
-					pp.last[n].y!=nil then
-			pal(7,7+n)
-			spr(43,pp.last[n].x-4,
-				pp.last[n].y-4)
-		end
-	end
-	end
-	pal()
 	if(pp.jump==2)pal(7,6)
 	if(pp.jump==3)pal(7,5)
 	if(pp.can_die)pal(7,8)
@@ -234,46 +234,54 @@ function draw_player()
 			pp.x-4,pp.y-4)
 	end
 	end
+	
+	--water meter
+	if pp.shoot>0 then
+		line(p_max_water/2
+		rect(pp.x-2,pp.y-7,
+							pp.x+2,pp.y-5,7)
+	end
 end
 
 function update_player()
 	if pp.y>128 then
 		init_scroll()
-		init_lasts()
 		return
 	end
 	
 	-- left/right movement
-	pp.drr=0
-	if(btn(⬅️))pp.drr=-1
-	if(btn(➡️))pp.drr=1
-	if pp.drr==0 then
-		pp.tm=0
-	else
+	//pp.drr=0
+	local move=false
+	if btn(⬅️) then
+		pp.drr=-1
+		move=true
+	elseif btn(➡️) then
+		pp.drr=1
+		move=true
+	end
+	if move then
 		pp.tm+=0.2
+		local nx=pp.x+pp.drr
+		if place_free(nx,pp.y) then
+			pp.x=nx
+		end
+	else
+		pp.tm=0
 	end
-	local nx=pp.x+pp.drr
-	if place_free(nx,pp.y) then
-		pp.x=nx
-	end
-	
-	--get last
-	for n=8,2,-1 do
-		pp.last[n]=pp.last[n-1]
-	end
-	pp.last[1]={x=nil,y=nil}
 	
 	player_jump()
+	player_shoot()
 	touch_coin()
 end
 
 function player_jump()
-	if btn(❎) then
+	if btn(🅾️) then
 		if not pp.jump_press then
 			pp.jump_press=true
 			pp.jump+=1
 			if pp.jump<=p_num_jumps then
 				pp.dy=-p_max
+				add_sprinkles(pp.x,pp.y)
 			end
 		end
 	else
@@ -281,7 +289,6 @@ function player_jump()
 	end
 	-- if jumping
 	if pp.dy<0 then
-		pp.last[1]={x=pp.x,y=pp.y}
 		pp.dy+=p_accel
 		local ny=pp.y+pp.dy
 		if place_free(pp.x,ny-4) then
@@ -293,7 +300,6 @@ function player_jump()
 	-- if falling
 	elseif place_free(pp.x,
 			(pp.y+pp.dy)+4) then
-		pp.last[1]={x=pp.x,y=pp.y}
 		pp.y=pp.y+pp.dy
 		pp.dy+=p_accel
 		if(pp.dy>p_max)pp.dy=p_max
@@ -305,6 +311,21 @@ function player_jump()
 	end
 end
 
+function player_shoot()
+	if pp.shoot>0 then
+		pp.shoot-=1
+		return
+	end
+	if btn(❎) then
+		pp.shoot=5
+		if(pp.water==0)return
+		pp.water-=1
+		add_bullet(
+			pp.x+(5*pp.drr),
+			pp.y,pp.drr*3,0,10,12)
+	end
+end
+
 function touch_coin()
 	for c in all(coins)do
 		if flr(pp.x/8)==c.i and
@@ -313,6 +334,65 @@ function touch_coin()
 			pp.coin+=1
 			return
 		end
+	end
+end
+
+function add_sprinkles(x,y)
+	add(sprinkles,{
+		x=x+2,y=y,dx=1,dy=1,
+		sp=43,tm=0
+	})
+	add(sprinkles,{
+		x=x-2,y=y,dx=-1,dy=1,
+		sp=43,tm=0
+	})
+	add(sprinkles,{
+		x=x+2,y=y,dx=1,dy=-1,
+		sp=43,tm=0
+	})
+	add(sprinkles,{
+		x=x-2,y=y,dx=-1,dy=-1,
+		sp=43,tm=0
+	})
+end
+
+function draw_sprinkles()
+	for s in all(sprinkles)do
+		s.tm+=1
+		s.y+=s.dy
+		s.x+=s.dx
+		s.dx*=0.9
+		s.dy+=0.1
+		pal(7,8+(s.tm%8))
+		spr(s.sp,s.x-4,s.y-4)
+		pal()
+		if(s.tm>16)del(sprinkles,s)
+	end
+end
+
+-- ==========
+-- bullets
+-- ===================
+
+function add_bullet(x,y,dx,dy,tm,c)
+	add(bullets,{
+		x=x,y=y,dx=dx,dy=dy,tm=tm,c=c
+	})
+end
+
+function update_bullets()
+	for b in all(bullets)do
+		b.tm-=1
+		b.x+=b.dx
+		b.y+=b.dy
+		if(b.tm<=0)del(bullets,b)
+	end
+end
+
+function draw_bullets()
+	for b in all(bullets)do
+		rectfill(b.x,b.y,b.x+1,
+			b.y+1,b.c)
 	end
 end
 
@@ -668,13 +748,13 @@ d01550115d0dd0d5d01550115d0dd0d5d3135b3350cccc0550cccc050008000000e0e00000099000
 0111550150dddd050111550150dddd050113550350cccc0550cccc0500898000000300000004f0000f0777f000c7770000cccc0000cccc0000cccc0000000000
 111111100555555011111110055555501311311305cccc5005cccc5000080000003000000004400000ffff0000cccc00007c770000cccc0000cccc0000000000
 0000000000000000000000000000000000000000000000000008000000008000070000c00c0000000c0007000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000008800000000880000c70c007000007c0000c0000000000000000000000000000000000000000000
-007777000077770000777700000000000000000000000000088888888888888000000000000000000000000c0077770000007000000000000000000000000000
-00777700007777000077770000000000000000000000000088888888888888880000000000000000700000000077770000007000000000000000000000000000
-00c7c70000c77c00007c7c0000000000000000000000000008888888888888800000000000000000000000000077770000007000000000000000000000000000
-00777700007777000077770000000000000000000000000000880000000088000000000000000000000000000077770000007000000000000000000000000000
-00000000000000000000000000700700007007000070070000080000000080000000000000000000000000000070070000007000000000000000000000000000
-00000000000000000000000000700700007000000000070000000000000000000000000000000000000000000070070000007000000000000000000000000000
+000000000000000000000000000000000000000000000000008800000000880000c70c007000007c0000c0000000000000007000000000000000000000000000
+007777000077770000777700000000000000000000000000088888888888888000000000000000000000000c0000700000077700000000000000000000000000
+00777700007777000077770000000000000000000000000088888888888888880000000000000000700000000007770000770770000000000000000000000000
+00c7c70000c77c00007c7c0000000000000000000000000008888888888888800000000000000000000000000000700000077700000000000000000000000000
+00777700007777000077770000000000000000000000000000880000000088000000000000000000000000000000000000007000000000000000000000000000
+00000000000000000000000000700700007007000070070000080000000080000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000700700007000000000070000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000aaa000000a0000000a0000000a00000aaaa00000aa000000aa000000aa0000000000000000000000000000000000000000000000000000000000000000000
 00a000a0000a0a000000a000000a0a000aaaaaa000aaaa00000aa00000aaaa000000000000000000000000000000000000000000000000000000000000000000
