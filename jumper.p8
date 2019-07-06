@@ -3,27 +3,9 @@ version 16
 __lua__
 --[[
 jumper
-- generate blob within 16x16
-		map
-- no scrolling (or maybe just
-		a little above and below
-		blob)
-- when player jumps off blob and
-		hits bottom of section,
-			destroy current blob, and
-			scroll player to top of
-			screen.
-		- then, generate new blob 
-				below and drop player down.
-- player should have double or
-			tripple jump, so they can
-			correct themselves in mid-air
 - perhaps player cannot advance
 		until they collect a special 
 		item on the stage (eg, a key)
-- player has a water gun. to
-			refil, player must stand
-			under water.
 ]]--
 
 -- ==========
