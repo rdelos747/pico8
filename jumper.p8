@@ -41,12 +41,24 @@ ter_bloc=17
 ter_roc2=18
 ter_blc2=19
 ter_gras=20
+ter_pipe=21
+ter_watr=22
 --passives
-pas_flw1=21
-pas_flw2=22
+pas_flw1=23
+pas_flw2=24
+pas_stem=25
+pas_tree=26
+pas_watr=27
 
 --coins
 coin_chance=5
+s_coin=52
+s_coin_hud=48
+
+--player
+p_accel=0.3
+p_max=4
+p_num_jumps=3
 
 -- ==========
 -- helpers
@@ -80,15 +92,28 @@ function print_level()
 	printh("")
 end
 
+function place_free(x,y)
+	local i=flr(x/8)
+	local j=flr(y/8)
+	if x<=0 or x>=128 or 
+				y<=0 or y>=128 then
+		return true
+	end
+	return level[j][i]<ter_rock or
+								level[j][i]>=pas_flw1
+end
+
 -- ==========
 -- init
 -- ===================
 function _init()
 	last_level=nil
 	scroll=0
+	l_tm=0
 	init_parallax()
 	init_level()
 	init_player()
+	init_hud()
 end
 
 -- ==========
@@ -106,7 +131,7 @@ function _draw()
 	else
 		draw_scroll()
 	end
-	
+	draw_hud()
 	draw_player()
 end
 
@@ -121,7 +146,22 @@ function _update()
 	else
 		update_player()
 	end
-	if(btnp(5))init_scroll()
+	//if(btnp(5))init_scroll()
+end
+
+-- ==========
+-- hud
+-- ===================
+function init_hud()
+	hud={tm=0}
+end
+
+function draw_hud()
+	hud.tm+=0.2
+	spr(flr(hud.tm)%4+s_coin_hud,
+		2,2)
+	print("=",11,3,7)
+	print(pp.coin,16,3,7)
 end
 
 -- ==========
@@ -133,31 +173,115 @@ function init_player()
 	local idx=rand(1,#player_start_points)
 	local pt=player_start_points[idx]
 	pp={
-		x=pt.i*8,
-		y=pt.j*8,
+		x=(pt.i*8)+4,
+		y=(pt.j*8)+4,
 		drr=0, -- -1:left,1:right
-		tm=0
+		tm=0,
+		jump=0,
+		jump_press=false,
+		dy=0,
+		can_die=false,
+		coin=0
 	}
 end
 
 function draw_player()
-	spr(33+pp.drr,pp.x,pp.y)
+	if(pp.jump==2)pal(7,6)
+	if(pp.jump==3)pal(7,5)
+	if(pp.can_die)pal(7,8)
+	spr(33+pp.drr,pp.x-4,pp.y-4)
 	if pp.tm>0 then
 	spr(36+(flr(pp.tm)%2),
-		pp.x,pp.y)
+		pp.x-4,pp.y-4)
 	else
-		spr(35,pp.x,pp.y)
+		spr(35,pp.x-4,pp.y-4)
+	end
+	pal()
+	
+	--off screen
+	if pp.x<0 then
+		spr(38,0,pp.y)
+	elseif pp.x>128 then
+		spr(39,120,pp.y)
+	end
+	
+	--water splash
+	if pp.x>0 and pp.x<128 and
+				pp.y>0 and pp.y<128 then
+	local pi=flr(pp.x/8)
+	local pj=flr(pp.y/8)
+	if level[pj][pi]==pas_watr then
+		spr((flr(l_tm)%3)+40,
+			pp.x-4,pp.y-4)
+	end
 	end
 end
 
 function update_player()
+	if pp.y>128 then
+		init_scroll()
+	end
 	pp.drr=0
+	-- left/right movement
 	if(btn(⬅️))pp.drr=-1
 	if(btn(➡️))pp.drr=1
 	if pp.drr==0 then
 		pp.tm=0
 	else
 		pp.tm+=0.2
+	end
+	local nx=pp.x+pp.drr
+	if place_free(nx,pp.y) then
+		pp.x=nx
+	end
+	
+	player_jump()
+	touch_coin()
+end
+
+function player_jump()
+	if btn(❎) then
+		if not pp.jump_press then
+			pp.jump_press=true
+			pp.jump+=1
+			if pp.jump<=p_num_jumps then
+				pp.dy=-p_max
+			end
+		end
+	else
+		pp.jump_press=false
+	end
+	-- if jumping
+	if pp.dy<0 then
+		pp.dy+=p_accel
+		local ny=pp.y+pp.dy
+		if place_free(pp.x,ny-4) then
+			pp.y=ny
+		else
+			pp.dy=1
+			pp.y=ny-pp.dy
+		end
+	-- if falling
+	elseif place_free(pp.x,
+			(pp.y+pp.dy)+3) then
+		pp.y=pp.y+pp.dy
+		pp.dy+=p_accel
+		if(pp.dy>p_max)pp.dy=p_max
+	else
+		pp.dy=0
+		pp.jump=0
+		pp.can_die=false
+	end
+end
+
+function touch_coin()
+	for c in all(coins)do
+		if flr(pp.x/8)==c.i and
+					flr(pp.y/8)==c.j then
+			del(coins,c)
+			pp.coin+=1
+			return
+		end
 	end
 end
 
@@ -177,10 +301,31 @@ end
 function update_scroll()
 	if(scroll==0)return
 	if scroll<128 then
-		scroll+=1
+		scroll+=2
+		pp.y-=2
+		pp.can_die=true
 	else
 		scroll=0
 	end
+end
+
+function draw_scroll()
+	for j=0,ymax-1 do
+	for i=0,xmax-1 do
+		if level[j][i]>1 then
+			spr(level[j][i],i*8,
+				(j*8)+(128-scroll))
+		end
+		if last_level[j][i]>1 then
+			spr(last_level[j][i],i*8,
+				(j*8)-scroll)
+		end
+		if last_level[j][i]==pas_watr or
+					last_level[j][i]==ter_watr then
+			spr((flr(l_tm)%4)+pas_watr,
+				i*8,j*8-scroll)
+		end
+	end end
 end
 
 -- ==========
@@ -220,6 +365,20 @@ function init_level()
 end
 
 function add_terrain()
+	--do top
+	if last_level then
+	for i=0,xmax-1 do
+		if level[0][i]==0 then
+			--if below water
+			if last_level[ymax-1][i]==ter_pipe or
+						last_level[ymax-1][i]==ter_watr or
+						last_level[ymax-1][i]==pas_watr then
+				level[0][i]=pas_watr
+			end
+		end
+	end
+	end
+	
 	-- player_start_points is onlu
 	-- used on ititial player
 	-- placement
@@ -233,6 +392,8 @@ function add_terrain()
 			--add random blocks
 			if chance(10) then
 				level[j][i]=ter_bloc
+			elseif chance(10) then
+				level[j][i]=ter_pipe
 			end
 			--if top rock
 			if level[j-1][i]==0 then
@@ -248,6 +409,13 @@ function add_terrain()
 				if chance(30) then
 					level[j-1][i]=
 						rand(pas_flw1,pas_flw2)
+				--add tree
+				elseif chance(30) then
+					local rh=rand(1,3)
+					for k=1,rh do
+						level[j-k][i]=pas_stem
+					end
+					level[j-(rh+1)][i]=pas_tree
 				end
 			--if below grass
 			elseif level[j-1][i]==ter_gras then
@@ -256,9 +424,32 @@ function add_terrain()
 				else
 					level[j][i]=ter_blc2
 				end
+			--if below water
+			elseif level[j-1][i]==ter_pipe or
+										level[j-1][i]==ter_watr then
+				level[j][i]=ter_watr
+			end
+		elseif level[j][i]==0 then
+			--if below water
+			if level[j-1][i]==ter_pipe or
+						level[j-1][i]==ter_watr or
+						level[j-1][i]==pas_watr then
+				level[j][i]=pas_watr
 			end
 		end
 	end end
+	
+	--do bottom
+	for i=0,xmax-1 do
+		if level[ymax-1][i]==0 then
+			--if below water
+			if level[ymax-2][i]==ter_pipe or
+						level[ymax-2][i]==ter_watr or
+						level[ymax-2][i]==pas_watr then
+				level[ymax-1][i]=pas_watr
+			end
+		end
+	end
 end
 
 function cell_auto()
@@ -306,28 +497,20 @@ function get_surr(j,i)
 end
 
 function draw_level()
+	l_tm+=0.2
 	for j=0,ymax-1 do
 	for i=0,xmax-1 do
 		if level[j][i]>1 then
 			spr(level[j][i],i*8,
 				(j*8)-scroll)
+		end
+		if level[j][i]==pas_watr or
+					level[j][i]==ter_watr then
+			spr((flr(l_tm)%4)+pas_watr,
+				i*8,j*8-scroll)
 		end
 	end end
 	draw_coins()
-end
-
-function draw_scroll()
-	for j=0,ymax-1 do
-	for i=0,xmax-1 do
-		if level[j][i]>1 then
-			spr(level[j][i],i*8,
-				(j*8)+(128-scroll))
-		end
-		if last_level[j][i]>1 then
-			spr(last_level[j][i],i*8,
-				(j*8)-scroll)
-		end
-	end end
 end
 
 function add_coins()
@@ -346,7 +529,7 @@ end
 function draw_coins()
 	for c in all(coins)do
 		c.tm+=0.1
-		spr((flr(c.tm)%4)+23,
+		spr((flr(c.tm)%4)+s_coin,
 			c.i*8,c.j*8)
 	end
 end
@@ -445,22 +628,29 @@ __gfx__
 00000000111111110011110000111111111111000001111111111000dddddddd00dddd0000dddddddddddd00000dddddddddd000000000000000000000000000
 00000000111111110111111001111111111111000111111111111000dddddddd0dddddd00ddddddddddddd000dddddddddddd000000000000000000000000000
 00000000111111111111111111111111111111101111111111111110ddddddddddddddddddddddddddddddd0ddddddddddddddd0000000000000000000000000
-011111110555555003113113035535530131b1b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1011100050dddd051311300353dd3d033b1b1330000000000000000000aaaa00000aa000000aa000000aa0000000000000000000000000000000000000000000
-d05101dd5d0dd0d5d05301d35d0dd3d3b331333d00000000000000000aaaaaa000aaaa00000aa00000aaaa000000000000000000000000000000000000000000
-dd0011dd5dd00dd5dd0311dd53d03dd533b3b13b0000000000e0e0000aaaa9a000aa9a00000aa00000a9aa000000000000000000000000000000000000000000
-dd05011d5dd00dd5dd05011d5dd03dd3b303033d00000000000a00000aaaa9a000aa9a00000aa00000a9aa000000000000000000000000000000000000000000
-d01550115d0dd0d5d01550115d0dd0d5d3135b330008000000e0e0000aa99aa000aaaa00000aa00000aaaa000000000000000000000000000000000000000000
-0111550150dddd050111550150dddd0501135503008980000003000000aaaa00000aa000000aa000000aa0000000000000000000000000000000000000000000
-11111110055555501111111005555550131131130008000000300000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00777700007777000077770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00777700007777000077770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00c7c70000c77c00007c7c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00777700007777000077770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000700700007007000070070000000000000000000000000000000000000000000000000000000000000000000000000000000000
+011111110555555003113113035535530131b1b00555555005cccc5000000000000000000004400000ffff0000cc7c0000cccc0000c7770000cccc0000000000
+1011100050dddd051311300353dd3d033b1b1330500ff00550cccc050000000000000000000f90000f0000f00077c70000cc7c0000cccc000077770000000000
+d05101dd5d0dd0d5d05301d35d0dd3d3b331333d50f00f0550cccc05000000000000000000044000f00f000f00cccc000077770000cccc0000cccc0000000000
+dd0011dd5dd00dd5dd0311dd53d03dd533b3b13b5f00c0f55fccccf50000000000e0e00000094000f0f0007f00cccc0000cccc00007c770000cccc0000000000
+dd05011d5dd00dd5dd05011d5dd03dd3b303033d5fccccf55fccccf500000000000a000000044000f000707f00cccc0000cccc0000cccc00007cc70000000000
+d01550115d0dd0d5d01550115d0dd0d5d3135b3350cccc0550cccc050008000000e0e00000099000f000077f00cccc0000cccc0000cccc0000c77c0000000000
+0111550150dddd050111550150dddd050113550350cccc0550cccc0500898000000300000004f0000f0777f000c7770000cccc0000cccc0000cccc0000000000
+111111100555555011111110055555501311311305cccc5005cccc5000080000003000000004400000ffff0000cccc00007c770000cccc0000cccc0000000000
+0000000000000000000000000000000000000000000000000008000000008000070000c00c0000000c0007000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000008800000000880000c70c007000007c0000c0000000000000000000000000000000000000000000
+007777000077770000777700000000000000000000000000088888888888888000000000000000000000000c0000000000000000000000000000000000000000
+00777700007777000077770000000000000000000000000088888888888888880000000000000000700000000000000000000000000000000000000000000000
+00c7c70000c77c00007c7c0000000000000000000000000008888888888888800000000000000000000000000000000000000000000000000000000000000000
+00777700007777000077770000000000000000000000000000880000000088000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000700700007007000070070000080000000080000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000700700007000000000070000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000aaa000000a0000000a0000000a00000aaaa00000aa000000aa000000aa0000000000000000000000000000000000000000000000000000000000000000000
+00a000a0000a0a000000a000000a0a000aaaaaa000aaaa00000aa00000aaaa000000000000000000000000000000000000000000000000000000000000000000
+00a009a0000a9a000000a000000a9a000aaaa9a000aa9a00000aa00000a9aa000000000000000000000000000000000000000000000000000000000000000000
+00a099a0000a9a000000a000000a9a000aaaa9a000aa9a00000aa00000a9aa000000000000000000000000000000000000000000000000000000000000000000
+000aaa000000a0000000a0000000a0000aa99aa000aaaa00000aa00000aaaa000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000aaaa00000aa000000aa000000aa0000000000000000000000000000000000000000000000000000000000000000000
 __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
