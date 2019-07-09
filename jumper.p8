@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 16
 __lua__
 --[[
-jumper
+jumper`
 - perhaps player cannot advance
 		until they collect a special 
 		item on the stage (eg, a key)
