@@ -604,6 +604,8 @@ function update_shopping()
 	end
 end
 
+--test
+
 function draw_shopping()
 	rectfill(22,25,112,68,1)
 	rect(22,25,112,68,7)
