@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 16
+version 18
 __lua__
 --[[
 jumper`
@@ -117,7 +117,7 @@ function _init()
 	
 	//temp
 	init_shop()
-	shop={x=78,y=72,tm=0}
+	shop.y=72
 	scroll=0
 	//temp
 	
@@ -158,6 +158,10 @@ function _update()
 	if scroll>0 then
 		update_scroll()
 	else
+		if pp.shopping then
+			update_shopping()
+			return
+		end
 		update_player()
 		update_bullets()
 	end
@@ -222,7 +226,9 @@ function init_player()
 		shoot=0,
 		w_tm=0,
 		hp=3,
-		hp_max=3
+		hp_max=3,
+		shopping=false,
+		can_shop=false
 	}
 end
 
@@ -253,7 +259,8 @@ function draw_player()
 	end
 	
 	--water meter
-	if pp.shoot>0 or btn(❎) or
+	if pp.shoot>0 or 
+				(btn(❎) and not pp.shopping) or
 				(touch_water() and 
 					pp.water<p_max_water)
 				then
@@ -506,7 +513,15 @@ end
 -- ===================
 function init_shop()
 	l_type="shop"
-	shop={x=78,y=200,tm=0}
+	shop={
+		x=78,y=200,tm=0,idx=0,
+		labels={
+		"+1 heart",
+		"+2 water tank",
+		"+1 jump",
+		"+1 water damage"
+		}
+	}
 	level={}
 	local s_level={
 		{0,0,0,0,46,47,0,0},
@@ -556,13 +571,82 @@ function draw_shop()
 	spr(shop_s,shop.x,shop.y)
 	
 	-- shop box
-	if pp.y==shop.y+4 and
+	if pp.shopping then
+		draw_shopping()
+	elseif pp.y==shop.y+4 and
 				pp.x<shop.x and
 				pp.x>shop.x-20 then
 		draw_shop_ask()
+		pp.can_shop=true
+		if btn(❎) and 
+					not pp.shopping then
+			pp.shopping=true
+		end
 	else
+		if pp.can_shop then
+			pp.can_shop=false
+			shop.tm=20
+		end
 		draw_shop_yell()
 	end
+end
+
+function update_shopping()
+	if btnp(🅾️) then
+		pp.shopping=false
+		shop.tm=20
+		return
+	end
+	if btnp(⬅️) and shop.idx>0 then
+		shop.idx-=1
+	elseif btnp(➡️) and shop.idx<3 then
+		shop.idx+=1
+	end
+end
+
+function draw_shopping()
+	rectfill(22,25,112,68,1)
+	rect(22,25,112,68,7)
+	--item
+	for i=0,3 do
+		draw_shop_item(i+64,30+(i*22),
+			30,0,(i==shop.idx))
+	end
+	--label
+	local ll=shop.labels[shop.idx+1]
+	print(ll,66-#ll*2,50,7)
+	
+	--actions
+	print("❎:buy 🅾️:cancel",
+		36,60,13)	
+	
+	spr(61,72,68)
+end
+
+function draw_shop_item(
+s,x,y,p,active)
+	if not active then
+		pal(2,0)
+		pal(6,0)
+		pal(7,0)
+		pal(8,0)
+		pal(9,0)
+		pal(10,0)
+		pal(12,0)
+	end
+	--icon
+	spr(s,x,y)
+	
+	--price
+	spr(48,x-6,y+10)
+	local b=p_max_coin
+	local s=""
+	while b>p and b>10 do
+		b=b/10
+		if(b>p)s=s.."0"
+	end
+	print(s..p,x+2,y+11)
+	pal()
 end
 
 function draw_shop_ask()
@@ -913,6 +997,14 @@ d01550115d0dd0d5d01550115d0dd0d5d3135b3350cccc0550cccc050008000000e0e00000099000
 000aaa000000a0000000a0000000a0000aa99aa000aaaa00000aa00000aaaa000088800000666600006666000066660060666606000000000000000000000000
 0000000000000000000000000000000000aaaa00000aa000000aa000000aa0000008000000666600006666000066660000666600000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000600600006006000060060000600600000000000000000000000000
+07000000070000000700000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+77700000777000007770777077700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+07000000070000000700c7c007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00080800000000000000707000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00828880077777770000000007770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0082888007cccc07000006000c7c0c0c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00088800077777770000000007070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00008000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
