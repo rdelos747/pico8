@@ -10,12 +10,9 @@ jumper`
 		- gems (just points for now)
 		- unlimited jumps for x seconds
 		- invincibility for x seconds 
-shop:
-		-- prices increase every visit
-		+life
-		+water capacity
-		+water strength
-		+jump num
+- show number jumps in hud
+- touching enemy decreases heart
+			and jump num
 ]]--
 
 -- ==========
@@ -53,8 +50,8 @@ s_coin_hud=48
 --player
 p_accel=0.3
 p_max=4
-p_num_jumps=3
-p_max_water=12
+//p_num_jumps=3
+//p_max_water=12
 p_max_coin=1000
 
 --prices
@@ -184,6 +181,7 @@ function draw_hud()
 	hud.tm+=0.2
 	draw_hud_coins()
 	draw_hud_hp()
+	draw_hud_jump()
 end
 
 function draw_hud_coins()
@@ -209,6 +207,18 @@ function draw_hud_hp()
 	end
 end
 
+function draw_hud_jump()
+	for i=1,pp.jump_max do
+		if i>pp.jump then
+			pal(6,1)
+			pal(7,1)
+			pal(12,1)
+		end
+		spr(62,70+(i*6),2)
+		pal()
+	end
+end
+
 -- ==========
 -- player
 -- ===================
@@ -222,24 +232,25 @@ function init_player()
 		y=(pt.j*8)+4,
 		drr=1, -- -1:left,1:right
 		tm=0,
-		jump=0,
 		jump_press=false,
+		jump=3,
+		jump_max=3,
 		dy=0,
 		can_die=false,
 		coin=800,
-		water=p_max_water,
+		water=12,
+		water_max=12,
 		shoot=0,
 		w_tm=0,
 		hp=3,
 		hp_max=3,
 		shopping=false,
-		can_shop=false
+		can_shop=false,
+		attack=1
 	}
 end
 
 function draw_player()
-	if(pp.jump==2)pal(7,6)
-	if(pp.jump==3)pal(7,5)
 	if(pp.can_die)pal(7,8)
 	spr(33+pp.drr,pp.x-4,pp.y-4)
 	if pp.tm>0 then
@@ -267,9 +278,9 @@ function draw_player()
 	if pp.shoot>0 or 
 				(btn(❎) and not pp.shopping) or
 				(touch_water() and 
-					pp.water<p_max_water)
+					pp.water<pp.water_max)
 				then
-		local ws=flr(p_max_water/4)+1
+		local ws=flr(pp.water_max/4)+1
 		if pp.water>0 or 
 					flr(l_tm)%2==0 then
 			rectfill(pp.x-(ws+1),pp.y-7,
@@ -321,8 +332,8 @@ function update_player()
 				pp.w_tm==0 then
 		pp.w_tm=5
 		pp.water+=1
-		if pp.water>p_max_water then
-			pp.water=p_max_water
+		if pp.water>pp.water_max then
+			pp.water=pp.water_max
 		end
 	end
 end
@@ -331,12 +342,10 @@ function player_jump()
 	if btn(🅾️) then
 		if not pp.jump_press then
 			pp.jump_press=true
-			pp.jump+=1
-			if pp.jump<=p_num_jumps then
+			if pp.jump>0 then
+				pp.jump-=1
 				pp.dy=-p_max
 				add_sprinkles(pp.x,pp.y)
-			else
-				pp.jump=p_num_jumps
 			end
 		end
 	else
@@ -361,7 +370,7 @@ function player_jump()
 	else
 		pp.dy=0
 		pp.y=(flr((pp.y/8))*8)+4
-		pp.jump=0
+		pp.jump=pp.jump_max
 		pp.can_die=false
 	end
 end
@@ -643,15 +652,19 @@ function update_shopping()
 	end
 end
 
-function apply_uprade(i)
+function apply_upgrade(i)
 	if i==0 then
 	-- +1 hearts
+		pp.hp_max+=1
 	elseif i==1 then
 	-- +2 water tank
+		pp.water_max+=2
 	elseif i==2 then
 	-- +1 jump
+		pp.jump_max+=1
 	elseif i==3 then
 	-- +1 attack
+		pp.attack+=1
 	end
 end
 
@@ -1058,11 +1071,11 @@ d01550115d0dd0d5d01550115d0dd0d5d3135b3350cccc0550cccc050008000000e0e00000099000
 000000000000000000000000007007000070070000700700000800000000800000000000000000000000000000000000000d0000000d00000400000000000040
 00000000000000000000000000700700007000000000070000000000000000000000000000000000000000000000000004000040040000400400000000000040
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000071117000000000000000000
-000aaa000000a0000000a0000000a00000aaaa00000aa000000aa000000aa000088088000000000000f0ff0000f0ff0000f0ff00007117000000000000000000
-00a000a0000a0a000000a000000a0a000aaaaaa000aaaa00000aa00000aaaa008288888000f6ff00006666006066660600666600000717000000000000000000
-00a009a0000a9a000000a000000a9a000aaaa9a000aa9a00000aa00000a9aa008288888000969600009696006096960600969600000070000000000000000000
+000aaa000000a0000000a0000000a00000aaaa00000aa000000aa000000aa000088088000000000000f0ff0000f0ff0000f0ff00007117000007770000000000
+00a000a0000a0a000000a000000a0a000aaaaaa000aaaa00000aa00000aaaa008288888000f6ff0000666600606666060066660000071700000c7c0000000000
+00a009a0000a9a000000a000000a9a000aaaa9a000aa9a00000aa00000a9aa008288888000969600009696006096960600969600000070000007070000000000
 00a099a0000a9a000000a000000a9a000aaaa9a000aa9a00000aa00000a9aa000828880000666600006666000066660060666606000000000000000000000000
-000aaa000000a0000000a0000000a0000aa99aa000aaaa00000aa00000aaaa000088800000666600006666000066660060666606000000000000000000000000
+000aaa000000a0000000a0000000a0000aa99aa000aaaa00000aa00000aaaa000088800000666600006666000066660060666606000000000000600000000000
 0000000000000000000000000000000000aaaa00000aa000000aa000000aa0000008000000666600006666000066660000666600000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000600600006006000060060000600600000000000000000000000000
 07000000070000000700000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
