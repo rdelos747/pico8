@@ -57,6 +57,10 @@ p_num_jumps=3
 p_max_water=12
 p_max_coin=1000
 
+--prices
+prices={50,100,150,200}
+
+
 -- ==========
 -- helpers
 -- ===================
@@ -111,6 +115,7 @@ function _init()
 	l_tm=0
 	sprinkles={}
 	bullets={}
+	price_lvls={1,1,1,1}
 	--functions
 	init_parallax()
 	//init_level()
@@ -221,7 +226,7 @@ function init_player()
 		jump_press=false,
 		dy=0,
 		can_die=false,
-		coin=0,
+		coin=800,
 		water=p_max_water,
 		shoot=0,
 		w_tm=0,
@@ -520,7 +525,10 @@ function init_shop()
 		"+2 water tank",
 		"+1 jump",
 		"+1 water damage"
-		}
+		},
+		err_tm=0,
+		bought=false,
+		bt_tm=0
 	}
 	level={}
 	local s_level={
@@ -570,7 +578,16 @@ function draw_shop()
 	end
 	spr(shop_s,shop.x,shop.y)
 	
+	-- bought item
+	if shop.bought and
+				shop.bt_tm<30 then
+		shop.bt_tm+=1
+		spr(shop.idx+64,
+			64,60-shop.bt_tm)
+	end
+	
 	-- shop box
+	if(shop.bought)return
 	if pp.shopping then
 		draw_shopping()
 	elseif pp.y==shop.y+4 and
@@ -595,28 +612,73 @@ function update_shopping()
 	if btnp(🅾️) then
 		pp.shopping=false
 		shop.tm=20
+		shop.err_tm=0
 		return
+	end
+	if shop.err_tm>0 then 
+		shop.err_tm-=1
+		return
+	end
+	if btnp(❎) then
+		local i=shop.idx
+		if(price_lvls[i+1]>4)return
+		local p=prices[price_lvls[i+1]]
+		if pp.coin>=p then
+			pp.coin-=p
+			price_lvls[i+1]+=1
+			shop.bought=true
+			pp.shopping=false
+			shop.tm=20
+			apply_upgrade(i)
+		else
+			shop.err_tm=35
+		end
 	end
 	if btnp(⬅️) and shop.idx>0 then
 		shop.idx-=1
+		shop.err_tm=0
 	elseif btnp(➡️) and shop.idx<3 then
 		shop.idx+=1
+		shop.err_tm=0
 	end
 end
 
---test
+function apply_uprade(i)
+	if i==0 then
+	-- +1 hearts
+	elseif i==1 then
+	-- +2 water tank
+	elseif i==2 then
+	-- +1 jump
+	elseif i==3 then
+	-- +1 attack
+	end
+end
 
 function draw_shopping()
 	rectfill(22,25,112,68,1)
 	rect(22,25,112,68,7)
 	--item
 	for i=0,3 do
+		local p=nil
+		if price_lvls[i+1]<5 then
+			p=prices[price_lvls[i+1]]
+		end
 		draw_shop_item(i+64,30+(i*22),
-			30,0,(i==shop.idx))
+			30,p,(i==shop.idx))
 	end
 	--label
-	local ll=shop.labels[shop.idx+1]
-	print(ll,66-#ll*2,50,7)
+	if shop.err_tm>0 then
+		if flr(shop.tm)%2==0 then
+			print("need more coins",
+				38,50,7)
+			end
+	elseif price_lvls[shop.idx+1]>4 then
+		print("sold out",52,50,7)
+	else
+		local ll=shop.labels[shop.idx+1]
+		print(ll,66-#ll*2,50,7)
+	end
 	
 	--actions
 	print("❎:buy 🅾️:cancel",
@@ -640,14 +702,18 @@ s,x,y,p,active)
 	spr(s,x,y)
 	
 	--price
-	spr(48,x-6,y+10)
-	local b=p_max_coin
-	local s=""
-	while b>p and b>10 do
-		b=b/10
-		if(b>p)s=s.."0"
+	if p==nil then
+		print("----",x-3,y+11)
+	else
+		spr(48,x-6,y+10)
+		local b=p_max_coin
+		local s=""
+		while b>p and b>10 do
+			b=b/10
+			if(b>p)s=s.."0"
+		end
+		print(s..p,x+2,y+11)
 	end
-	print(s..p,x+2,y+11)
 	pal()
 end
 
