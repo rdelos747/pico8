@@ -104,6 +104,13 @@ function place_free(x,y)
 								level[j][i]>=pas_flw1
 end
 
+function set_pause()
+	pause=4
+end
+
+function set_hit()
+	hit=12
+end
 -- ==========
 -- init
 -- ===================
@@ -118,6 +125,8 @@ function _init()
 	bullets={}
 	price_lvls={1,1,1,1}
 	shop={x=78,y=200}
+	pause=0
+	hit=0
 	--functions
 	init_parallax()
 	init_level()
@@ -142,6 +151,11 @@ function _draw()
 	map(0,0,0,-64,16,16)
 	draw_parallax()
 	
+	//if pause>0 then
+	//	draw_()
+	//	return
+	//end
+	
 	if scroll==0 then
 		draw_level()
 		draw_sprinkles()
@@ -149,8 +163,10 @@ function _draw()
 	else
 		draw_scroll()
 	end
-	draw_hud()
-	draw_player()
+	if hit<=0 or flr(hit)%2==0 then
+		draw_hud()
+		draw_player()
+	end
 	if l_type=="shop" then
 		draw_shop()
 	end
@@ -161,6 +177,13 @@ end
 -- ===================
 
 function _update()
+	if pause>0 then
+		pause-=0.3
+		return
+	end
+	if hit>0 and scroll==0 then
+		hit-=0.3
+	end
 	update_parallax()
 	if scroll>0 then
 		update_scroll()
@@ -172,7 +195,6 @@ function _update()
 		update_player()
 		update_bullets()
 	end
-	//if(btnp(5))init_scroll()
 end
 
 -- ==========
@@ -226,6 +248,27 @@ function draw_hud_jump()
 		pal()
 	end
 end
+
+--[[
+function draw_hit()
+	local x=62-((pp.hp_max*8)/2)
+	for i=1,pp.hp_max do
+		if hit>3 then
+			if i-1>pp.hp then
+				print("♥",x+(i*6),64,5)
+			else
+				print("♥",x+(i*6),64,8)
+			end
+		else
+			if i>pp.hp then
+				print("♥",x+(i*6),64,5)
+			else
+				print("♥",x+(i*6),64,8)
+			end
+		end
+	end
+end
+]]--
 
 -- ==========
 -- player
@@ -306,6 +349,11 @@ end
 
 function update_player()
 	if pp.y>128 then
+		if pp.can_die then
+			pp.hp-=1
+			//set_pause()
+			set_hit()
+		end
 		init_scroll()
 		return
 	end
