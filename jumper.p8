@@ -13,6 +13,9 @@ jumper`
 - show number jumps in hud
 - touching enemy decreases heart
 			and jump num
+- eat flowers to gain health?
+- - or, just place hearts in hard
+					areas?
 ]]--
 
 -- ==========
@@ -108,19 +111,21 @@ function _init()
 	--vars
 	last_level=nil
 	l_type="norm"
+	l_num=1
 	scroll=0
 	l_tm=0
 	sprinkles={}
 	bullets={}
 	price_lvls={1,1,1,1}
+	shop={x=78,y=200}
 	--functions
 	init_parallax()
-	//init_level()
+	init_level()
 	
 	//temp
-	init_shop()
-	shop.y=72
-	scroll=0
+	//init_shop()
+	//shop.y=72
+	//scroll=0
 	//temp
 	
 	init_player()
@@ -182,6 +187,7 @@ function draw_hud()
 	draw_hud_coins()
 	draw_hud_hp()
 	draw_hud_jump()
+	print(l_num,120,3,7)
 end
 
 function draw_hud_coins()
@@ -208,6 +214,8 @@ function draw_hud_hp()
 end
 
 function draw_hud_jump()
+	rectfill(78,2,
+		70+(8*pp.jump_max),8,0)
 	for i=1,pp.jump_max do
 		if i>pp.jump then
 			pal(6,1)
@@ -237,7 +245,7 @@ function init_player()
 		jump_max=3,
 		dy=0,
 		can_die=false,
-		coin=800,
+		coin=0,
 		water=12,
 		water_max=12,
 		shoot=0,
@@ -478,11 +486,12 @@ end
 
 function init_scroll()
 	scroll=1
+	l_num+=1
 	for c in all(coins)do
 		del(coins,c)
 	end
 	last_level=copy_table(level)
-	if chance(100) then
+	if l_num%10==0 then
 		l_type="shop"
 		init_shop()
 	else
