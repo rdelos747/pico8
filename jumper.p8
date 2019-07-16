@@ -125,6 +125,7 @@ function _init()
 	l_tm=0
 	sprinkles={}
 	bullets={}
+	flares={}
 	price_lvls={1,1,1,1}
 	shop={x=78,y=200}
 	pause=0
@@ -162,6 +163,7 @@ function _draw()
 		draw_level()
 		draw_sprinkles()
 		draw_bullets()
+		draw_flares()
 	else
 		draw_scroll()
 	end
@@ -461,6 +463,7 @@ function touch_coin()
 					flr(pp.y/8)==c.j then
 			del(coins,c)
 			pp.coin+=c.val
+			add_flare(pp.x,pp.y,c.val)
 			if #coins==0 then
 				perfect=1
 				pp.coin+=50
@@ -616,6 +619,25 @@ function draw_perfect()
 	perfect+=0.4
 end
 
+function draw_flares()
+	for f in all(flares) do
+		f.tm+=0.5
+		f.y-=f.dy
+		f.dy*=0.95
+		print("+"..f.v,f.x,f.y,
+			8+(flr(f.tm)%8))
+		if f.dy<0.4 then
+			del(flares,f)
+		end
+	end
+end
+
+function add_flare(x,y,v)
+	add(flares,{
+		x=x,y=y,v=v,tm=0,dy=1
+		})
+end
+
 -- ==========
 -- shop
 -- ===================
@@ -690,7 +712,7 @@ function draw_shop()
 	end
 	
 	-- shop box
-	if(shop.bought)return
+	//if(shop.bought)return
 	if pp.shopping then
 		draw_shopping()
 	elseif pp.y==shop.y+4 and
@@ -698,9 +720,12 @@ function draw_shop()
 				pp.x>shop.x-20 then
 		draw_shop_ask()
 		pp.can_shop=true
-		if btn(❎) and 
-					not pp.shopping then
+		if btnp(❎) and 
+					not pp.shopping and
+					not shop.bought then
 			pp.shopping=true
+		else
+			shop.bought=false
 		end
 	else
 		if pp.can_shop then
