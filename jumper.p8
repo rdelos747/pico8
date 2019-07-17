@@ -117,6 +117,7 @@ end
 -- init
 -- ===================
 function _init()
+	printh("------start------")
 	--vars
 	last_level=nil
 	l_type="norm"
@@ -574,7 +575,7 @@ function update_bullets()
 		
 		for ba in all(bats) do
 			if b.x>ba.x-4 and b.x<ba.x+4 and
-						b.y>ba.y-4 and b.x<ba.y+4 then
+						b.y>ba.y-4 and b.y<ba.y+4 then
 				del(bullets,b)
 				damage_bat(ba,b.dam)
 			end
@@ -592,17 +593,28 @@ end
 -- ==========
 -- bats
 -- ===================
-function add_bat(x,y)
-	add(bats,{
-		x=x,y=y,tm=0,hp=1,ytm=0,xtm=0
-	})
+function add_bats()
+	for i=1,rand(3,4) do
+		local finding=true
+		while finding do
+			local ri=rand(1,xmax-2)
+			local rj=rand(1,ymax-2)
+			if level[rj][ri]==0 then
+				finding=false
+				add(bats,{
+					x=ri*8,y=rj*8,oy=rj*8,
+					tm=0,hp=3,
+					ytm=0,xtm=0
+				})
+			end
+		end
+	end
 end
 
 function draw_bats()
 	for b in all(bats) do
 		spr(88,b.x-4,b.y-4,1,1,
-			cos(b.xtm)<0,false)
-		local f=cos(b.xtm)>0
+			sin(b.xtm)<0,false)
 		spr(flr(b.tm)%4+84,b.x-4,b.y-8)
 	end
 end
@@ -613,14 +625,33 @@ function update_bats()
 		b.ytm+=0.02
 		b.xtm+=0.005
 		b.y+=cos(b.ytm)*0.3
-		b.x+=cos(b.xtm)*0.5
+		b.x+=sin(b.xtm)*0.5//*b.xdr
+		
+		-- collision
+		local bi=flr(b.x/8)
+		local bj=flr(b.oy/8)
+		local pt=level[bj][bi]
+		if bi<0 then
+			b.xtm=0.5
+		elseif bi>xmax-1 then
+			b.xtm=0
+		elseif pt>=ter_rock and 
+					pt<pas_flw1 then
+			if sin(b.xtm)>0 then
+				b.x-=2
+				b.xtm=0
+			elseif sin(b.xtm)<0 then
+				b.x+=2
+				b.xtm=0.5
+			end
+		end
 		
 		--shoot
 		if (b.x<pp.x and 
-					cos(b.xtm)>0) or
+					sin(b.xtm)>0) or
 					(b.x>pp.x and
-					cos(b.xtm)<0) then
-			if chance(5) then
+					sin(b.xtm)<0) then
+			if chance(1) then
 				local a=atan2(pp.x-b.x,pp.y-b.y)
 				local dx=cos(a)*2
 				local dy=sin(a)*2
@@ -1012,7 +1043,7 @@ function init_level()
 	end
 	add_terrain()
 	add_coins()
-	add_bat(10,30)
+	add_bats()
 end
 
 function add_terrain()
