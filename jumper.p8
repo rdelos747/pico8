@@ -126,6 +126,7 @@ function _init()
 	sprinkles={}
 	bullets={}
 	flares={}
+	flashes={}
 	bats={}
 	price_lvls={1,1,1,1}
 	shop={x=78,y=200}
@@ -166,6 +167,7 @@ function _draw()
 		draw_bullets()
 		draw_flares()
 		draw_bats()
+		draw_flashes()
 	else
 		draw_scroll()
 	end
@@ -456,7 +458,8 @@ function player_shoot()
 		pp.water-=1
 		add_bullet(
 			pp.x+(5*pp.drr),
-			pp.y,pp.drr*3,0,10,12)
+			pp.y,pp.drr*3,0,10,12,
+			pp.attack)
 	end
 end
 
@@ -523,13 +526,42 @@ function draw_sprinkles()
 	end
 end
 
+function add_flash(x,y)
+	for i=1,rand(1,5)do
+		add(flashes,{
+			tm=rand(-2,5),
+			x=rand(x-4,x+4),
+			y=rand(y-4,y+4),
+			dx=rand(-1,1),
+			dy=rand(-1,1),
+			c=rand(12,15)
+		})
+	end
+end
+
+function draw_flashes()
+	for f in all(flashes)do
+		f.tm+=1
+		f.x+=f.dx
+		f.y+=f.dy
+		f.dx*=0.9
+		f.dy*=0.9
+		pal(7,f.c)
+		spr(43,f.x,f.y)
+		pal()
+		if(f.tm>16)del(flashes,f)
+	end
+end
+
 -- ==========
 -- bullets
 -- ===================
 
-function add_bullet(x,y,dx,dy,tm,c)
+function add_bullet(x,y,dx,dy,
+	tm,c,dam)
 	add(bullets,{
-		x=x,y=y,dx=dx,dy=dy,tm=tm,c=c
+		x=x,y=y,dx=dx,dy=dy,
+		tm=tm,c=c,dam=dam
 	})
 end
 
@@ -539,6 +571,14 @@ function update_bullets()
 		b.x+=b.dx
 		b.y+=b.dy
 		if(b.tm<=0)del(bullets,b)
+		
+		for ba in all(bats) do
+			if b.x>ba.x-4 and b.x<ba.x+4 and
+						b.y>ba.y-4 and b.x<ba.y+4 then
+				del(bullets,b)
+				damage_bat(ba,b.dam)
+			end
+		end
 	end
 end
 
@@ -554,14 +594,16 @@ end
 -- ===================
 function add_bat(x,y)
 	add(bats,{
-		x=x,y=y,tm=0,hp=1,ytm=0
+		x=x,y=y,tm=0,hp=1,ytm=0,xtm=0
 	})
 end
 
 function draw_bats()
 	for b in all(bats) do
-		spr(88,b.x,b.y)
-		spr(flr(b.tm)%4+84,b.x,b.y-4)
+		spr(88,b.x-4,b.y-4,1,1,
+			cos(b.xtm)<0,false)
+		local f=cos(b.xtm)>0
+		spr(flr(b.tm)%4+84,b.x-4,b.y-8)
 	end
 end
 
@@ -569,8 +611,31 @@ function update_bats()
 	for b in all(bats) do
 		b.tm+=0.2
 		b.ytm+=0.02
+		b.xtm+=0.005
 		b.y+=cos(b.ytm)*0.3
+		b.x+=cos(b.xtm)*0.5
+		
+		--shoot
+		if (b.x<pp.x and 
+					cos(b.xtm)>0) or
+					(b.x>pp.x and
+					cos(b.xtm)<0) then
+			if chance(5) then
+				local a=atan2(pp.x-b.x,pp.y-b.y)
+				local dx=cos(a)*2
+				local dy=sin(a)*2
+				add_bullet(b.x+(dx*2),
+					b.y+(dy*2),
+					dx,dy,100,8,1)
+			end
+		end
 	end
+end
+
+function damage_bat(b,dam)
+	add_flash(b.x,b.y)
+	b.hp-=dam
+	if(b.hp<=0)del(bats,b)
 end
 
 -- ==========
@@ -588,6 +653,12 @@ function init_scroll()
 	end
 	for b in all(bats)do
 		del(bats,b)
+	end
+	for b in all(bullets)do
+		del(bullets,b)
+	end
+	for f in all(flashes)do
+		del(flashes,f)
 	end
 	last_level=copy_table(level)
 	if l_num%10==0 then
