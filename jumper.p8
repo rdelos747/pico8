@@ -133,6 +133,7 @@ function reset()
 	flares={}
 	flashes={}
 	bats={}
+	hearts={}
 	price_lvls={1,1,1,1}
 	shop={x=78,y=200}
 	pause=0
@@ -185,6 +186,7 @@ function _draw()
 		draw_flares()
 		draw_bats()
 		draw_flashes()
+		draw_hearts()
 	else
 		draw_scroll()
 	end
@@ -448,6 +450,7 @@ function update_player()
 	player_jump()
 	player_shoot()
 	touch_coin()
+	touch_heart()
 	
 	if(pp.w_tm>0)pp.w_tm-=1
 	
@@ -569,14 +572,15 @@ function player_dead()
 	end
 	
 	if btnp(❎) then
-		if not pp.cntr then
+		if pp.d_tm1>0.5 then
+			reset()
+		elseif not pp.cntr then
 			pp.cntr=true
 			pp.x=64
 			pp.y=84
+			pp.d_tm1=0.1
 		elseif pp.d_tm1<0.5 then
 			pp.d_tm1=0.6
-		else
-			reset()
 		end
 	end
 end
@@ -617,6 +621,8 @@ function draw_player_dead()
 		print("levels:",39,60,7)
 		print(total_lvls,70,61,3)
 		print(total_lvls,70,60,11)
+		print("press ❎ to continue",
+			20,100,7)
 	end
 end
 
@@ -637,6 +643,18 @@ function touch_coin()
 				pp.coin=p_max_coin
 			end
 			return
+		end
+	end
+end
+
+function touch_heart()
+	for h in all(hearts)do
+		if h.x>pp.x-4 and h.x<pp.x+4 and
+					h.y>pp.y-4 and h.y<pp.y+4 then
+			pp.hp+=1
+			if(pp.hp>pp.hp_max)pp.hp=pp.hp_max
+			add_flare(pp.x-4,pp.y,"♥")
+			del(hearts,h)
 		end
 	end
 end
@@ -770,6 +788,19 @@ function draw_bullets()
 end
 
 -- ==========
+-- add hearts
+-- ===================
+function add_heart(x,y)
+	add(hearts,{x=x,y=y})
+end
+
+function draw_hearts()
+	for h in all(hearts)do
+		spr(56,h.x-4,h.y-4)
+	end
+end
+
+-- ==========
 -- bats
 -- ===================
 function add_bats()
@@ -852,6 +883,7 @@ function damage_bat(b)
 	add_flash(b.x,b.y)
 	b.hp-=1
 	if b.hp<=0 then
+		if(chance(30))add_heart(b.x,b.y)
 		del(bats,b)
 		total_enim+=1
 	end
@@ -921,6 +953,9 @@ function clear_objects()
 	end
 	for f in all(flashes)do
 		del(flashes,f)
+	end
+	for h in all(hearts)do
+		del(hearts,h)
 	end
 end
 
