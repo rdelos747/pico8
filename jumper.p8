@@ -133,9 +133,11 @@ function _init()
 	shop={x=78,y=200}
 	pause=0
 	hit=0
+	perfect=0
 	--functions
 	init_parallax()
-	init_level()
+	//init_level()
+	init_first()
 	
 	//temp
 	//init_shop()
@@ -1069,6 +1071,32 @@ function draw_shop_yell()
 		print("buy something!",
 			45,60,7)
 	end
+end
+
+-- ==========
+-- first level
+-- ===================
+
+function init_first()
+	l_type="frst"
+	first={}
+	level={}
+	local s_level={
+		{1,1,1,1,1,1,1,1},
+		{1,1,1,1,1,1,1,1},
+		{0,1,1,1,1,1,1,0}
+	}
+	for j=0,ymax-1 do
+			level[j]={}
+		for i=0,xmax-1 do
+			level[j][i]=0
+			if i>3 and i<12 and
+						j>6 and j<10 then
+				level[j][i]=s_level[j-6][i-3]
+			end
+	end end
+	
+	add_terrain()
 end
 
 -- ==========
