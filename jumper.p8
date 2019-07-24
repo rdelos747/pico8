@@ -298,6 +298,7 @@ function init_player()
 		x=(pt.i*8)+4,
 		y=(pt.j*8)+4,
 		drr=1, -- -1:left,1:right
+		drr_y=0,
 		tm=0,
 		jump_press=false,
 		jump=3,
@@ -307,13 +308,16 @@ function init_player()
 		coin=0,
 		water=12,
 		water_max=12,
+		water_dist=10,
 		shoot=0,
 		w_tm=0,
 		hp=3,
 		hp_max=3,
+		hit=0,
+		hit_dx=0,
+		hit_dy=0,
 		shopping=false,
 		can_shop=false,
-		attack=1
 	}
 end
 
@@ -374,6 +378,20 @@ function update_player()
 		return
 	end
 	
+	if pp.hit>0 then
+		pp.hit-=1
+		local dx=pp.x+pp.hit_dx
+		local dy=pp.y+pp.hit_dy
+		if place_free(dx,pp.y) then
+			pp.x=dx
+		end
+		if place_free(pp.x,dy) then
+			pp.y=dy
+		end
+		if(pp.hit==3)set_hit()
+		return
+	end
+	
 	-- left/right movement
 	//pp.drr=0
 	local move=false
@@ -393,6 +411,11 @@ function update_player()
 	else
 		pp.tm=0
 	end
+	
+	-- vertical pointing
+	pp.drr_y=0
+	if(btn(⬆️))pp.drr_y=-1
+	if(btn(⬇️))pp.drr_y=1
 	
 	player_jump()
 	player_shoot()
@@ -457,10 +480,35 @@ function player_shoot()
 		pp.shoot=5
 		if(pp.water==0)return
 		pp.water-=1
-		add_bullet(
-			pp.x+(5*pp.drr),
-			pp.y,pp.drr*3,0,10,12,
-			pp.attack)
+		if pp.drr_y !=0 then
+			add_bullet(
+				pp.x,
+				pp.y+(5*pp.drr_y),
+				0,pp.drr_y*3,10,12,
+				pp.attack)
+		else
+			add_bullet(
+				pp.x+(5*pp.drr),
+				pp.y,pp.drr*3,0,10,12,
+				pp.attack)
+		end
+	end
+end
+
+function player_hit(x,y)
+	if(hit>0)return
+	pp.hp-=1
+	pp.hit=5
+	//set_hit()
+	if x>=pp.x then
+		pp.hit_dx=-2
+	else
+		pp.hit_dx=2
+	end
+	if y>=pp.y then
+		pp.hit_dy=-2
+	else
+		pp.hit_dy=2
 	end
 end
 
@@ -559,10 +607,10 @@ end
 -- ===================
 
 function add_bullet(x,y,dx,dy,
-	tm,c,dam)
+	tm,c)
 	add(bullets,{
 		x=x,y=y,dx=dx,dy=dy,
-		tm=tm,c=c,dam=dam
+		tm=tm,c=c
 	})
 end
 
@@ -573,11 +621,21 @@ function update_bullets()
 		b.y+=b.dy
 		if(b.tm<=0)del(bullets,b)
 		
+		if not place_free(b.x,b.y) then
+			add_flash(b.x,b.y)
+			del(bullets,b)
+		end
+		
+		if b.x>pp.x-4 and b.x<pp.x+4 and
+					b.y>pp.y-4 and b.y<pp.y+4 then
+			player_hit(b.x,b.y)
+		end
+		
 		for ba in all(bats) do
 			if b.x>ba.x-4 and b.x<ba.x+4 and
 						b.y>ba.y-4 and b.y<ba.y+4 then
 				del(bullets,b)
-				damage_bat(ba,b.dam)
+				damage_bat(ba)
 			end
 		end
 	end
@@ -646,6 +704,12 @@ function update_bats()
 			end
 		end
 		
+		--player collision
+		if b.x>pp.x-4 and b.x<pp.x+4 and
+					b.y>pp.y-4 and b.y<pp.y+4 then
+			player_hit(b.x,b.y)
+		end
+		
 		--shoot
 		if (b.x<pp.x and 
 					sin(b.xtm)>0) or
@@ -663,9 +727,9 @@ function update_bats()
 	end
 end
 
-function damage_bat(b,dam)
+function damage_bat(b)
 	add_flash(b.x,b.y)
-	b.hp-=dam
+	b.hp-=1
 	if(b.hp<=0)del(bats,b)
 end
 
@@ -784,7 +848,7 @@ function init_shop()
 		"+1 heart",
 		"+2 water tank",
 		"+1 jump",
-		"+1 water damage"
+		"+1 water distance"
 		},
 		err_tm=0,
 		bought=false,
@@ -918,7 +982,7 @@ function apply_upgrade(i)
 		pp.jump_max+=1
 	elseif i==3 then
 	-- +1 attack
-		pp.attack+=1
+		pp.water_dist+=5
 	end
 end
 
