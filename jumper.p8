@@ -193,6 +193,8 @@ function _draw()
 		return
 	end
 	
+	if(l_num==1)draw_creds()
+	
 	if scroll==0 then
 		draw_level()
 		draw_sprinkles()
@@ -205,7 +207,7 @@ function _draw()
 		draw_scroll()
 	end
 	if hit<=0 or flr(hit)%2==0 then
-		draw_hud()
+		if(l_num>1)draw_hud()
 		draw_player()
 	end
 	if l_type=="shop" then
@@ -260,6 +262,12 @@ end
 -- ===================
 function init_hud()
 	hud={tm=0}
+end
+
+function draw_creds()
+	print("a game by",48,5,1)
+	print("raf @ gold team",
+		35,12,1)
 end
 
 function draw_hud()
@@ -548,7 +556,11 @@ function player_shoot()
 end
 
 function player_hit(x,y)
-	if(hit>0 or pp.hit>0)return
+	if hit>0 or 
+				pp.hit>0 or 
+				pp.can_die then
+		return
+	end
 	pp.hp-=1
 	pp.hit=5
 	//set_hit()
@@ -638,7 +650,9 @@ function draw_player_dead()
 		print(total_lvls,70,61,3)
 		print(total_lvls,70,60,11)
 		print("press ❎ to continue",
-			20,100,7)
+			24,101,1)
+		print("press ❎ to continue",
+			24,100,7)
 	end
 end
 
