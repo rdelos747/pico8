@@ -62,6 +62,15 @@ p_max_coin=1000
 --prices
 prices={50,100,150,200}
 
+--logo
+logo={
+	x=32,y=56,
+	w=9,t=-5,
+	p={1,12,3,11,10,9,8,2},
+	snd=0
+}
+show_logo=true
+
 
 -- ==========
 -- helpers
@@ -117,8 +126,9 @@ end
 -- init
 -- ===================
 function _init()
-	printh("------start------")
-	reset()
+	//printh("------start------")
+	//reset()
+	init_parallax()
 end
 
 function reset()
@@ -145,7 +155,6 @@ function reset()
 	total_lvls=0
 	--functions
 	clear_objects()
-	init_parallax()
 	//init_level()
 	init_first()
 	
@@ -168,6 +177,11 @@ function _draw()
 	rectfill(0,0,128,128,0)
 	map(0,0,0,-64,16,16)
 	draw_parallax()
+	
+	if show_logo then
+		draw_logo()
+		return
+	end
 	
 	if perfect>0 then
 		draw_perfect()
@@ -206,6 +220,9 @@ end
 -- ===================
 
 function _update()
+	update_parallax()
+	if(show_logo)return
+	
 	if pause>0 then
 		pause-=0.3
 		return
@@ -214,7 +231,6 @@ function _update()
 	if hit>0 and scroll==0 then
 		hit-=0.3
 	end
-	update_parallax()
 	
 	if perfect>0 then
 		//draw_perfect()
@@ -1487,6 +1503,38 @@ function draw_coins()
 	end
 end
 
+-- logo
+function draw_logo()
+	if	logo.t<25 then
+		logo.t+=0.4
+		if logo.t<0 or logo.t>17 then
+			return
+		end
+	else
+		show_logo=false
+		reset()
+		return
+	end
+	
+	for i=0,logo.w do
+		local y=logo.y
+		if(i+1==flr(logo.t))y-=2
+		if(i==flr(logo.t))y-=7
+		if(i==ceil(logo.t))y-=2
+		if y != logo.y then
+			pal(10,logo.p[i+1])
+		end
+		spr(i+113,logo.x+(i*8),y)
+		pal()
+	end
+	--[[
+	if	logo.snd%8==0 then
+		sfx(0)
+	end
+	]]--
+	//logo2.snd+=1
+end
+
 -- ==========
 -- parallax
 -- ===================
@@ -1629,6 +1677,14 @@ d01550115d0dd0d5d01550115d0dd0d5d3135b3350cccc0550cccc050008000000e0e00000099000
 0bb33bb000bbbb00000bb00000bbbb00007777000077770007077000070700000000000000000000000000000000000000000000000000000000000000000000
 00bbbb00000bb000000bb000000bb000007007000070070007007000070700000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000007007000000070000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000aaaaa000aaaaa000aaa0000aaaaa00aaaaaaaaaaaaaaaa00aaaaa00aaaaaa000000000000000000000000000000000000000000000000000000000
+000000000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa00000000000000000000000000000000000000000000000000000000
+00000000aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa00000000000000000000000000000000000000000000000000000000
+00000000aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa00000000000000000000000000000000000000000000000000000000
+00000000aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa00000000000000000000000000000000000000000000000000000000
+00000000aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa00000000000000000000000000000000000000000000000000000000
+00000000aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa00000000000000000000000000000000000000000000000000000000
+000000000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa00000000000000000000000000000000000000000000000000000000
 __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
