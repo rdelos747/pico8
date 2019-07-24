@@ -180,6 +180,8 @@ function _draw()
 	end
 	if l_type=="shop" then
 		draw_shop()
+	elseif l_type=="frst" then
+		draw_first()
 	end
 end
 
@@ -1079,7 +1081,7 @@ end
 
 function init_first()
 	l_type="frst"
-	first={}
+	first={tm=0,y=0}
 	level={}
 	local s_level={
 		{1,1,1,1,1,1,1,1},
@@ -1097,6 +1099,15 @@ function init_first()
 	end end
 	
 	add_terrain()
+end
+
+function draw_first()
+	first.tm+=0.01
+	first.y+=cos(first.tm)*0.3
+	print("its ok to jump down",
+		26,first.y+101,1)
+	print("its ok to jump down",
+		26,first.y+100,7)
 end
 
 -- ==========
