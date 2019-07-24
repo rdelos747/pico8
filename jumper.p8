@@ -118,6 +118,10 @@ end
 -- ===================
 function _init()
 	printh("------start------")
+	reset()
+end
+
+function reset()
 	--vars
 	last_level=nil
 	l_type="norm"
@@ -139,6 +143,7 @@ function _init()
 	total_enim=0
 	total_lvls=0
 	--functions
+	clear_objects()
 	init_parallax()
 	//init_level()
 	init_first()
@@ -331,7 +336,7 @@ function init_player()
 		water_dist=10,
 		shoot=0,
 		w_tm=0,
-		hp=0,
+		hp=3,
 		hp_max=3,
 		hit=0,
 		hit_dx=0,
@@ -561,6 +566,18 @@ function player_dead()
 		end
 	else
 		pp.y+=sin(pp.d_tm1)*0.4
+	end
+	
+	if btnp(❎) then
+		if not pp.cntr then
+			pp.cntr=true
+			pp.x=64
+			pp.y=84
+		elseif pp.d_tm1<0.5 then
+			pp.d_tm1=0.6
+		else
+			reset()
+		end
 	end
 end
 
@@ -843,26 +860,11 @@ end
 -- ==========
 -- scrolling
 -- ===================
-
 function init_scroll()
+	clear_objects()
 	scroll=1
 	l_num+=1
 	total_lvls+=1
-	for c in all(coins)do
-		del(coins,c)
-	end
-	for f in all(flares)do
-		del(flares,f)
-	end
-	for b in all(bats)do
-		del(bats,b)
-	end
-	for b in all(bullets)do
-		del(bullets,b)
-	end
-	for f in all(flashes)do
-		del(flashes,f)
-	end
 	last_level=copy_table(level)
 	if l_num%10==0 then
 		l_type="shop"
@@ -902,6 +904,24 @@ function draw_scroll()
 				i*8,j*8-scroll)
 		end
 	end end
+end
+
+function clear_objects()
+	for c in all(coins)do
+		del(coins,c)
+	end
+	for f in all(flares)do
+		del(flares,f)
+	end
+	for b in all(bats)do
+		del(bats,b)
+	end
+	for b in all(bullets)do
+		del(bullets,b)
+	end
+	for f in all(flashes)do
+		del(flashes,f)
+	end
 end
 
 -- ==========
