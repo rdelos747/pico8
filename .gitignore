@@ -1,6 +1,7 @@
 demos/
 downloads/
 z_apps/
+liv/
 .DS_Store
 *.bin
 *.zip
