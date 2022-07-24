@@ -44,8 +44,6 @@ function _draw()
 		c_min=min(c,c_min)
 		c_max=max(c,c_max)
 		lvl[j][i]=c
-		//c=mid(0,flr(c*10),9)
-		//print(c,i*4,j*6,colors[c+1])
 	end end
 	
 	printh("c min: "..c_min)
@@ -62,7 +60,7 @@ function _draw()
 		d_min=min(d,d_min)
 		d_max=max(d,d_max)
 		
-		v=mid(0,flr(d*10),10)
+		v=mid(0,flr(d*9),9)
 		v_min=min(v,v_min)
 		v_max=max(v,v_max)
 		
@@ -78,24 +76,70 @@ function _update()
 end
 
 -- scattered:
--- many low/mid
--- few high
+-- many low/mid values
+-- med high values
+-- -0.8093,0.8551
+--[[
 function get_noise(x,y)
 	local c=os2d_eval(x,y)
+	return c
+end
+--]]
+
+-- giant blob:
+-- big rings of 7,8s
+-- maybe a 9 in the center
+--[[
+function get_noise(x,y)
+	local c=os2d_eval(x/32,y/32)
 	//c+=os2d_eval(x/16,y/16)/2
 	//c+=os2d_eval(x/8,y/8)/4
 	return c
 end
+]]--
 
-
--- scattered:
--- many low/mid
--- few high
+-- many smaller blobs:
+-- rings surrounding either
+-- low or high values
 --[[
 function get_noise(x,y)
-	local c=os2d_eval(x,y)
-	//c+=os2d_eval(x/16,y/16)/2
-	//c+=os2d_eval(x/8,y/8)/4
+	local c=os2d_eval(x/32,y/32)
+	c+=os2d_eval(x/16,y/16)/2
+	c+=os2d_eval(x/8,y/8)/4
+	c+=os2d_eval(x/8,y/8)/4
+	c+=os2d_eval(x/8,y/8)/4
+	return c
+end
+--]]
+
+--[[
+it appears that the scale of
+the rings is determined by
+the first denominator, eg
+	- (x/64,y/64) => huge rings
+	- (x/8,y/8) => small rings
+
+a trailing denom in the first 
+call doesn't seem to affect 
+anything
+
+smaller trailing denom seems
+to add more noise?
+]]--
+
+function get_noise(x,y)
+	local c=os2d_eval(x/64,y/64)
+	c+=os2d_eval(x/4,y/4)/2
+	return c
+end
+
+
+--[[
+function get_noise(x,y)
+	local c=os2d_eval(x/64,y/64)
+	c+=os2d_eval(x/32,y/32)/2
+	c+=os2d_eval(x/16,y/16)/2
+	c+=os2d_eval(x/8,y/8)/2
 	return c
 end
 ]]--

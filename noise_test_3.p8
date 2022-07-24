@@ -1,249 +1,148 @@
 pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
---[[
-ideas:
-- docking stations: enemies
-	can maybe damage these
-	
-- map: player can only use map
-	if they dock with a map station
-
-- upgrades: player collects
-	"things" that follow them.
-	when docking with an upgrade
-	ship, they can spend them on
-	upgrades
-	
-- paralax bk: should be procedurally
-	generated, player can use to
-	navagate
-]]--
-
-cam={x=0,y=0,sx=0,sy=0,s_tm=0}
-pp={
-	x=0,y=0,dx=0,dy=-1
+colors={
+		0,1,5,2,13,3,9,10,8,7
+//0,1,2,3,4, 5,6, 7,8,9
 }
-blts={}
-strs={}
-str_l_x=0
-str_l_y=0
 
 function rand(n,m)
 	return flr(rnd((m+1)-n))+n
 end
 
 function _init()
-	printh("=====start=====")
+	printh("===starting===")
+	//os2d_noise(rand(0,100))
 	os2d_noise(0)
-	init_level()
 end
 
-test={}
-function init_level()
-	init_strs()
-end
-
+go=0
 function _draw()
+	if(go==1)return
+	go=1
+	
 	cls()
+	local lvl={}
+	local c_min=1000
+	local c_max=-1000
 	
-	camera(cam.x+cam.sx,
-		cam.y+cam.sy)
-		
-	update_strs()
-	draw_player()
-	draw_test()
+	for j=0,127 do
+		lvl[j]={}
+	for i=0,127 do
+		local c=get_noise(i,j)
+		c_min=min(c,c_min)
+		c_max=max(c,c_max)
+		lvl[j][i]=c
+	end end
 	
-	print("x: "..pp.x,cam.x,cam.y+116,7)
-	print("y: "..pp.y,cam.x,cam.y+122,7)
-
-	--[[
+	printh("c min: "..c_min)
+	printh("c max: "..c_max)
+	
+	local d_min=1
+	local d_max=-1
+	local v_min=10
+	local v_max=0
 	for j=0,127 do
 	for i=0,127 do
-		pset(i,j,strs[j][i])
+		local d=lvl[j][i]
+		d=(d-c_min)/(c_max-c_min)
+		d_min=min(d,d_min)
+		d_max=max(d,d_max)
+		
+		v=flr(d*500)
+		v_min=min(v,v_min)
+		v_max=max(v,v_max)
+		
+		//print(v,i*4,j*6,colors[v+1])
+		//pset(i,j,colors[v+1])
+		
+		if v==200 then
+			pset(i,j,2)
+		end
+		
+		--[[
+		if (v>=51 and v<=51)  then
+			pset(i,j,13)
+		end
+		]]--
 	end end
-	]]--
+	printh("d min: "..d_min)
+	printh("d max: "..d_max)
+	printh("v min: "..v_min)
+	printh("v max: "..v_max)
 end
 
-function draw_player()
-	if pp.dx==0 then
-		spr(1,pp.x,pp.y,1,1,0,pp.dy==1)
-	elseif pp.dy==0 then
-		spr(2,pp.x,pp.y,1,1,pp.dx==-1,0)
-	else
-		spr(
-		3,pp.x,pp.y,1,1,pp.dx==-1,pp.dy==1
-		)
-	end
-	
-	for b in all(blts) do
-		spr(5,b.x,b.y)
-	end
-end
-
-function draw_test()
-	for i in all(test) do
-		spr(4,i.x,i.y)
-	end
-end
-
-c=0
 function _update()
-	update_player()
-	update_blts()
-	update_cam()
-	
-	c+=1
 end
 
-function update_cam()
-	cam.x=pp.x-64
-	cam.y=pp.y-64
-end
-
-function update_player()
-	local dx=0
-	local dy=0
-	if(btn(⬆️))dy=-1
-	if(btn(⬇️))dy=1
-	if(btn(⬅️))dx=-1
-	if(btn(➡️))dx=1
-	if dx!=0 or dy!=0 then
-		pp.dx=dx
-		pp.dy=dy
-	end
-	pp.x+=pp.dx
-	pp.y+=pp.dy
-	
-	if btnp(🅾️) then
-		add(blts,{
-			x=pp.x+4*pp.dx,
-			y=pp.y+4*pp.dy,
-			dx=pp.dx,
-			dy=pp.dy
-		})
-	end
-end
-
-function update_blts()
-	for b in all(blts) do
-		b.x+=b.dx*5
-		b.y+=b.dy*5
-		if b.x<cam.x or b.x>cam.x+128 or
-		b.y<cam.y or b.y>cam.y+128 then
-			del(blts,b)
-		end
-	end
-end
-
-str_sz=66
-function init_strs()
-	for j=0,str_sz-1 do
-		strs[j]={}
-	for i=0,str_sz-1 do
-		strs[j][i]=get_noise(10,10)
-	end end
-end
-
-
-last_x=pp.x
-last_y=pp.y
-function update_strs()
-	local x=flr(pp.x*0.5)
-	local y=flr(pp.y*0.5)
-	local dx=x-last_x
-	local dy=y-last_y
-	local ddx=pp.x*0.5-last_x
-	local ddy=pp.y*0.5-last_y
-
-	last_x=x
-	last_y=y
-	local n_lvl={}
-	for j=0,str_sz-1 do
-		n_lvl[j]={}
-	for i=0,str_sz-1 do
-		local jj=(j+dy)%str_sz
-		local ii=(i+dx)%str_sz
-		n_lvl[j][i]=strs[jj][ii]
-
-		pset(
-			(i*2)+ddx+(cam.x-1),
-			(j*2)+ddy+(cam.y-1),
-			n_lvl[j][i]
-		)
-	end end
-	strs=n_lvl
-	
-	-- generate right
-	if dx==1 then
-		for j=0,str_sz-1 do
-			strs[j][str_sz-1]=get_noise(
-				x+str_sz*2,
-				y+(j-str_sz*2)
-			)
-		end
-	-- generate left
-	elseif dx==-1 then
-		for j=0,str_sz-1 do
-			strs[j][0]=get_noise(
-				x-str_sz*2,
-				y+(j-str_sz*2)
-			)
-		end		
-	-- generate down
-	elseif dy==1 then
-		for i=0,str_sz-1 do
-			strs[str_sz-1][i]=get_noise(
-				x+(i-str_sz*2),
-				y+str_sz*2
-			)
-		end
-	-- generate up
-	elseif dy==-1 then
-		for i=0,str_sz-1 do
-			strs[0][i]=get_noise(
-				x+(i-str_sz*2),
-				y-str_sz*2
-			)
-		end
-	end
-end
-
+-- scattered:
+-- many low/mid values
+-- med high values
+-- -0.8093,0.8551
 --[[
 function get_noise(x,y)
-	local c=os2d_eval(x/4,y/4)
-	//c+=os2d_eval(x/16,y/16)/2
-	c+=os2d_eval(x/8,y/8)/4
-	c=flr(c*10)
-	if(c==0)return 1
-	if(c==9)return 1
-	return 0
-	//return mid(0,flr(c*10),9)
+	local c=os2d_eval(x,y)
+	return c
 end
 --]]
 
+-- giant blob:
+-- big rings of 7,8s
+-- maybe a 9 in the center
+--[[
 function get_noise(x,y)
-	local c=os2d_eval(x,y)
-	c=(c- -0.8093)/(0.8551- -0.8093)
-	c=flr(c*100)
-	//if(c>95)return 14
-	
-	local d=os2d_eval(x/64,y/64)
-	d+=os2d_eval(x/4,y/4)/2
-	
-	d=(d- -1.0591)/(1.162- -1.0591)
-	d=flr(d*200)
-	if d==90 then
-		return 1
-	end
-	
-	if d==91 then
-		return 13
-	end
-	return 0
-	
-	
+	local c=os2d_eval(x/32,y/32)
+	//c+=os2d_eval(x/16,y/16)/2
+	//c+=os2d_eval(x/8,y/8)/4
+	return c
 end
+]]--
+
+-- many smaller blobs:
+-- rings surrounding either
+-- low or high values
+--[[
+function get_noise(x,y)
+	local c=os2d_eval(x/32,y/32)
+	c+=os2d_eval(x/16,y/16)/2
+	c+=os2d_eval(x/8,y/8)/4
+	c+=os2d_eval(x/8,y/8)/4
+	c+=os2d_eval(x/8,y/8)/4
+	return c
+end
+--]]
+
+--[[
+it appears that the scale of
+the rings is determined by
+the first denominator, eg
+	- (x/64,y/64) => huge rings
+	- (x/8,y/8) => small rings
+
+a trailing denom in the first 
+call doesn't seem to affect 
+anything
+
+smaller trailing denom seems
+to add more noise?
+]]--
+
+function get_noise(x,y)
+	local c=os2d_eval(x/64,y/64)
+	c+=os2d_eval(x/4,y/4)/2
+	return c
+end
+
+
+--[[
+function get_noise(x,y)
+	local c=os2d_eval(x/64,y/64)
+	c+=os2d_eval(x/32,y/32)/2
+	c+=os2d_eval(x/16,y/16)/2
+	c+=os2d_eval(x/8,y/8)/2
+	return c
+end
+]]--
 -->8
 -- opensimplex noise
 
@@ -464,11 +363,9 @@ end
 -- found inlining it to produce
 -- good performance benefits.
 __gfx__
-00000000000770008777800000800077900000090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000770000666000007706777090000900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700006776000566660077667770009009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000806776080057777786677760000000000007700000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000766776670057777705577600000000000007700000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700766556670566660000056678009009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000765005670666000000056770090000900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000800000088777800000008700900000090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
