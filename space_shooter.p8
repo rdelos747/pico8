@@ -21,9 +21,10 @@ ideas:
 	constilations
 ]]--
 
-cam={x=0,y=0,sx=0,sy=0,s_tm=0}
+cam={x=0,y=0,sx=0,sy=0,s=0}
 pp={
-	x=0,y=0,dx=0,dy=-1,w=8,h=8
+	x=0,y=0,dx=0,dy=-1,w=8,h=8,
+	ergy=90,ergy_m=100
 }
 mode=0//0=map,1=game
 blts={}
@@ -32,7 +33,12 @@ dust0={}
 dust1={}
 str_dst=2
 map_r=1000
+ergy={} --energy pellets
 shps={} --enemy ships
+stns={} --enemy stations
+roks={} --rocks
+spkl={} --sprinkles
+
 
 function rand(n,m)
 	return flr(rnd((m+1)-n))+n
@@ -46,6 +52,8 @@ function dist(x1,y1,x2,y2)
 	local dx,dy=x1-x2,y1-y2
 	return sqrt(dx*dx + dy*dy)
 end
+
+//functoin lerp
 
 function ang_lerp(a1,a2,t)
 	a1=a1%1
@@ -70,6 +78,34 @@ function col_bb(a,b)
 		ay+a.h>=by
 end
 
+-- u/thehansinator255
+function apr_pos(x,y,ox,oy)
+	local xa=x
+	if xa-ox>map_r then
+		xa-=map_r*2
+	elseif ox-xa>map_r then
+		xa+=map_r*2
+	end
+	
+	local ya=y
+	if ya-oy>map_r then
+		ya-=map_r*2
+	elseif oy-ya>map_r then
+		ya+=map_r*2
+	end
+	
+	return xa,ya
+end
+
+function wrap_pos(x,y)
+	local ex,ey=x,y
+	if(ex<-map_r)ex=map_r
+	if(ex>map_r)ex=-map_r
+	if(ey<-map_r)ey=map_r
+	if(ey>map_r)ey=-map_r
+	return ex,ey
+end
+
 function _init()
 	printh("=====start=====")
 	init_level()
@@ -78,8 +114,12 @@ end
 function init_level()
 	init_dust()
 	init_strs()
+	
+	init_roks()
 	pp.x=rand(-map_r,map_r)
 	pp.y=rand(-map_r,map_r)
+	--temp here
+	init_stns()
 end
 
 function _draw()
@@ -102,7 +142,13 @@ function draw_mode_game()
 	draw_dust()
 	draw_player()
 	draw_shps()
+	draw_stns()
 	draw_blts()
+	draw_ergy()
+	draw_roks()
+	draw_spkl()
+	
+	draw_hud()
 	
 	print("ns: "..count(shps),cam.x,cam.y+108,7)
 	print("x: "..pp.x,cam.x,cam.y+116,7)
@@ -122,20 +168,33 @@ function update_mode_map()
 end
 
 function update_mode_game()
-	if btnp(❎) then
-		mode=0
-		return
-	end
 	update_player()
 	update_blts()
 	update_shps()
+	update_stns()
+	update_ergy()
+	update_roks()
 	update_dust()
+	update_spkl()
 	update_cam()
 end
 
 function update_cam()
-	cam.x=pp.x-64
-	cam.y=pp.y-64
+	if cam.s>0.05 then
+		cam.sx=rand(-2,2)*cam.s
+		cam.sy=rand(-2,2)*cam.s
+		cam.s*=0.8
+	else
+		cam.s=0
+		cam.sx=0
+		cam.sy=0
+	end
+	cam.x=(pp.x-64)+cam.sx
+	cam.y=(pp.y-64)+cam.sy
+end
+
+function shake()
+	cam.s=1
 end
 
 function draw_player()
@@ -167,81 +226,158 @@ function update_player()
 	pp.x+=pp.dx
 	pp.y+=pp.dy
 	
-	-- wrap
-	if pp.x<-map_r and pp.dx==-1 then
-		pp.x=map_r
-	elseif pp.x>map_r and pp.dx==1 then
-		pp.x=-map_r
-	end
-	if pp.y<-map_r and pp.dy==-1 then
-		pp.y=map_r
-	elseif pp.y>map_r and pp.dy==1 then
-		pp.y=-map_r
-	end
+	pp.x,pp.y=wrap_pos(pp.x,pp.y)
 	
 	-- shoot
 	if btnp(🅾️) then
-		add(blts,{
-			x=pp.x+4*pp.dx,
-			y=pp.y+4*pp.dy,
-			dx=pp.dx,
-			dy=pp.dy,
-			w=2,h=2
-		})
+		// i dont like the +6 offset
+		add_blt(
+			pp.x+6*pp.dx,pp.y+6*pp.dy,
+			pp.dx,pp.dy,5)
+	end
+	
+	-- getting shot
+	for b in all(blts) do
+		if col_bb(b,pp) then
+			pp.ergy-=5
+			del(blts,b)
+			shake()
+		end
+	end
+	
+	-- getting hit
+	for e in all(shps) do
+		if col_bb(pp,e) then
+			pp.ergy-=10
+			del(shps,e)
+			shake()
+			add_spkl(e.x,e.y)
+		end
+	end
+	
+	for r in all(roks) do
+		if col_bb(pp,r) then
+			if(r.hp==2)pp.ergy-=10
+			if(r.hp==1)pp.ergy-=5
+			kill_rok(r)
+			shake()
+		end
+	end
+	
+	if btnp(❎) then
+		if pp.ergy>=10 then
+			pp.ergy-=10
+			mode=0
+			return
+		end
+	end
+end
+
+function draw_hud()
+	print("e:",cam.x,cam.y,7)
+	rectfill(cam.x+7,cam.y+1,
+		cam.x+7+pp.ergy,cam.y+3,12)
+	rect(cam.x+7,cam.y,
+		cam.x+7+pp.ergy_m+1,cam.y+4,7)
+	for i=0,9 do
+		pset(cam.x+7+i*10,cam.y+1,7)
 	end
 end
 
 function draw_blts()
 	for b in all(blts) do
-		spr(5,(b.x-b.w/2)-3,(b.y-b.h/2)-3)
+		local drx,dry=apr_pos(
+			b.x,b.y,pp.x,pp.y
+		)
+		spr(5,(drx-b.w/2)-3,(dry-b.h/2)-3)
 	end
 end
 
 function update_blts()
 	for b in all(blts) do
-		b.x+=b.dx*5
-		b.y+=b.dy*5
-		if b.x<cam.x or b.x>cam.x+128 or
-		b.y<cam.y or b.y>cam.y+128 then
+		b.x+=b.dx*b.s
+		b.y+=b.dy*b.s
+		local px,py=apr_pos(
+			pp.x,pp.y,b.x,b.y
+		)
+		if abs(b.x-px)>64 or
+					abs(b.y-py)>64 then
 			del(blts,b)
 		end
-		
-		for e in all(shps) do
-			if col_bb(b,e) then
-				del(shps,e)
-				del(blts,b)
-			end 
-		end
 	end
+end
+
+function add_blt(x,y,dx,dy,s)
+	add(blts,{
+		x=x,y=y,
+		dx=dx,dy=dy,
+		w=2,h=2,
+		s=s
+	})
 end
 
 function draw_shps()
 	for e in all(shps) do
-		local ex=e.x-e.w/2
-		local ey=e.y-e.h/2
-		local dx=round(cos(e.a))
-		local dy=round(sin(e.a))
-		if dx==0 then
-			spr(17,ex,ey,1,1,0,dy==1)
-		elseif dy==0 then
-			spr(18,ex,ey,1,1,dx==-1,0)
+		local drx,dry=apr_pos(
+			e.x,e.y,pp.x,pp.y
+		)
+		local ex=drx-e.w/2
+		local ey=dry-e.h/2
+		
+		if e.dx==0 then
+			spr(17,ex,ey,1,1,0,e.dy==1)
+		elseif e.dy==0 then
+			spr(18,ex,ey,1,1,e.dx==-1,0)
 		else
-			spr(19,ex,ey,1,1,dx==-1,dy==1)
+			spr(19,ex,ey,1,1,e.dx==-1,e.dy==1)
 		end
 	end
 end
 
-spn_t=0
-spn_t_m=100 --spawn time
-shp_s=0.01 --ship speed
+spn_t=0 --spawn time
+spn_t_m=100
+shp_s=1 --ship speed
+shp_t=0.03 --ship turn lerp
 function update_shps()
 	for e in all(shps) do
-		local ang=atan2(pp.x-e.x,pp.y-e.y)
-		e.a=ang_lerp(e.a,ang,0.05)
-		e.x+=1*cos(e.a)
-		e.y+=1*sin(e.a)
+		-- apparent pos
+		local px,py=apr_pos(
+			pp.x,pp.y,e.x,e.y
+		)
+		--angle
+		local ang=atan2(px-e.x,py-e.y)
+		e.a=ang_lerp(e.a,ang,shp_t)
+		e.x+=shp_s*cos(e.a)
+		e.y+=shp_s*sin(e.a)
+		
+		e.x,e.y=wrap_pos(e.x,e.y)
+		
+		e.dx=round(cos(e.a))
+		e.dy=round(sin(e.a))
+		
+		--shooting
+		if abs((ang-e.a%1))<0.15 and
+					rand(0,100)>95 then
+			add_blt(
+				e.x+6*e.dx,e.y+6*e.dy,
+				e.dx,e.dy,3)
+		end
+		
+		-- getting shot
+		for b in all(blts) do
+			if col_bb(e,b) then
+				local ner=rand(1,5)
+				for i=0,ner do
+					add_ergy(e.x,e.y)
+				end
+				del(blts,b)
+				del(shps,e)
+				add_spkl(e.x,e.y)
+			end 
+		end
 	end
 	
+	--spawning
 	if spn_t==0 then
 		spn_t=spn_t_m
 		local ra=rnd(1)
@@ -250,11 +386,242 @@ function update_shps()
 		add(shps,{
 			x=pp.x-rx,
 			y=pp.y-ry,
+			dx=0,dy=0,
 			w=8,h=8,
 			a=0
 		})
 	else
 		spn_t-=1
+	end
+end
+
+function init_stns()
+	-- temp
+	local x=pp.x+50
+	local y=pp.y+50
+	
+	local pods={}
+	local np=8
+	for i=1,np do
+		local a=i/np
+		add(pods,{
+			x=x-cos(a)*24,
+			y=y-sin(a)*24,
+			w=8,h=8,a=a
+		})
+	end
+	
+	add(stns,{
+		x=x,y=y,
+		w=24,h=24,
+		pods=pods
+	})
+end
+
+function draw_stns()
+	for s in all(stns) do
+		local drx,dry=apr_pos(
+			s.x,s.y,pp.x,pp.y
+		)
+		spr(13,drx-12,dry-12)
+		spr(14,drx-4, dry-12)
+		spr(15,drx+4, dry-12)
+		spr(29,drx-12,dry-4)
+		spr(30,drx-4, dry-4)
+		spr(31,drx+4, dry-4)
+		spr(45,drx-12,dry+4)
+		spr(46,drx-4, dry+4)
+		spr(47,drx+4, dry+4)
+		
+		pset(drx,dry,8)
+		
+		for p in all(s.pods) do
+			local ddrx,ddry=apr_pos(
+				p.x,p.y,pp.x,pp.y
+			)
+			spr(12,ddrx-4,ddry-4)
+		end
+		
+		--[[
+		spr(12,drx-4,dry-4)
+		spr(13,drx+4,dry-4)
+		spr(28,drx-4,dry+4)
+		spr(29,drx+4,dry+4)
+		]]--
+	end
+end
+
+function update_stns()
+	for s in all(stns) do
+		for p in all(s.pods) do
+			p.a=(p.a+0.005)%1
+			p.x=s.x-cos(p.a)*24
+			p.y=s.y-sin(p.a)*24
+			
+			for b in all(blts) do
+				if col_bb(b,p) then
+					del(blts,b)
+				end
+			end
+			
+			// consider col rocks here
+		end
+		
+		for b in all(blts) do
+			if col_bb(s,b) then
+				del(blts,b)
+			end
+		end
+	end
+end
+
+function draw_ergy()
+	for e in all(ergy) do
+		local drx,dry=apr_pos(
+			e.x,e.y,pp.x,pp.y
+		)
+		pal(7,(e.t%8)+8)
+		if e.t<25 or e.t%2==0 then
+			spr(6,(drx-e.w/2)-1,(dry-e.h/2)-1)
+		end
+		pal()
+	end
+end
+
+function update_ergy()
+	for e in all(ergy) do
+		e.x+=cos(e.a)*e.s
+		e.y+=sin(e.a)*e.s
+		e.s*=e.sf
+		
+		e.x,e.y=wrap_pos(e.x,e.y)
+		e.t+=0.5
+		if col_bb(e,pp) then
+			del(ergy,e)
+			if(pp.ergy<pp.ergy_m)pp.ergy+=1
+		end
+		if(e.t>40)del(ergy,e)
+	end
+end
+
+function add_ergy(x,y)
+	add(ergy,{
+		x=x,y=y,
+		a=rnd(1),s=1,
+		sf=rand(90,99)/100,
+		w=6,h=6,
+		t=rand(1,8)
+	})
+end
+
+n_roks=100
+function init_roks()
+	for i=0,n_roks do
+		local rx=rand(-map_r,map_r)	
+		local ry=rand(-map_r,map_r)
+		add_rok(rx,ry,2,0)
+	end
+end
+
+function draw_roks()
+	for r in all(roks) do
+		local drx,dry=apr_pos(
+			r.x,r.y,pp.x,pp.y
+		)
+		if abs(drx-pp.x)<128 and
+					abs(dry-pp.y)<128 then
+			if r.hp==2 then
+				spr(7,(drx-r.w/2),(dry-r.h/2))
+			else
+				spr(8,(drx-r.w/2)-2,(dry-r.h/2)-2)
+			end
+		end
+	end
+end
+
+function update_roks()
+	for r in all(roks) do
+		for b in all(blts) do
+			if col_bb(r,b) then
+				kill_rok(r)
+				del(blts,b)
+			end
+		end
+		
+		if r.hp==1 then
+			r.x+=cos(r.a)*0.5
+			r.y+=sin(r.a)*0.5
+			
+			local px,py=apr_pos(
+				pp.x,pp.y,r.x,r.y
+			)
+			if abs(r.x-px)>128 or
+					abs(r.y-py)>128 then
+			del(blts,r)
+			end
+		end
+	end
+end
+
+function kill_rok(r)
+	if r.hp==2 then
+		local nr=rand(4,10)
+		for i=0,nr do
+			add_rok(r.x,r.y,1,rnd(1))
+		end
+	end
+	del(roks,r)
+	add_spkl(r.x,r.y,4)
+end
+
+function add_rok(x,y,hp,a)
+	if hp==2 then
+		add(roks,{
+			x=x,y=y,hp=hp,a=a,w=8,h=8
+		})
+	else
+		add(roks,{
+			x=x,y=y,hp=hp,a=a,w=4,h=4
+		})
+	end
+end
+
+function draw_spkl()
+	for s in all(spkl) do
+		local drx,dry=apr_pos(
+			s.x,s.y,pp.x,pp.y
+		)
+		if s.c==7 then
+			pal(7,(s.t%8)+8)
+			pset(drx,dry,7)
+			pal()
+		else
+			pset(drx,dry,s.c+(s.t%2))
+		end
+	end
+end
+
+function update_spkl()
+	for s in all(spkl) do
+		s.x+=cos(s.a)*1
+		s.y+=sin(s.a)*1
+		
+		s.x,s.y=wrap_pos(s.x,s.y)
+		s.t+=0.5
+		if(s.t>10)del(spkl,s)
+	end
+end
+
+function add_spkl(x,y,c)
+	c=c or 7
+	local rn=rand(20,30)
+	for i=0,rn do
+		add(spkl,{
+			x=x,y=y,
+			a=rnd(1),
+			t=rand(1,8),
+			c=c
+		})
 	end
 end
 
@@ -402,8 +769,11 @@ end
 function draw_strs()
 	for ss in all(strs) do
 	for s in all(ss) do
-		local sx=pp.x+(s.x-pp.x)/str_dst
-		local sy=pp.y+(s.y-pp.y)/str_dst
+		local drx,dry=apr_pos(
+			s.x,s.y,pp.x,pp.y
+		)
+		local sx=pp.x+(drx-pp.x)/str_dst
+		local sy=pp.y+(dry-pp.y)/str_dst
 		pset(sx,sy,s.c)
 	end end
 end
@@ -414,30 +784,30 @@ function update_strs()
 	end
 end
 __gfx__
-00000000000770008777800000800077900000090000000008000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000770000666000007706777090000900000000088800000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700006776000566660077667770009009000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000806776080057777786677760000000000007700000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000766776670057777705577600000000000007700000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700766556670566660000056678009009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000765005670666000000056770090000900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000800000088777800000008700900000090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000080000800999990000098800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000090000908889999809999000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000995005990055550099950008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000995885990008800098588098000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000995885990008800080088599000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000985005890055550000005990000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000980000898889999800008990000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000080000800999990000089900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000770008777800000800077900000090000000000000000000440000000000000000000000000000000000000bbb300000000003300003300000000
+0000000000077000066600000770677709000090000000000007700000444400000000000000000000000000000000000b333330000000333300003333000000
+007007000067760005666600776677700090090000000000007007000455444000004000000000000000000000000000b0300303000003bbb300003333300000
+000770008067760800577777866777600000000000077000070700700445440000054400000000000000000000000000b339933300003bbb3300003303030000
+000770007667766700577777055776000000000000077000070000704444544000405000000000000000000000000000333993310003bb333300003333313000
+00700700766556670566660000056678009009000000000000700700154455440001010000000000000000000000000030300301003bb3333330033303011300
+0000000076500567066600000005677009000090000000000007700015501555000000000000000000000000000000000133331003bb33333330033333331130
+0000000080000008877780000000870090000009000000000000000001100150000000000000000000000000000000000011110003bb33333330033333331130
+0000000008000080099999000009880000000000000000000000000000000000000000000000000000000000000000000000000003b333333338833333331130
+00000000090000908889999809999000000000000000000000000000000000000000000000000000000000000000000000000000333333333308803333333333
+00000000995005990055550099950008000000000000000000000000000000000000000000000000000000000000000000000000000003333088880333300000
+00000000995885990008800098588098000000000000000000000000000000000000000000000000000000000000000000000000000000008887788800000000
+00000000995885990008800080088599000000000000000000000000000000000000000000000000000000000000000000000000000000008887788800000000
+00000000985005890055550000005990000000000000000000000000000000000000000000000000000000000000000000000000000003333088880333300000
+00000000980000898889999800008990000000000000000000000000000000000000000000000000000000000000000000000000333333333308803333333333
+00000000080000800999990000089900000000000000000000000000000000000000000000000000000000000000000000000000033333333338833333311130
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000033333333330033333311130
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000033333333330033333111130
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003331333330033331111300
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000333113300003111113000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000033311300003111130000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003331300003111300000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000333300003333000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300003000000000
 00000000050000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000550000550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000550000550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
