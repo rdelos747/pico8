@@ -171,6 +171,7 @@ function _update()
 end
 
 function update_mode_map()
+//	update_map()
 	if(btnp(❎))mode=1
 end
 
@@ -936,7 +937,9 @@ function nrm_pos(x)
 	return ((x- -map_r)/(2*map_r))*128
 end
 
+map_t=0
 function draw_map()
+	map_t+=0.1
 	for ss in all(strs) do
 	for s in all(ss) do
 		local x=nrm_pos(s.x)
@@ -961,10 +964,12 @@ function draw_map()
 --	local y=nrm_pos(pp.y)
 --	pset(x,y,8)
 
-	for s in all(stns) do
-		local x=nrm_pos(s.x)
-		local y=nrm_pos(s.y)
-		pset(x,y,3)
+	if flr(map_t)%2==0 then
+		for s in all(stns) do
+			local x=nrm_pos(s.x)
+			local y=nrm_pos(s.y)
+			pset(x,y,3)
+		end
 	end
 end
 
@@ -981,9 +986,9 @@ function draw_strs()
 end
 
 function update_strs()
-	for s in all(strs) do
+	//for s in all(strs) do
 		//s.x
-	end
+	//end
 end
 __gfx__
 00000000000770008777800000800077900000090000000000000000000440000000000000000000000000000000000000bbb300000000003300003300000000
