@@ -30,8 +30,11 @@ mode=0//0=map,1=game
 dust0={}
 dust1={}
 str_dst=2
-map_r=1000
+-- map_r=1000
 stn_close=false
+map_r=800
+n_cnst=10
+n_stns=5
 blts={}
 strs={}
 ergy={} --energy pellets
@@ -171,6 +174,7 @@ function _update()
 end
 
 function update_mode_map()
+//	update_map()
 	if(btnp(❎))mode=1
 end
 
@@ -249,7 +253,7 @@ function update_player()
 	-- getting shot
 	for b in all(blts) do
 		if col_bb(b,pp) then
-			pp.ergy-=5
+			// pp.ergy-=5
 			del(blts,b)
 			shake()
 		end
@@ -417,6 +421,7 @@ end
 pod_hp_m=1
 stn_hp_m=10
 function init_stns()
+	for xx=0,n_stns do
 	-- temp
 	for c=0,5 do
 		local x=rand(-map_r+64,map_r-64)
@@ -917,7 +922,7 @@ function update_dust()
 end
 
 function init_strs()
-	for i=0,20 do
+	for i=0,n_cnst do
 		local s={}
 		local x=rand(-map_r,map_r)
 		local y=rand(-map_r,map_r)
@@ -958,13 +963,24 @@ function init_strs()
 		
 		add(strs,s)		
 	end
+	
+	-- random stars
+	--[[
+	for i=0,50 do
+		local x=rand(-map_r,map_r)
+		local y=rand(-map_r,map_r)
+		add(strs,{{x=x,y=y,c=9}})
+	end
+	]]--
 end
 
 function nrm_pos(x)
 	return ((x- -map_r)/(2*map_r))*128
 end
 
+map_t=0
 function draw_map()
+	map_t+=0.1
 	for ss in all(strs) do
 	for s in all(ss) do
 		local x=nrm_pos(s.x)
@@ -997,6 +1013,14 @@ function draw_map()
 --	local x=nrm_pos(pp.x)
 --	local y=nrm_pos(pp.y)
 --	pset(x,y,8)
+
+	if flr(map_t)%2==0 then
+		for s in all(stns) do
+			local x=nrm_pos(s.x)
+			local y=nrm_pos(s.y)
+			pset(x,y,3)
+		end
+	end
 end
 
 function draw_strs()
@@ -1012,9 +1036,9 @@ function draw_strs()
 end
 
 function update_strs()
-	for s in all(strs) do
+	//for s in all(strs) do
 		//s.x
-	end
+	//end
 end
 __gfx__
 00000000000770008777800000800077900000090000000000000000000440000000000000000000000000000000000000bbb300000000003300003300000000
