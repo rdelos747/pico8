@@ -12,7 +12,9 @@ pp={
 	w=4,h=6,
 	wt=0,it=0,at=0,--timings
 	mode=0,a_mode=1,
-	hb=nil,jmp_pnt=nil
+	hb=nil,jmp_pnt=nil,
+	hp=0,hp_m=3,
+	hit_tm=0,hit_ang=0,hit_spd=0
 }
 
 hit_bs={
@@ -67,10 +69,11 @@ end
 
 function _init()
 	printh("==== start ====")
-	for i=0,10 do
+	for i=0,0 do
 		add_enmy(rand(10,118),rand(10,118))
 	end
 	cur_e=enmy[1]
+	pp.hp=pp.hp_m
 end
 
 function _draw()
@@ -89,12 +92,21 @@ function draw_game()
 	draw_enmy()
 	draw_cur_e()
 	draw_spkl()
+	
+	draw_hud()
 end
 
 function update_game()
 	update_player()
 	update_enmy()
 	update_spkl()
+	
+	//test
+	if count(enmy)==0 then
+		local rx=rand(40,88)
+		local ry=rand(40,88)
+		add_enmy(rx,ry)
+	end
 end
 
 function draw_bb(a)
@@ -104,9 +116,49 @@ function draw_bb(a)
 	pset(a.x,a.y,8)
 end
 
+function draw_hud()
+	for i=1,pp.hp_m do
+		if pp.hp>=i then
+			spr(11,8*i,1)
+		else
+			spr(10,8*i,1)
+		end
+	end
+end
+
+function add_spkl(x,y)
+	add(spkl,{x=x,y=y,dx=-1,dy=-1,t=0})
+	add(spkl,{x=x,y=y,dx=-1,dy=1,t=0})
+	add(spkl,{x=x,y=y,dx=1,dy=-1,t=0})
+	add(spkl,{x=x,y=y,dx=1,dy=1,t=0})
+end
+
+function draw_spkl()
+	for s in all(spkl)do
+		rectfill(s.x,s.y,s.x+2,s.y+2,7)
+	end
+end
+
+function update_spkl()
+	for s in all(spkl)do
+		s.x+=s.dx*1
+		s.y+=s.dy*1
+		s.t+=1
+		if(s.t>10)del(spkl,s)
+	end
+end
+
+
+-->8
+-- player
+
 function draw_player()
 	if pp.mode==2 then
 		draw_player_atk()
+		return
+	end
+	
+	if flr(pp.hit_tm%2)==1 then
 		return
 	end
 	
@@ -186,14 +238,26 @@ end
 e_hit=false
 
 function update_player()
-	if pp.mode==2 then
+
+	if pp.mode==0 or pp.mode==1 then
+		update_player_norm()
+	//elseif pp.mode==3 then
+	//	printh("j")
+	//	update_player_jmp()
+	// 	//return
+	elseif pp.mode==2 then
+		printh("=a")
 		update_player_atk()
-		return
-	elseif pp.mode==3 then
-		update_player_jmp()
-		return
-	end
+		//return
+	elseif pp.mode==4 then
+		update_player_knock()
+		//return
+	end	
 	
+	calc_player_hit()
+end
+
+function update_player_norm()
 	e_hit=false
 	
 	local dx,dy=0,0
@@ -222,13 +286,25 @@ function update_player()
 	
 	-- attack
 	if btnp(❎) and pp.mode!=2 then
+		printh("==atk start==")
+		pp.mode=2
 		local pnt=calc_atk_pnt()
+		//if pnt!=nil then
+		pp.j_pnt=pnt
+		
+		--[[
 		if pnt==nil then
 			pp.mode=2
 		else
-			pp.mode=3
-			pp.j_pnt=pnt
+			//local d=approx_dist(pp,pnt)
+			//if d>8 then
+				pp.mode=3
+				pp.j_pnt=pnt
+			//else
+				//pp.mode=2
+			//end
 		end
+		]]--
 	end
 	
 	if btnp(🅾️) then
@@ -236,14 +312,52 @@ function update_player()
 	end
 end
 
+function calc_player_hit()
+	if pp.hit_tm>0 then
+		pp.hit_tm-=0.5
+		return
+	end
+	
+	for e in all(enmy)do
+		if col_bb(pp,e) then
+			printh("hhiitt")
+			pp.hp-=1
+			pp.mode=4
+			pp.hit_tm=10
+			pp.hit_spd=5
+			pp.hit_ang=atan2(e.x-pp.x,e.y-pp.y)
+			pp.hit_ang=(pp.hit_ang+0.5)%1
+			return
+		end
+	end
+end
+
+function update_player_knock()
+	pp.x+=cos(pp.hit_ang)*pp.hit_spd
+	pp.y+=sin(pp.hit_ang)*pp.hit_spd
+	pp.hit_spd*=0.5
+
+	if pp.hit_spd<1 then
+		pp.mode=0
+	end
+end
+
 function update_player_atk()
-	pp.at=(pp.at+0.5)
+	
+	if pp.j_pnt!=nil and
+			approx_dist(pp,pp.j_pnt)>0 then
+		update_player_jmp()
+		printh("jumping")
+	else
+		pp.at=(pp.at+0.5)
+	end
+
 	local hb=hit_bs[pp.a_mode]
 	
 	if pp.at<2 then
 		pp.hb={
-			x=pp.x+pp.dx*2,
-			y=pp.y+pp.dy*2,
+			x=pp.x+pp.dx*4,
+			y=pp.y+pp.dy*4,
 			w=hb.w,
 			h=hb.h,
 			pwr=hb.pwr,
@@ -252,6 +366,7 @@ function update_player_atk()
 		for e in all(enmy)do
 			if col_bb(pp.hb,e) then
 				e_hit=true
+				pp.j_pnt=nil
 				hit_enmy(e,pp.hb)
 				
 				if e.hp<=0 then
@@ -263,8 +378,7 @@ function update_player_atk()
 		pp.hb=nil
 	end
 	
-	local at=hb.at
-	if pp.at>=at then
+	if pp.at>=hb.at then
 		pp.at=0
 		pp.mode=0
 		pp.a_mode=hb.n_a_mode
@@ -272,13 +386,9 @@ function update_player_atk()
 end
 
 function update_player_jmp()
-	local d=approx_dist(pp,pp.j_pnt)
-	if d<8 then
-		pp.mode=2
-		pp.j_pnt=nil
-		return
-	end
-	
+	pp.x=lerp(pp.x,pp.j_pnt.x,0.5)
+	pp.y=lerp(pp.y,pp.j_pnt.y,0.5)
+
 	if pp.x>pp.j_pnt.x then
 		pp.dx,pp.lpx=-1
 	else
@@ -291,8 +401,16 @@ function update_player_jmp()
 		pp.dy=1
 	end
 	
-	pp.x=lerp(pp.x,pp.j_pnt.x,0.5)
-	pp.y=lerp(pp.y,pp.j_pnt.y,0.5)
+	--[[
+	local d=approx_dist(pp,pp.j_pnt)
+	printh("d: "..d)
+	if d<16 then
+		printh("mode 2")
+		pp.mode=2
+		pp.j_pnt=nil
+		return
+	end
+	]]--
 end
 
 m_atk_d=30
@@ -328,31 +446,6 @@ function calc_cur_e()
 		end
 	end
 end
-
-function add_spkl(x,y)
-	add(spkl,{x=x,y=y,dx=-1,dy=-1,t=0})
-	add(spkl,{x=x,y=y,dx=-1,dy=1,t=0})
-	add(spkl,{x=x,y=y,dx=1,dy=-1,t=0})
-	add(spkl,{x=x,y=y,dx=1,dy=1,t=0})
-end
-
-function draw_spkl()
-	for s in all(spkl)do
-		rectfill(s.x,s.y,s.x+2,s.y+2,7)
-	end
-end
-
-function update_spkl()
-	for s in all(spkl)do
-		s.x+=s.dx*1
-		s.y+=s.dy*1
-		s.t+=1
-		if(s.t>10)del(spkl,s)
-	end
-end
-
-
-
 
 -->8
 -- enemies
@@ -430,12 +523,12 @@ function hit_enmy(e,hb)
 end
 
 __gfx__
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700007777000077770000777700000000000000000000000000000000000000000009000090000000000000000000000000000000000000000000000000
-00077000007777000077770000777700000000000000000000000000000000000000000009900990000000000000000000000000000000000000000000000000
-00077000007c7c0000c7c70000777700000000000000000000000000000000000000000009099090000000000000000000000000000000000000000000000000
-00700700007777000077770000777700000000000000000000000000000000000000000009000090000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000022022000880880000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000200200208888008000000000000000000000000000000000
+00700700007777000077770000777700000000000000000000000000000000000000000009000090200000208888808000000000000000000000000000000000
+00077000007777000077770000777700000000000000000000000000000000000000000009900990020002000888880000000000000000000000000000000000
+00077000007c7c0000c7c70000777700000000000000000000000000000000000000000009099090002020000088800000000000000000000000000000000000
+00700700007777000077770000777700000000000000000000000000000000000000000009000090000200000008000000000000000000000000000000000000
 00000000000000000000000000000000007007000070070000700000007007000000070000900900000000000000000000000000000000000000000000000000
 00000000000000000000000000000000007007000070000000700000000007000000070000099000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000008000000880000000000000800000008000000000000000bb000000b00bbb00000bbbbb0000bbbbb000bbbbb00000000
