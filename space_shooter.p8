@@ -31,6 +31,7 @@ dust0={}
 dust1={}
 str_dst=2
 map_r=1000
+stn_close=false
 blts={}
 strs={}
 ergy={} --energy pellets
@@ -52,8 +53,8 @@ function round(x)
 end
 
 function dist(x1,y1,x2,y2)
-	local dx,dy=x1-x2,y1-y2
-	return sqrt(dx*dx + dy*dy)
+ local a0,b0=abs(x1-x2),abs(y1-y2)
+ return max(a0,b0)*0.9609+min(a0,b0)*0.3984
 end
 
 //functoin lerp
@@ -155,6 +156,7 @@ function draw_mode_game()
 	draw_spkl()
 	
 	draw_hud()
+	print("close: "..(stn_close and "y" or "n"),cam.x,cam.y+100,7)
 	print("ns: "..count(shps),cam.x,cam.y+108,7)
 	print("x: "..pp.x,cam.x,cam.y+116,7)
 	print("y: "..pp.y,cam.x,cam.y+122,7)
@@ -249,6 +251,14 @@ function update_player()
 		if col_bb(b,pp) then
 			pp.ergy-=5
 			del(blts,b)
+			shake()
+		end
+	end
+	
+	for p in all(pblts) do
+		if col_bb(p,pp) then
+			pp.ergy-=5
+			del(pblts,p)
 			shake()
 		end
 	end
@@ -374,7 +384,7 @@ function update_shps()
 		-- getting shot
 		for b in all(blts) do
 			if col_bb(e,b) then
-				add_ergy(e.x,e.y,1,5)
+				add_ergy(e.x,e.y,1,5,1,40)
 				del(blts,b)
 				del(shps,e)
 				add_spkl(e.x,e.y)
@@ -383,18 +393,22 @@ function update_shps()
 	end
 	
 	--spawning
+	local ch=20
+	if(stn_close==false)ch=75
 	if spn_t==0 then
 		spn_t=spn_t_m
-		local ra=rnd(1)
-		local rx=64*cos(ra)
-		local ry=64*sin(ra)
-		add(shps,{
-			x=pp.x-rx,
-			y=pp.y-ry,
-			dx=0,dy=0,
-			w=8,h=8,
-			a=0
-		})
+		if rand(0,100)>ch then
+			local ra=rnd(1)
+			local rx=64*cos(ra)
+			local ry=64*sin(ra)
+			add(shps,{
+				x=pp.x-rx,
+				y=pp.y-ry,
+				dx=0,dy=0,
+				w=8,h=8,
+				a=0
+			})
+		end
 	else
 		spn_t-=1
 	end
@@ -404,28 +418,30 @@ pod_hp_m=1
 stn_hp_m=10
 function init_stns()
 	-- temp
-	local x=pp.x+50
-	local y=pp.y+50
+	for c=0,5 do
+		local x=rand(-map_r+64,map_r-64)
+		local y=rand(-map_r+64,map_r-64)
 	
-	local pods={}
-	local np=8
-	for i=1,np do
-		local a=i/np
-		add(pods,{
-			x=x-cos(a)*24,
-			y=y-sin(a)*24,
-			w=8,h=8,a=a,
-			hp=pod_hp_m
+		local pods={}
+		local np=8
+		for i=1,np do
+			local a=i/np
+			add(pods,{
+				x=x-cos(a)*24,
+				y=y-sin(a)*24,
+				w=8,h=8,a=a,
+				hp=pod_hp_m
+			})
+		end
+	
+		add(stns,{
+			x=x,y=y,
+			w=24,h=24,
+			pods=pods,
+			hp=stn_hp_m,
+			mode=0 --0=norm,1=agro
 		})
 	end
-	
-	add(stns,{
-		x=x,y=y,
-		w=24,h=24,
-		pods=pods,
-		hp=stn_hp_m,
-		mode=0 --0=norm,1=agro
-	})
 end
 
 function draw_stns()
@@ -465,11 +481,15 @@ function draw_stns()
 end
 
 function update_stns()
+	stn_close=false
+	local ccc=0
 	for s in all(stns) do
 		--skip far stns
-		if dist(s.x,s.y,pp.x,pp.y)>128 then
+		local dd=dist(s.x,s.y,pp.x,pp.y)
+		if dd >128 then
 		 goto continue
 		end
+		stn_close=true
 	
 		local p_close=nil
 		local min_d=10000
@@ -551,6 +571,8 @@ function update_stns()
 				end
 				del(s.pods,p)
 			end
+			add_ergy(s.x,s.y,15,30,1,100)
+			del(stns,s)
 		end
 		
 		::continue::
@@ -570,6 +592,8 @@ function update_dpds()
 	for p in all(dpds) do
 		p.x+=cos(p.a)*0.5
 		p.y+=sin(p.a)*0.5
+		
+		p.x,p.y=wrap_pos(p.x,p.y)
 			
 		local px,py=apr_pos(
 			pp.x,pp.y,p.x,p.y
@@ -606,6 +630,15 @@ function update_apds()
 		p.x+=dx*1
 		p.y+=dy*1
 		
+		p.x,p.y=wrap_pos(p.x,p.y)
+		
+		if rand(0,100)>99 then
+			add_pblt(
+				p.x,
+				p.y
+			)
+		end
+		
 		for b in all(blts) do
 			if col_bb(b,p) then
 				del(blts,b)
@@ -614,13 +647,12 @@ function update_apds()
 					add_spkl(p.x,p.y,6)
 				end
 				if p.hp==0 then
-					add_ergy(p.x,p.y,1,5)
+					add_ergy(p.x,p.y,1,5,1,40)
 					add(dpds,p)
 					del(apds,p)
 				end
 			end
 		end
-
 	end
 end
 
@@ -644,12 +676,22 @@ function update_pblts()
 		p.x+=cos(p.a)*1
 		p.y+=sin(p.a)*1
 		p.t+=0.2
+		
+		p.x,p.y=wrap_pos(p.x,p.y)
+		
+		local px,py=apr_pos(
+			pp.x,pp.y,p.x,p.y
+		)
+		if abs(p.x-px)>128 or
+				abs(p.y-py)>128 then
+			del(dpds,p)
+		end
 	end
 end
 
 function add_pblt(x,y)
 	add(pblts,{
-		x=x,y=y,t=0,
+		x=x,y=y,t=0,w=2,h=2,
 		a=atan2(pp.x-x,pp.y-y)
 	})
 end
@@ -660,7 +702,7 @@ function draw_ergy()
 			e.x,e.y,pp.x,pp.y
 		)
 		pal(7,(e.t%8)+8)
-		if e.t<25 or e.t%2==0 then
+		if e.t<e.mt-20 or e.t%2==0 then
 			spr(6,(drx-e.w/2)-1,(dry-e.h/2)-1)
 		end
 		pal()
@@ -679,19 +721,19 @@ function update_ergy()
 			del(ergy,e)
 			if(pp.ergy<pp.ergy_m)pp.ergy+=1
 		end
-		if(e.t>40)del(ergy,e)
+		if(e.t>e.mt)del(ergy,e)
 	end
 end
 
-function add_ergy(x,y,m,n)
+function add_ergy(x,y,m,n,s,mt)
 	local rne=rand(m,n)
 	for i=0,rne do
 		add(ergy,{
 			x=x,y=y,
-			a=rnd(1),s=1,
+			a=rnd(1),s=s,
 			sf=rand(90,99)/100,
 			w=6,h=6,
-			t=rand(1,8)
+			t=rand(1,8),mt=rand(mt,mt+10)
 		})
 	end
 end
@@ -940,6 +982,15 @@ function draw_map()
 		local y=nrm_pos(s.y)
 		pset(x,y,s.c)
 	end
+	end
+	
+	--temp show stns
+	local ccc=0
+	for s in all(stns) do
+		ccc+=1
+		local x=nrm_pos(s.x)
+		local y=nrm_pos(s.y)
+		pset(x,y,11)
 	end
 	
 -- dont show player
