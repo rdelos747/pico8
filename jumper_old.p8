@@ -9,9 +9,7 @@ jumper`
 - pickups:
 		- gems (just points for now)
 		- unlimited jumps for x seconds
-		- invincibility for x seconds
-		- magnets!!!!
-		- multi-dir-shoot 
+		- invincibility for x seconds 
 - show number jumps in hud
 - touching enemy decreases heart
 			and jump num
@@ -55,7 +53,8 @@ s_coin3=96
 s_coin_hud=48
 
 --player
-
+p_accel=0.3
+p_max=4
 //p_num_jumps=3
 //p_max_water=12
 p_max_coin=1000
@@ -71,8 +70,6 @@ logo={
 	snd=0
 }
 show_logo=true
-
-cur_lvl_cns=0
 
 
 -- ==========
@@ -129,7 +126,7 @@ end
 -- init
 -- ===================
 function _init()
-	printh("------start------")
+	//printh("------start------")
 	//reset()
 	init_parallax()
 end
@@ -157,7 +154,6 @@ function reset()
 	total_perf=0
 	total_enim=0
 	total_lvls=0
-	cur_lvl_cns=0
 	--functions
 	clear_objects()
 	//init_level()
@@ -200,15 +196,13 @@ function _draw()
 	
 	if(l_num==1)draw_creds()
 	
-	draw_blobs()
-	
 	if scroll==0 then
 		draw_level()
 		draw_sprinkles()
 		draw_bullets()
 		draw_flares()
-		--draw_bats()
-		--draw_blobs()
+		draw_bats()
+		draw_blobs()
 		draw_flashes()
 		draw_hearts()
 	else
@@ -261,7 +255,7 @@ function _update()
 		
 		update_player()
 		update_bullets()
-		--update_bats()
+		update_bats()
 		update_blobs()
 	end
 end
@@ -292,19 +286,12 @@ function draw_hud_coins()
 		2,2)
 	print("=",11,3,7)
 	local b=p_max_coin
-	local s_tot=""
-	local s_cur=""
+	local s=""
 	while b>pp.coin and b>10 do
 		b=b/10
-		if(b>pp.coin)s_tot=s_tot.."0"
+		if(b>pp.coin)s=s.."0"
 	end
-	b=p_max_coin
-	while b>cur_lvl_cns and b>10 do
-		b=b/10
-		if(b>cur_lvl_cns)s_cur=s_cur.."0"
-	end
-	print(s_tot..pp.coin,16,3,7)
-	print(s_cur..cur_lvl_cns,16,11,7)
+	print(s..pp.coin,16,3,7)
 end
 
 function draw_hud_hp()
@@ -438,7 +425,7 @@ function draw_player()
 end
 
 function update_player()
-	if pp.y>128+8 then
+	if pp.y>128 then
 		if pp.can_die then
 			pp.hp-=1
 			//set_pause()
@@ -504,33 +491,22 @@ function update_player()
 	end
 end
 
-jump_t=0
-jump_t_max=7
-p_max=3
-p_max_d=4
-p_accel=0.3
 function player_jump()
 	if btn(🅾️) then
-		if not pp.jump_press and pp.jump>0 then
-			pp.jump-=1
-			jump_t=jump_t_max
-			add_sprinkles(pp.x,pp.y)
+		if not pp.jump_press then
+			pp.jump_press=true
+			if pp.jump>0 then
+				pp.jump-=1
+				pp.dy=-p_max
+				add_sprinkles(pp.x,pp.y)
+			end
 		end
-		pp.jump_press=true
-		if jump_t>0 then
-			pp.dy=-p_max
-		end
-		jump_t=max(0,jump_t-1)
-	elseif pp.jump_press==true then
+	else
 		pp.jump_press=false
-		jump_t=0
 	end
-	
 	-- if jumping
 	if pp.dy<0 then
-		if jump_t==0 then
-			pp.dy+=p_accel
-		end
+		pp.dy+=p_accel
 		local ny=pp.y+pp.dy
 		if place_free(pp.x,ny-4) then
 			pp.y=ny
@@ -542,7 +518,8 @@ function player_jump()
 	elseif place_free(pp.x,
 			(pp.y+pp.dy)+4) then
 		pp.y=pp.y+pp.dy
-		pp.dy=min(p_max_d,pp.dy+p_accel)
+		pp.dy+=p_accel
+		if(pp.dy>p_max)pp.dy=p_max
 		pp.landed=false
 	else
 		pp.dy=0
@@ -687,14 +664,13 @@ function touch_coin()
 		if flr(pp.x/8)==c.i and
 					flr(pp.y/8)==c.j then
 			del(coins,c)
-			--pp.coin+=c.val
-			cur_lvl_cns+=c.val
-			--total_coin+=c.val
+			pp.coin+=c.val
+			total_coin+=c.val
 			add_flare(pp.x,pp.y,c.val)
 			if #coins==0 then
 				perfect=1
 				total_perf+=1
-				pp.coin+=cur_lvl_cns
+				pp.coin+=50
 			end
 			if pp.coin>p_max_coin then
 				pp.coin=p_max_coin
@@ -827,7 +803,6 @@ function update_bullets()
 			player_hit(b.x,b.y)
 		end
 		
-		--[[
 		for ba in all(bats) do
 			if b.x>ba.x-4 and b.x<ba.x+4 and
 						b.y>ba.y-4 and b.y<ba.y+4 then
@@ -835,7 +810,6 @@ function update_bullets()
 				damage_bat(ba)
 			end
 		end
-		]]--
 		
 		for bl in all(blobs) do
 			if b.x>bl.x-4 and b.x<bl.x+4 and
@@ -875,8 +849,7 @@ function add_blobs()
 	local bt=player_start_points[idx]
 	add(blobs,{
 		x=(bt.i*8)+4,
-		y=((bt.j*8)+4)+128,
-		y=((bt.j*8)+4)+128,
+		y=(bt.j*8)+4,
 		tm=0,hp=2
 	})
 end
@@ -913,7 +886,6 @@ end
 -- ==========
 -- bats
 -- ===================
---[[
 function add_bats()
 	for i=1,rand(3,4) do
 		local finding=true
@@ -999,15 +971,11 @@ function damage_bat(b)
 		total_enim+=1
 	end
 end
-]]--
 
 -- ==========
 -- scrolling
 -- ===================
 function init_scroll()
-	pp.coin+=cur_lvl_cns
-	total_coin+=cur_lvl_cns
-	cur_lvl_cns=0
 	clear_objects()
 	scroll=1
 	l_num+=1
@@ -1022,17 +990,13 @@ function init_scroll()
 	end
 end
 
-scr_spd=4
 function update_scroll()
 	if(scroll==0)return
 	if scroll<128 then
-		scroll+=scr_spd
-		pp.y-=scr_spd
+		scroll+=2
+		pp.y-=2
 		pp.can_die=true
-		shop.y-=scr_spd
-		for b in all(blobs)do
-			b.y-=scr_spd
-		end
+		shop.y-=2
 	else
 		scroll=0
 	end
@@ -1055,8 +1019,6 @@ function draw_scroll()
 				i*8,j*8-scroll)
 		end
 	end end
-	
-	
 end
 
 function clear_objects()
@@ -1100,7 +1062,7 @@ function draw_perfect()
 		if(i==flr(perfect)*7+1)y-=4
 		spr(68+i,36+(i*8),y)
 	end
-	print("+"..cur_lvl_cns.." coins!",43,70,12)
+	print("+50 coins!",43,70,12)
 	pal()
 	perfect+=0.4
 end
@@ -1429,7 +1391,7 @@ function init_level()
 	end
 	add_terrain()
 	add_coins()
-	--	add_bats()
+	add_bats()
 	add_blobs()
 end
 
