@@ -32,9 +32,6 @@ cell_birth=3
 cell_death=1
 cell_autos=3
 
---generic blocks
-
-
 --solids
 cb=nil -- cur biome
 biome={
@@ -75,9 +72,6 @@ biome={
 ter_pipe=21
 ter_watr=22
 pas_watr=27
---passives
-
-
 
 --coins
 coin_chance=5
@@ -87,11 +81,13 @@ s_coin3=96
 s_coin_hud=48
 
 --time
-time_chance=20
+time_chance=10
 game_tm=0
 time_add=20
 time_add_shop=50
-time_loss=10
+time_add_blob=5
+time_add_bat=10
+time_loss=25
 time_start=60
 
 --player
@@ -253,7 +249,7 @@ function _draw()
 		draw_sprinkles()
 		draw_bullets()
 		draw_flares()
-		--draw_bats()
+		draw_bats()
 		--draw_blobs()
 		draw_flashes()
 		--draw_hearts()
@@ -326,7 +322,7 @@ function _update()
 		
 		update_player()
 		update_bullets()
-		--update_bats()
+		update_bats()
 		update_blobs()
 	end
 end
@@ -401,6 +397,10 @@ function draw_hud_jump()
 end
 
 function draw_hud_time()
+	local l=65
+	if(game_tm>9)l=69
+	if(game_tm>99)l=73
+	rectfill(61,0,l,6,0)
 	local s=flr(hud.tm)%12
 	if s==10 or s==11 then
 		spr(78,55,-1,1,1,false,true)
@@ -501,7 +501,6 @@ function update_bullets()
 			player_hit(b.x,b.y)
 		end
 		
-		--[[
 		for ba in all(bats) do
 			if b.x>ba.x-4 and b.x<ba.x+4 and
 						b.y>ba.y-4 and b.y<ba.y+4 then
@@ -509,7 +508,6 @@ function update_bullets()
 				damage_bat(ba)
 			end
 		end
-		]]--
 		
 		for bl in all(blobs) do
 			if b.x>bl.x-4 and b.x<bl.x+4 and
@@ -549,6 +547,14 @@ end
 function add_blobs()
 	local idx=rand(1,#player_start_points)
 	local bt=player_start_points[idx]
+	if bt==nil then
+		for i=0,20 do
+			printh("======= here =======")
+		end
+		printh("idx "..idx)
+		printh("psp "..#player_start_points)
+		return
+	end
 	add(blobs,{
 		x=(bt.i*8)+4,
 		y=((bt.j*8)+4)+128,
@@ -581,6 +587,8 @@ function damage_blob(b)
 	b.hp-=1
 	if b.hp<=0 then
 	--	if(chance(50))add_heart(b.x,b.y)
+		game_tm+=time_add_blob
+		add_flare(pp.x,pp.y,time_add_blob)
 		del(blobs,b)
 		total_enim+=1
 	end
@@ -589,9 +597,15 @@ end
 -- ==========
 -- bats
 -- ===================
---[[
 function add_bats()
-	for i=1,rand(3,4) do
+	local bc=((l_num-1)%10)*10
+	if not chance(bc) then
+		return
+	end
+	local bmin,bmax=1,2
+	if(l_num%10>5)bmin,bmax=2,3
+	if(l_num%10>7)bmin,bmax=3,5
+	for i=1,rand(bmin,bmax) do
 		local finding=true
 		while finding do
 			local ri=rand(1,xmax-2)
@@ -632,8 +646,8 @@ function update_bats()
 			b.xtm=0.5
 		elseif bi>xmax-1 then
 			b.xtm=0
-		elseif pt>=ter_rock and 
-					pt<pas_flw1 then
+		elseif pt>=cb.ter_rock and 
+					pt<cb.pas_flw1 then
 			if sin(b.xtm)>0 then
 				b.x-=2
 				b.xtm=0
@@ -670,12 +684,13 @@ function damage_bat(b)
 	add_flash(b.x,b.y)
 	b.hp-=1
 	if b.hp<=0 then
-		if(chance(50))add_heart(b.x,b.y)
+		--if(chance(50))add_heart(b.x,b.y)
+		game_tm+=time_add_bat
+		add_flare(pp.x,pp.y,time_add_bat)
 		del(bats,b)
 		total_enim+=1
 	end
 end
-]]--
 
 -- ==========
 -- scrolling
@@ -1663,7 +1678,7 @@ function init_level()
 	end
 	add_terrain()
 	add_coins()
-	--	add_bats()
+	add_bats()
 	add_blobs()
 	add_times()
 end
