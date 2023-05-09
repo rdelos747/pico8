@@ -906,6 +906,7 @@ function draw_shop()
 					not pp.shopping and
 					not shop.bought then
 			pp.shopping=true
+			sfx(13)
 		else
 			shop.bought=false
 		end
@@ -940,16 +941,20 @@ function update_shopping()
 			pp.shopping=false
 			shop.tm=20
 			apply_upgrade(i)
+			sfx(13)
 		else
 			shop.err_tm=35
+			sfx(14)
 		end
 	end
 	if btnp(⬅️) and shop.idx>0 then
 		shop.idx-=1
 		shop.err_tm=0
+		sfx(13)
 	elseif btnp(➡️) and shop.idx<3 then
 		shop.idx+=1
 		shop.err_tm=0
+		sfx(13)
 	end
 end
 
