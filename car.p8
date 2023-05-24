@@ -1,0 +1,76 @@
+pico-8 cartridge // http://www.pico-8.com
+version 32
+__lua__
+pp={x=0,y=0}
+pts={}
+ang=0
+camx=0
+camy=0
+
+function rot(x,y)
+	local a=ang+0.25
+	x-=pp.x
+	y-=pp.y
+	local rx=x*cos(a)-y*sin(a)
+	local ry=x*sin(a)+y*cos(a)
+	rx+=camx+64
+	ry+=camy+64
+	return rx,ry
+end
+
+function _init()
+	printh("=== start ===")
+	add(pts,{-20,-20})
+	add(pts,{20,-20})
+	add(pts,{20,20})
+	add(pts,{-20,20})
+end
+
+function _draw()
+	cls()
+	camx=pp.x-64
+	camy=pp.y-64
+	camera(camx,camy)
+	
+	--points
+	for i=1,#pts do
+		local p1=pts[i]
+		local p2=pts[(i%#pts)+1]
+		local x1,y1=rot(p1[1],p1[2])
+		local x2,y2=rot(p2[1],p2[2])
+		line(x1,y1,x2,y2,7)
+	end
+	
+	-- player
+	rect(pp.x,pp.y,pp.x+1,pp.y+1)
+	
+	-- debug
+	print("ang:"..ang,camx,camy)
+	print("x,y:"..pp.x..","..pp.y,camx,camy+8)
+	
+	-- map
+	rect(camx,camy+100,camx+28,camy+127,7)
+	mx=((pp.x+50)/100)*28
+	my=((pp.y+50)/100)*28
+	mx2=mx+cos(ang)
+	my2=my-sin(ang)
+	pset(camx+mx,camy+100+my,7)
+	pset(camx+mx2,camy+100+my2,9)
+end
+
+turn=0.01
+function _update()
+	if(btn(⬅️))ang=(ang-turn)%1
+	if(btn(➡️))ang=(ang+turn)%1
+	if btn(⬆️) then
+		pp.x+=cos(ang)
+		pp.y-=sin(ang)
+	end
+end
+__gfx__
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

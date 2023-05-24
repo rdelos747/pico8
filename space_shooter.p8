@@ -421,7 +421,7 @@ end
 pod_hp_m=1
 stn_hp_m=10
 function init_stns()
-	for xx=0,n_stns do
+	--for xx=0,n_stns do
 	-- temp
 	for c=0,5 do
 		local x=rand(-map_r+64,map_r-64)
