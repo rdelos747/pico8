@@ -1,49 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
---[[
-jumper
-- perhaps player cannot advance
-		until they collect a special 
-		item on the stage (eg, a key)
-- pickups:
-		- gems (just points for now)
-		- unlimited jumps for x seconds
-		- invincibility for x seconds
-		- magnets!!!!
-		- multi-dir-shoot 
-- show number jumps in hud
-- touching enemy decreases heart
-			and jump num
-- eat flowers to gain health?
-- - or, just place hearts in hard
-					areas?
-- new power ups:
-		- spread bubble bullets (3,5,etc)
-- op jump+ solutions
-  - just remove extra jumps
-  - make jump+ more expensive
-  - player can lose jump+ if hit
-  - make terrain harder in late game
-		- jump+ consumes water
-- new enemy types
-		- an ememy that speeds up time
-- other ideas
-		- end game after 100 levels
-		- timers should be less common
-		- once per world, player can 
-				pick up an item that 
-				follows you around, lasts 
-				for 30s, eg magnet or 
-				infinite jumps
-		- blobs should move around,
-				also more blobs in the end
-]]--
-
--- ==========
 -- constants
--- ===================
-ver="0.9.0"
+ver="0.11.0"
 
 xmax=16
 ymax=16
@@ -64,8 +23,11 @@ ter_watr=18
 
 --biome specific
 cb=nil -- cur biome
+cb_idx=1
 biome={
 	grass={
+		name="grass",
+		icon=89,
 		ter_bloc=128,
 		ter_roc2=129,
 		ter_blc2=130,
@@ -76,6 +38,8 @@ biome={
 		pas_tree=135
 	},
 	ice={
+		name="ice",
+		icon=92,
 		ter_bloc=144,
 		ter_roc2=145,
 		ter_blc2=146,
@@ -86,6 +50,8 @@ biome={
 		pas_tree=151
 	},
 	desert={
+		name="desert",
+		icon=91,
 		ter_bloc=160,
 		ter_roc2=161,
 		ter_blc2=162,
@@ -94,7 +60,52 @@ biome={
 		pas_flw2=165,
 		pas_stem=166,
 		pas_tree=167
+	},
+	fungi={
+		name="fungi",
+		icon=39,
+		ter_bloc=176,
+		ter_roc2=177,
+		ter_blc2=178,
+		ter_gras=179,
+		pas_flw1=180,
+		pas_flw2=181,
+		pas_stem=182,
+		pas_tree=183
+	},
+	heaven={
+		name="heaven",
+		icon=39,
+		ter_bloc=136,
+		ter_roc2=137,
+		ter_blc2=138,
+		ter_gras=139,
+		pas_flw1=140,
+		pas_flw2=141,
+		pas_stem=142,
+		pas_tree=143
+	},
+	dark={
+		name="dark",
+		icon=39,
+		ter_bloc=152,
+		ter_roc2=153,
+		ter_blc2=154,
+		ter_gras=155,
+		pas_flw1=156,
+		pas_flw2=157,
+		pas_stem=158,
+		pas_tree=159
 	}
+}
+
+biome_order={
+	biome.grass,
+	biome.desert,
+	biome.ice,
+	biome.fungi,
+	biome.dark,
+	biome.heaven
 }
 
 --coins
@@ -104,36 +115,41 @@ val_yellow=1
 val_green=5
 val_red=10
 
---time
-//time_chance=10
-//time_add=20
-//time_add_shop=50
-//time_add_blob=5
-//time_add_bat=10
-//time_loss=25
-//time_start=60
-
 --enmies
 hp_bat=2
 hp_blob=1
+hp_cac=2
+hp_flame=1
+flame_t=0.1
+flame_s=0.28
+flame_spawn_t=20
 
 --hp
-hp_chance=10
-hp_loss_hit=4
-hp_loss_bot=4
+hpc_high=10 //hp spawn chance
+hpc_mid=5
+hpc_low=1
+hp_loss_hit=2
+hp_loss_bot=2
 
 --player
-p_max_coin=1000
+p_max_coin=10000
 p_jump_min=2
 b_spread=5
 b_speed=4
+b_fall_decel_h=0.2
+b_fall_accel_v=1
+b_fall_max=2
+p_shoot_delay=4
 
 --hud
 hud_top=1
-hud_bot=121
+hud_bot=122
 
 --prices
 prices={50,100,150,200}
+b_prices={
+	100,100,100,100,100,100,100
+}
 
 --logo
 logo={
@@ -148,15 +164,109 @@ has_died=false
 first_run=true
 play_music=false
 
--- ==========
--- helpers
--- ===================
+--init
+
+function reset()
+	--vars
+	last_level=nil
+	l_type="norm"
+	l_num=0
+	scroll=0
+	l_tm=0
+	sprinkles={}
+	bullets={}
+	flares={}
+	flashes={}
+	enemy={}
+	hps={}
+	price_lvls={1,1,1}
+	shop={x=78,y=200}
+	pause=0
+	hit=0
+	perfect=0
+	total_coin=0
+	total_perf=0
+	total_enim=0
+	total_lvls=0
+	cur_lvl_cns=0
+	cb_idx=6
+	cb=biome_order[cb_idx]
+	//cb=biome.dark//biome.grass
+	--functions
+	clear_objects()
+	//init_level()
+	init_first()
+		
+	init_player()
+	init_hud()
+	
+	if not first_run then
+		_music(24)
+	end
+	has_died=false
+end
+
+function init_player()
+	--player_start_points should be
+	-- initialized by now
+	local idx=rand(1,#player_start_points)
+	local pt=player_start_points[idx]
+	pp={
+		x=(pt.i*8)+4,
+		y=(pt.j*8)+4,
+		w=3,h=6,
+		drr=1, -- -1:left,1:right
+		drr_y=0,
+		tm=0,
+		jump_press=false,
+		jump=0,
+		landed=false,
+		dy=0,
+		can_die=false,
+		coin=0,
+		water=3,
+		w_tanks=1,
+		bullet_dist=10,
+		bullet_size=0.5,
+		bullet_num=1,
+		shoot=0,
+		w_tm=0,
+		hp=8,
+		hp_tanks=2,
+		hit=0,
+		hit_dx=0,
+		hit_dy=0,
+		shopping=false,
+		can_shop=false,
+		d_tm0=0, --die animation
+		d_tm1=0, --die rest animation
+		d_cntr=false,
+		new_biome=false
+	}
+end
+
+-->8
+-- general
+
 function rand(bot,top)
 	return flr(rnd((top+1)-bot))+bot
 end
 
 function chance(n)
 	return rand(0,100) < n
+end
+
+function ang_lerp(a1,a2,t)
+	a1=a1%1
+	a2=a2%1
+	if abs(a1-a2)>0.5 then
+		if a1>a2 then
+			a2+=1
+		else
+			a1+=1
+		end
+	end
+	return ((1-t)*a1+t*a2)%1
 end
 
 function copy_table(t)
@@ -240,6 +350,12 @@ function draw_bb(o)
 		8)	
 end
 
+function next_b_idx()
+	return max(
+		(cb_idx+1)%#biome_order,
+		1)
+end
+
 function set_pause()
 	pause=4
 end
@@ -260,53 +376,6 @@ function _init()
 	//reset()
 	init_parallax()
 	_music(24)
-end
-
-function reset()
-	--vars
-	last_level=nil
-	l_type="norm"
-	l_num=997//1
-	scroll=0
-	l_tm=0
-	sprinkles={}
-	bullets={}
-	flares={}
-	flashes={}
-	bats={}
-	blobs={}
-	hps={}
-	times={}
-	price_lvls={1,1,1,1}
-	shop={x=78,y=200}
-	pause=0
-	hit=0
-	perfect=0
-	total_coin=0
-	total_perf=0
-	total_enim=0
-	total_lvls=0
-	cur_lvl_cns=0
-	game_tm=time_start
-	cb=biome.grass
-	--functions
-	clear_objects()
-	//init_level()
-	init_first()
-	
-	//temp
-	//init_shop()
-	//shop.y=72
-	//scroll=0
-	//temp
-	
-	init_player()
-	init_hud()
-	
-	if not first_run then
-		_music(24)
-	end
-	has_died=false
 end
 
 -- ==========
@@ -333,10 +402,11 @@ function _draw()
 		return
 	end
 	
-	if(l_num==1)draw_creds()
+	//if(l_num==0)draw_creds()
 	
-	draw_blobs()
-	draw_bats()
+	//draw_blobs()
+	//draw_bats()
+	//draw_enemies()
 	
 	if scroll==0 then
 		draw_level()
@@ -345,13 +415,15 @@ function _draw()
 		draw_flares()
 		draw_flashes()
 		draw_hps()
-		--draw_hearts()
 	else
 		draw_scroll()
 	end
+	
+	draw_enemies()
+	
 	if hit<=0 or flr(hit)%2==0 then
 		draw_player()
-		if(l_num>1)draw_hud()
+		if(l_num>0)draw_hud()
 		
 	end
 	if l_type=="shop" then
@@ -424,8 +496,9 @@ function _update()
 		
 		update_player()
 		update_bullets()
-		update_bats()
-		update_blobs()
+		//update_bats()
+		//update_blobs()
+		update_enemies()
 		update_hps()
 	end
 	
@@ -455,17 +528,51 @@ end
 
 function draw_hud()
 	hud.tm+=0.2
-	rectfill(0,hud_top,128,hud_top+8,0)
+	rectfill(0,hud_bot-1,128,hud_bot+6,0)
 	draw_hud_coins()
 	draw_hud_hp()
 	draw_hud_jump()
-	print(l_num,116,hud_top+1,7)
+	draw_hud_lvl()
 end
 
+hud_lvl_x=115
+function draw_hud_lvl()
+	--[[
+	print("lvl",
+		hud_lvl_x+1,
+		hud_bot,
+		3)
+	print("lvl",
+		hud_lvl_x,
+		hud_bot,
+		11)
+	]]--
+	--[[
+	print(l_num,
+		hud_lvl_x+1,hud_bot,3)
+	]]--
+	local b=1000
+	local l_tot=""
+	while b>l_num and b>10 do
+		b=b/10
+		if(b>l_num)l_tot=l_tot.."0"
+	end
+	
+	--[[
+	print(l_tot..l_num,
+		hud_lvl_x+1,hud_bot,3)
+	]]--
+	print(l_tot..l_num,
+		hud_lvl_x+0,hud_bot,11)
+end
+
+hud_c_x=1
 function draw_hud_coins()
+	--[[
 	spr(flr(hud.tm)%4+s_coin_hud,
-		-2,hud_top)
-	print(":",6,hud_top+1,7)
+		hud_c_x,hud_top)
+	print(":",hud_c_x+7,hud_top,7)
+	]]--
 	local b=p_max_coin
 	local s_tot=""
 	local s_cur=""
@@ -473,89 +580,85 @@ function draw_hud_coins()
 		b=b/10
 		if(b>pp.coin)s_tot=s_tot.."0"
 	end
-	print(s_tot..pp.coin,9,hud_top+1,7)
+	
+	--[[
+	print(s_tot..pp.coin,
+		hud_c_x+1,hud_bot,9)
+	]]--
+	print(s_tot..pp.coin,
+		hud_c_x+0,hud_bot,10)
 end
 
+hud_hp_x=22
 function draw_hud_hp()
-	print("hp",24,hud_top+1,2)
-	print("hp",23,hud_top+1,14)
-	local y=hud_top+1
+	//palt(0,false)
+	//palt(15,true)
+	
+	print("hp",
+		hud_hp_x+1,
+		hud_bot,
+		2)
+	print("hp",
+		hud_hp_x,
+		hud_bot,
+		14)
 	for i=1,pp.hp_tanks do
 		local c=pp.hp/(i*4)
 		local r=min((i*4)-pp.hp,4)
-		local x=32+(i-1)*6
+		local x=hud_hp_x+9+(i-1)*6
 		if c>=1 then
-			spr(33,x,y)
+			spr(33,x,hud_bot)
 		else
-			spr(34+r%4,x,y)
+			spr(34+r%4,x,hud_bot)
 		end
 	end
+	//palt()
 end
 
+hud_j_x=64
 function draw_hud_jump()
 	local ttl=p_jump_min+pp.w_tanks
-	print("jmps",63,hud_top+1,1)
-	print("jmps",62,hud_top+1,12)
+	
+	print("jmp",
+		hud_j_x+1,
+		hud_bot,
+		1)
+	print("jmp",
+		hud_j_x,
+		hud_bot,
+		12)
 	for i=1,ttl do
+		//palt(0,false)
+		//palt(15,true)
 		if i<=p_jump_min then
 			if i<=pp.jump then
 				pal(6,1)
 				pal(7,1)
 				pal(12,1)
 			end
-			spr(62,72+(i*4),hud_top)
+			spr(19,
+				hud_j_x+6+(i*5),
+				hud_bot)
 			pal()
 		else
 			local ii=(i-p_jump_min)-1
 			local nw=mid(0,pp.water-ii*3,3)
 			local off=flr(hud.tm)%2
 			if nw==0 then
-				spr(20,67+(i*6),hud_top)
+				spr(20,
+					hud_j_x+4+(i*6),
+					hud_bot)
 			else
 				spr(
 					20+(nw*2)-off,
-					67+(i*6),hud_top)
+					hud_j_x+4+(i*6),
+					hud_bot)
 			end
 		end
+		//palt()
 	end
+	
 end
-
---[[
-function draw_hud_time()
-	--local l=65
-	--if(game_tm>9)l=69
-	--if(game_tm>99)l=73
-	--rectfill(61,0,l,6,0)
-	local s=flr(hud.tm)%12
-	if s==10 or s==11 then
-		spr(78,55,hud_top-1,1,1,false,true)
-	else
-		spr(75+s/2,55,hud_top+1)
-	end
-	print(game_tm,62,hud_top+1,7)
-end
-]]--
-
---[[
-function draw_hit()
-	local x=62-((pp.hp_max*8)/2)
-	for i=1,pp.hp_max do
-		if hit>3 then
-			if i-1>pp.hp then
-				print("♥",x+(i*6),64,5)
-			else
-				print("♥",x+(i*6),64,8)
-			end
-		else
-			if i>pp.hp then
-				print("♥",x+(i*6),64,5)
-			else
-				print("♥",x+(i*6),64,8)
-			end
-		end
-	end
-end
-]]--
 
 function draw_sprinkles()
 	for s in all(sprinkles)do
@@ -602,11 +705,11 @@ end
 -- bullets
 -- ===================
 function add_bullet(x,y,dx,dy,
-	tm,rad,c,p)
+	tm,rad,c,p,fall)
 	add(bullets,{
 		x=x,y=y,dx=dx,dy=dy,
 		w=rad*2,h=rad*2,
-		tm=tm,sz=sz,c=c,p=p
+		tm=tm,c=c,p=p,f=fall
 	})
 end
 
@@ -615,6 +718,13 @@ function update_bullets()
 		b.tm-=1
 		b.x+=b.dx
 		b.y+=b.dy
+		
+		if b.f==true then
+			if(b.dx>0)b.dx=max(0,b.dx-b_fall_decel_h)
+			if(b.dx<0)b.dx=min(0,b.dx+b_fall_decel_h)
+			b.dy=min(b.dy+b_fall_accel_v,b_fall_max)
+		end
+		
 		if(b.tm<=0)del(bullets,b)
 		
 		if not place_free(b,0,0) then
@@ -622,25 +732,18 @@ function update_bullets()
 			del(bullets,b)
 		end
 
-		if b.p==false and 
-					col_bb(pp,b) then
-			player_hit(b.x,b.y)
-			del(bullets,b)
-		end
-		
-		if(p==false)return
-		
-		for ba in all(bats) do
-			if col_bb(b,ba) then
+		if b.p==false then
+			if col_bb(pp,b) then
+				player_hit(b.x,b.y)
 				del(bullets,b)
-				damage_bat(ba)
 			end
-		end
-		
-		for bl in all(blobs) do
-			if col_bb(b,bl) then
-				del(bullets,b)
-				damage_blob(bl)
+		else		
+			for e in all(enemy)do
+				if col_bb(b,e) then
+					printh("herere")
+					del(bullets,b)
+					damage_enemy(e)
+				end
 			end
 		end
 	end
@@ -660,8 +763,8 @@ function draw_bullets()
 	end
 end
 
-function add_hps(x,y)
-	if not chance(hp_chance) then
+function add_hps(x,y,c)
+	if not chance(c) then
 		return
 	end
 	local rn=rand(1,3)
@@ -706,159 +809,7 @@ function update_hps()
 	end
 end 
 
--- ==========
--- blobs
--- ===================
-function add_blobs()
-	local idx=rand(1,#player_start_points)
-	local bt=player_start_points[idx]
-	if bt==nil then
-		for i=0,20 do
-			printh("======= here =======")
-		end
-		printh("idx "..idx)
-		printh("psp "..#player_start_points)
-		return
-	end
-	local bdx=1
-	if(chance(50))bdx=-1
-	add(blobs,{
-		x=(bt.i*8)+4,
-		y=((bt.j*8)+4)+128,
-		w=6,h=6,dx=bdx,
-		tm=0,hp=hp_blob
-	})
-end
-
-function draw_blobs()
-	for b in all(blobs)do
-		local bx=b.x-b.w/2
-		local by=b.y-b.h/2
-		spr(89+flr(b.tm)%2,
-			bx,by,1,1,
-			b.dx==-1,false)
-		--draw_bb(b)
-	end
-end
-
-function update_blobs()
-	for b in all(blobs)do
-		b.tm+=0.1
-		if(col_bb(pp,b))player_hit(b.x,b.y)
-		b.x+=b.dx*0.1
-		if point_free(b.x,b.y+4) or
-					not place_free(b,b.dx*0.1,0) then
-			b.dx*=-1
-		end 
-	end
-end
-
-function damage_blob(b)
-	add_flash(b.x,b.y)
-	b.hp-=1
-	if b.hp<=0 then
-	--	if(chance(50))add_heart(b.x,b.y)
-	--	game_tm+=time_add_blob
-		-- add_flare(b.x,b.y,time_add_blob)
-		add_hps(b.x,b.y)
-		del(blobs,b)
-		total_enim+=1
-	end
-end
-
--- ==========
--- bats
--- ===================
-function add_bats()
-	local bc=((l_num-1)%10)*10
-	if not chance(bc) then
-		return
-	end
-	local bmin,bmax=1,2
-	if(l_num%10>5)bmin,bmax=2,3
-	if(l_num%10>7)bmin,bmax=3,5
-	for i=1,rand(bmin,bmax) do
-		local finding=true
-		while finding do
-			local ri=rand(1,xmax-2)
-			local rj=rand(1,ymax-2)
-			if level[rj][ri]==0 then
-				finding=false
-				add(bats,{
-					x=ri*8,
-					y=(rj*8)+128,
-					w=7,h=7,
-					oy=rj*8,
-					tm=0,hp=hp_bat,
-					ytm=0,xtm=0
-				})
-				--y=((bt.j*8)+4)+128,
-			end
-		end
-	end
-end
-
-function draw_bats()
-	for b in all(bats) do
-		local bx=b.x-b.w/2
-		local by=b.y-b.h/2
-		spr(88,bx,by,1,1,
-			sin(b.xtm)<0,false)
-		spr(flr(b.tm)%4+84,bx,by-4)
-		--draw_bb(b)
-	end
-end
-
-function update_bats()
-	for b in all(bats) do
-		b.tm+=0.2
-		b.ytm+=0.02
-		b.xtm+=0.005
-		b.y+=cos(b.ytm)*0.3
-		b.x+=sin(b.xtm)*0.5//*b.xdr
-		
-		-- collision
-		local bi=flr(b.x/8)
-		local bj=flr(b.oy/8)
-		local pt=level[bj][bi]
-		if bi<0 then
-			b.xtm=0.5
-		elseif bi>xmax-1 then
-			b.xtm=0
-		elseif pt>=ter_rock and 
-					pt<cb.pas_flw1 then
-			if sin(b.xtm)>0 then
-				b.x-=2
-				b.xtm=0
-			elseif sin(b.xtm)<0 then
-				b.x+=2
-				b.xtm=0.5
-			end
-		end
-		
-		--player collision
-		if(col_bb(pp,b))player_hit(b.x,b.y)
-		
-		--shoot
-		if (b.x<pp.x and 
-					sin(b.xtm)>0) or
-					(b.x>pp.x and
-					sin(b.xtm)<0) then
-			if chance(1) then
-				local a=atan2(pp.x-b.x,pp.y-b.y)
-				local dx=cos(a)*2
-				local dy=sin(a)*2
-				add_bullet(
-					b.x+(dx*2),
-					b.y+(dy*2),
-					dx,dy,
-					100,1,14,false)
-				sfx(19)
-			end
-		end
-	end
-end
-
+--[[
 function damage_bat(b)
 	add_flash(b.x,b.y)
 	b.hp-=1
@@ -871,6 +822,7 @@ function damage_bat(b)
 		total_enim+=1
 	end
 end
+]]--
 
 -- ==========
 -- scrolling
@@ -879,15 +831,25 @@ function init_scroll()
 	cur_lvl_cns=0
 	clear_objects()
 	scroll=1
-	l_num+=1
+	l_num=min(l_num+1,999)
 	total_lvls+=1
 	last_level=copy_table(level)
 	if l_num%10==0 then
 		l_type="shop"
 		init_shop()
 	else
-		if(l_num==11)cb=biome.desert
-		if(l_num==21)cb=biome.ice
+		if l_num!=1 and 
+					l_num%10==1 and
+					pp.new_biome then
+			cb_idx+=1
+			if cb_idx>#biome_order then
+				cb_idx=1
+			end
+			cb=biome_order[cb_idx]
+		end
+		//if(l_num==11)cb=biome.desert
+		//if(l_num==21)cb=biome.ice
+		pp.new_biome=false
 		l_type="norm"
 		init_level()
 	end
@@ -901,11 +863,8 @@ function update_scroll()
 		pp.y-=scr_spd
 		pp.can_die=true
 		shop.y-=scr_spd
-		for b in all(blobs)do
-			b.y-=scr_spd
-		end
-			for b in all(bats)do
-			b.y-=scr_spd
+		for e in all(enemy)do
+			e.y-=scr_spd
 		end
 	else
 		scroll=0
@@ -940,9 +899,6 @@ function clear_objects()
 	for f in all(flares)do
 		del(flares,f)
 	end
-	for b in all(bats)do
-		del(bats,b)
-	end
 	for b in all(bullets)do
 		del(bullets,b)
 	end
@@ -952,8 +908,8 @@ function clear_objects()
 	for h in all(hps)do
 		del(hps,h)
 	end
-	for b in all(blobs)do
-		del(blobs,b)
+	for e in all(enemy)do
+		del(enemy,e)
 	end
 end
 
@@ -1009,7 +965,7 @@ function init_shop()
 		"+1 heart",
 		"+1 water tank",
 		"+1 bullet spread",
-		"+1 bullet distance"
+		"next biome"
 		},
 		err_tm=0,
 		bought=false,
@@ -1111,11 +1067,15 @@ function update_shopping()
 	end
 	if btnp(❎) then
 		local i=shop.idx
-		if(price_lvls[i+1]>4)return
-		local p=prices[price_lvls[i+1]]
+		if(i<3 and price_lvls[i+1]>4)return
+		if(i==3 and pp.new_biome)return
+		local p=b_prices[next_b_idx()]
+		if i<3 then
+			p=prices[price_lvls[i+1]]
+		end
 		if pp.coin>=p then
+			if(i<3)price_lvls[i+1]+=1
 			pp.coin-=p
-			price_lvls[i+1]+=1
 			shop.bought=true
 			pp.shopping=false
 			shop.tm=20
@@ -1150,31 +1110,50 @@ function apply_upgrade(i)
 	-- +1 bullet num
 		pp.bullet_num+=1
 	elseif i==3 then
-	-- +1 bullet dist
-		pp.bullet_dist+=5
+		pp.new_biome=true
 	end
 end
 
 function draw_shopping()
-	rectfill(22,25,112,68,1)
-	rect(22,25,112,68,7)
+	rectfill(10,25,117,68,1)
+	rect(9,24,118,69,7)
+	
 	--item
-	for i=0,3 do
+	for i=0,2 do
 		local p=nil
 		if price_lvls[i+1]<5 then
 			p=prices[price_lvls[i+1]]
 		end
-		draw_shop_item(i+64,30+(i*22),
+		
+		draw_shop_item(i+64,17+(i*26),
 			30,p,(i==shop.idx))
 	end
+	
+	line(90,30,90,45,0)
+	
+	--biome item
+	local b_idx=next_b_idx()
+	local b_prc=b_prices[b_idx]
+	if pp.new_biome then
+		b_prc=nil
+	end
+	draw_shop_item(
+		biome_order[b_idx].icon,
+		98,
+		30,
+		b_prc,
+		shop.idx==3)
+	
 	--label
 	if shop.err_tm>0 then
 		if flr(shop.tm)%2==0 then
 			print("need more coins",
 				38,50,7)
 			end
-	elseif price_lvls[shop.idx+1]>4 then
+	elseif shop.idx<3 and price_lvls[shop.idx+1]>4 then
 		print("sold out",52,50,7)
+	elseif shop.idx==3  and pp.new_biome then
+		print("biome got",50,50,7)
 	else
 		local ll=shop.labels[shop.idx+1]
 		print(ll,66-#ll*2,50,7)
@@ -1190,22 +1169,16 @@ end
 function draw_shop_item(
 s,x,y,p,active)
 	if not active then
-		pal(2,0)
-		pal(4,0)
-		pal(6,0)
-		pal(7,0)
-		pal(8,0)
-		pal(9,0)
-		pal(10,0)
-		pal(12,0)
-		pal(15,0)
+		for i=0,15 do
+			pal(i,0)
+		end
 	end
 	--icon
 	spr(s,x,y)
 	
 	--price
 	if p==nil then
-		print("----",x-3,y+11)
+		print("----",x-3,y+11,7)
 	else
 		spr(48,x-6,y+10)
 		local b=p_max_coin
@@ -1214,7 +1187,7 @@ s,x,y,p,active)
 			b=b/10
 			if(b>p)s=s.."0"
 		end
-		print(s..p,x+2,y+11)
+		print(s..p,x+2,y+11,7)
 	end
 	pal()
 end
@@ -1276,9 +1249,8 @@ function draw_first()
 	print("its ok to jump down",
 		26,first.y+100,7)
 	print(ver,1,122,6)
+	draw_creds()
 end
-
-
 
 -- logo
 function draw_logo()
@@ -1400,44 +1372,6 @@ end
 -->8
 -- player
 
-function init_player()
-	--player_start_points should be
-	-- initialized by now
-	local idx=rand(1,#player_start_points)
-	local pt=player_start_points[idx]
-	pp={
-		x=(pt.i*8)+4,
-		y=(pt.j*8)+4,
-		w=3,h=6,
-		drr=1, -- -1:left,1:right
-		drr_y=0,
-		tm=0,
-		jump_press=false,
-		jump=0,
-		landed=false,
-		dy=0,
-		can_die=false,
-		coin=0,
-		water=3,
-		w_tanks=4,
-		bullet_dist=10,
-		bullet_size=0.5,
-		bullet_num=1,
-		shoot=0,
-		w_tm=0,
-		hp=12,
-		hp_tanks=5,
-		hit=0,
-		hit_dx=0,
-		hit_dy=0,
-		shopping=false,
-		can_shop=false,
-		d_tm0=0, --die animation
-		d_tm1=0, --die rest animation
-		d_cntr=false
-	}
-end
-
 function draw_player()
 	local pdx=pp.x-pp.w-1
 	local pdy=(pp.y-pp.h/2)+1
@@ -1450,6 +1384,7 @@ function draw_player()
 		spr(14,pdx,pdy)
 	end
 	pal()
+	
 	--off screen
 	if pp.x<0 then
 		spr(38,0,pp.y)
@@ -1584,12 +1519,9 @@ function player_fall()
 end
 
 function player_shoot()
-	if pp.shoot>0 then
-		pp.shoot-=1
-		return
-	end
 	if btn(❎) then
-		pp.shoot=5
+		if(pp.shoot!=0)return
+		pp.shoot=p_shoot_delay
 		sfx(10)
 		local spread=(pp.bullet_num-1)*b_spread
 		for i=0,pp.bullet_num-1 do
@@ -1603,15 +1535,19 @@ function player_shoot()
 				bdx,bdy=0,pp.drr_y*b_speed
 			end
 			add_bullet(
-				bx,
-				by,
-				bdx,
-				bdy,
-				pp.bullet_dist,
-				pp.bullet_size,
-				12,
-				true)
+				bx,//x
+				by,//y
+				bdx,//dx
+				bdy,//dy
+				pp.bullet_dist,//tm
+				pp.bullet_size,//rad
+				12,//c
+				true,//p
+				false)//fall
 		end
+	end
+	if pp.shoot>0 then
+		pp.shoot-=1
 	end
 end
 
@@ -1680,8 +1616,8 @@ function draw_player_dead()
 	spr(100+flr(pp.d_tm0),
 		pp.x-4,pp.y-4)
 		
-	print("~time's up~",42,12,5)
-	print("~time's up~",42,11,7)
+	print("~game over~",42,12,5)
+	print("~game over~",42,11,7)
 	
 	-- totals
 	if pp.d_tm1>0.1 then
@@ -1765,24 +1701,6 @@ function touch_hps()
 	end
 end
 
-
---[[
-function touch_time()
-	for t in all(times)do
-		--[[
-		if t.x>pp.x-8 and t.x<pp.x+0 and
-					t.y>pp.y-8 and t.y<pp.y+0 then
-		]]--
-		if col_bb(pp,t) then
-			game_tm+=time_add
-			add_flare(pp.x,pp.y,time_add)
-			del(times,t)
-			sfx(22)
-		end
-	end
-end
-]]--
-
 function touch_water()
 	if pp.x>0 and pp.x<128 and
 				pp.y>0 and pp.y<128 then
@@ -1827,9 +1745,6 @@ end
 -->8
 -- level
 
--- ==========
--- level generation
--- ===================
 function init_level()
 	-- clear level
 	-- all cells initialized to 0.
@@ -1865,6 +1780,8 @@ function init_level()
 	add_coins()
 	add_bats()
 	add_blobs()
+	if(cb.name=="desert")add_cacti()
+	if(cb.name=="dark")add_flame_s()
 	--add_times()
 end
 
@@ -2063,39 +1980,343 @@ function draw_coins()
 	end
 end
 
---[[
-function add_times()
-	times={}
-	if not chance(100) then
-		return
-	end
-	local nt=rand(1,2)
-	local i=50*nt
-	while i>0 do
-		local rx=rand(0,xmax-1)
-		local ry=rand(0,ymax-2)
-		if level[ry][rx]==0 then
-			level[ry][rx]=-1
-			add(times,{
-				x=rx*8+4,y=ry*8+4,
-				w=8,h=8,
-				off=0,tm=0})
-			i-=50
-		end
-		i-=1
+-->8
+-- enemies
+
+-- general
+function draw_enemies()
+	for e in all(enemy)do
+		if(e.tp=="blob")draw_blob(e)
+		if(e.tp=="bat")draw_bat(e)
+		if(e.tp=="cactus")draw_cactus(e)
+		if(e.tp=="icicle")draw_icicle(e)
+		if(e.tp=="flame")draw_flame(e)
+		if(e.tp=="flame_s")draw_flame_s(e)
 	end
 end
 
-function draw_times()
-	for t in all(times)do
-		local tx=t.x-t.w/2
-		local ty=t.y-t.h/2
-		t.tm+=0.01
-		t.off=sin(t.tm)
-		spr(91,tx,ty+flr(t.off*2))
+function update_enemies()
+	if l_num%10==0 then
+		return
+	end
+	for e in all(enemy)do
+		if(e.tp=="blob")update_blob(e)
+		if(e.tp=="bat")update_bat(e)
+		if(e.tp=="cactus")update_cactus(e)
+		if(e.tp=="icicle")update_icicle(e)
+		if(e.tp=="flame")update_flame(e)
+		if(e.tp=="flame_s")update_flame_s(e)
+	end
+	if(cb.name=="ice")spawn_icicles()
+end
+
+function damage_enemy(e)
+	add_flash(e.x,e.y)
+	
+	if(e.tp=="icicle")return
+	//if(e.tp=="flame_s")return
+	
+	e.hp-=1
+	if e.hp<=0 then
+		-- add_flare(b.x,b.y,time_add_blob)
+		add_hps(e.x,e.y,e.hpc)
+		total_enim+=1
+		del(enemy,e)
 	end
 end
-]]--
+
+-- blobs
+function add_blobs()
+	local idx=rand(1,#player_start_points)
+	local bt=player_start_points[idx]
+	if bt==nil then
+		for i=0,20 do
+			printh("======= here =======")
+		end
+		printh("idx "..idx)
+		printh("psp "..#player_start_points)
+		return
+	end
+	local bdx=1
+	if(chance(50))bdx=-1
+	add(enemy,{
+		tp="blob",
+		x=(bt.i*8)+4,
+		y=((bt.j*8)+4)+128,
+		w=6,h=6,dx=bdx,
+		tm=0,hp=hp_blob,
+		hpc=hpc_high
+	})
+end
+
+function draw_blob(b)
+	local bx=b.x-b.w/2
+	local by=b.y-b.h/2
+	spr(89+flr(b.tm)%2,
+		bx,by,1,1,
+		b.dx==-1,false)
+	--draw_bb(b)
+end
+
+function update_blob(b)
+	b.tm+=0.1
+	if(col_bb(pp,b))player_hit(b.x,b.y)
+	b.x+=b.dx*0.1
+	if point_free(b.x,b.y+4) or
+				not place_free(b,b.dx*0.1,0) then
+		b.dx*=-1
+	end 
+end
+
+-- bats
+
+function add_bats()
+	-- todo, should this chance
+	-- be determined by the level
+	-- gen code??
+	local bc=((l_num-1)%10)*10
+	if not chance(bc) then
+		return
+	end
+	local bmin,bmax=1,2
+	if(l_num%10>5)bmin,bmax=2,3
+	if(l_num%10>7)bmin,bmax=3,5
+	for i=1,rand(bmin,bmax) do
+		local finding=true
+		while finding do
+			local ri=rand(1,xmax-2)
+			local rj=rand(1,ymax-2)
+			if level[rj][ri]==0 then
+				finding=false
+				add(enemy,{
+					tp="bat",
+					x=ri*8,
+					y=(rj*8)+128,
+					w=7,h=7,
+					oy=rj*8,
+					tm=0,hp=hp_bat,
+					ytm=0,xtm=0,
+					hpc=hpc_high
+				})
+				--y=((bt.j*8)+4)+128,
+			end
+		end
+	end
+end
+
+function draw_bat(b)
+	local bx=b.x-b.w/2
+	local by=b.y-b.h/2
+	spr(88,bx,by,1,1,
+	sin(b.xtm)<0,false)
+	spr(flr(b.tm)%4+84,bx,by-4)
+	--draw_bb(b)
+end
+
+function update_bat(b)
+	b.tm+=0.2
+	b.ytm+=0.02
+	b.xtm+=0.005
+	b.y+=cos(b.ytm)*0.3
+	b.x+=sin(b.xtm)*0.5//*b.xdr
+		
+	-- collision
+	local bi=flr(b.x/8)
+	local bj=flr(b.oy/8)
+	local pt=level[bj][bi]
+	if bi<0 then
+		b.xtm=0.5
+	elseif bi>xmax-1 then
+		b.xtm=0
+	elseif pt>=ter_rock and 
+				pt<cb.pas_flw1 then
+		if sin(b.xtm)>0 then
+			b.x-=2
+			b.xtm=0
+		elseif sin(b.xtm)<0 then
+			b.x+=2
+			b.xtm=0.5
+		end
+	end
+		
+	--player collision
+	if(col_bb(pp,b))player_hit(b.x,b.y)
+		
+	--shoot
+	if (b.x<pp.x and 
+				sin(b.xtm)>0) or
+				(b.x>pp.x and
+				sin(b.xtm)<0) then
+		if chance(1) then
+			local a=atan2(pp.x-b.x,pp.y-b.y)
+			local dx=cos(a)*2
+			local dy=sin(a)*2
+			add_bullet(
+				b.x+(dx*2),
+				b.y+(dy*2),
+				dx,dy,
+				100,1,14,false,false)
+			sfx(19)
+		end
+	end
+end
+
+-- cactus
+function add_cacti()
+	local idx=rand(1,#player_start_points)
+	local bt=player_start_points[idx]
+	add(enemy,{
+		tp="cactus",
+		x=(bt.i*8)+4,
+		y=((bt.j*8)+4)+128,
+		w=8,h=8,
+		tm=0,hp=hp_cac,
+		shoot=false,
+		hpc=hpc_high
+	})
+end	
+
+function draw_cactus(c)
+	local cx=c.x-c.w/2
+	local cy=c.y-c.h/2
+	local ox=0
+	if flr(c.tm)%4==1 or 
+				flr(c.tm)%4==3 then
+		ox=1
+	end
+	spr(91,
+		cx,cy+ox,1,1,
+		c.tm<2,false)
+	--draw_bb(c)
+end
+
+function update_cactus(c)
+	c.tm+=0.2
+	if(col_bb(pp,c))player_hit(c.x,c.y)
+	if flr(c.tm)%8==0 and c.shoot==false then
+		c.shoot=true
+		add_bullet(
+			c.x,c.y,2,-5,
+			100,1,11,
+			false,true)
+		add_bullet(
+			c.x,c.y,-2,-5,
+			100,1,11,
+			false,true)
+		sfx(19)
+	elseif flr(c.tm)%8!=0 then
+		c.shoot=false
+	end
+end
+
+-- icicle
+function add_icicles()
+	local ri=rand(0,15)
+	add(enemy,{
+		tp="icicle",
+		x=ri*8,y=4,dy=0,w=5,h=7,
+		0,0,tm=0,hp=1,falling=false,
+		hpc=0
+		})
+end
+
+function draw_icicle(i)
+	local ix=i.x-i.w/2
+	local iy=i.y-i.h/2
+	if i.tm>=5 or flr(i.tm)%2==0 then
+		spr(92,ix,iy)
+	end
+	--draw_bb(i)
+end
+
+icicle_fall_accel=0.1
+icicle_fall_max=3
+function update_icicle(i)
+	i.tm+=0.2
+	if i.tm<5 then
+		return
+	end
+	if not i.falling then
+		sfx(19)
+	end
+	i.falling=true
+	if(col_bb(pp,i))player_hit(i.x,i.y)
+	i.dy=min(
+		i.dy+icicle_fall_accel,
+		icicle_fall_max)
+	i.y+=i.dy
+	if i.y>180 then
+		del(enemy,i)
+	end
+end
+
+function spawn_icicles()
+	if chance(2) then
+		add_icicles()
+	end
+end
+
+function add_flame(x,y)
+	add(enemy,{
+		tp="flame",
+		tp="flame",
+		x=x,y=y,
+		w=8,h=8,tm=rand(1,3),
+		hp=hp_flame,
+		hpc=0,
+		a=rnd(1)
+	})
+end
+
+function draw_flame(f)
+	local fx=f.x-f.w/2
+	local fy=f.y-f.h/2
+	spr(93+flr(f.tm),fx,fy)
+	--draw_bb(i)
+end
+
+function update_flame(f)
+	f.tm=(f.tm+0.2)%3
+	local ang=atan2(pp.x-f.x,pp.y-f.y)
+	f.a=ang_lerp(f.a,ang,flame_t)
+	f.x+=flame_s*cos(f.a)
+	f.y+=flame_s*sin(f.a)
+	if(col_bb(pp,f))player_hit(f.x,f.y)
+end
+
+function add_flame_s()
+	local idx=rand(1,#player_start_points)
+	local bt=player_start_points[idx]
+	add(enemy,{
+		tp="flame_s",
+		x=(bt.i*8)+4,
+		y=((bt.j*8)+4)+128,
+		w=8,h=8,
+		tm=0,hp=20,
+		hpc=100
+	})
+end
+
+function draw_flame_s(f)
+	local fx=f.x-f.w/2
+	local fy=f.y-f.h/2
+	 
+	spr(123+max(
+			flr(f.tm)-(flame_spawn_t-5),
+			0),
+		fx,fy)
+	--draw_bb(f)
+end
+
+function update_flame_s(f)
+	f.tm=f.tm+0.3
+	if f.tm>flame_spawn_t then
+		f.tm=0
+		if chance(50) then
+			add_flame(f.x,f.y)
+		end
+	end
+end
 
 __gfx__
 00000000111111110000000000000001110000000000000000000000dddddddd000000000000000ddd0000000000000000000000007777000000000000000000
@@ -2106,12 +2327,12 @@ __gfx__
 00000000111111110011110000111111111111000001111111111000dddddddd00dddd0000dddddddddddd00000dddddddddd000000000000070070000000700
 00000000111111110111111001111111111111000111111111111000dddddddd0dddddd00ddddddddddddd000dddddddddddd000000000000000000000000000
 00000000111111111111111111111111111111101111111111111110ddddddddddddddddddddddddddddddd0ddddddddddddddd0000000000000000000000000
-011111110555555005cccc50000000000000000000000000000000000000000000000000000000000000000000cc7c0000cccc0000c7770000cccc0000000000
-10111000500ff00550cccc0500000000000ddd000007770000077700000777000007770000077700000777000077c70000cc7c0000cccc000077770000000000
-d05101dd50f00f0550cccc050000000000d000d000700070007000700070007000700070007c0c700070c07000cccc000077770000cccc0000cccc0000000000
-dd0011dd5f00c0f55fccccf50000000000d000d000700070007000700070cc70007c0070007ccc70007ccc7000cccc0000cccc00007c770000cccc0000000000
-dd05011d5fccccf55fccccf50000000000100010006cc06000600c60006ccc60006ccc60006ccc60006ccc6000cccc0000cccc0000cccc00007cc70000000000
-d015501150cccc0550cccc05000000000001110000066600000666000006660000066600000666000006660000cccc0000cccc0000cccc0000c77c0000000000
+011111110555555005cccc50000777000001110000077700000777000007770000077700000777000007770000cc7c0000cccc0000c7770000cccc0000000000
+10111000500ff00550cccc05000c7c000010001000700070007000700070007000700070007c0c700070c0700077c70000cc7c0000cccc000077770000000000
+d05101dd50f00f0550cccc05000707000010001000700070007000700070cc70007c0070007ccc70007ccc7000cccc000077770000cccc0000cccc0000000000
+dd0011dd5f00c0f55fccccf50000000000100010006cc06000600c60006ccc60006ccc60006ccc60006ccc6000cccc0000cccc00007c770000cccc0000000000
+dd05011d5fccccf55fccccf5000060000001110000066600000666000006660000066600000666000006660000cccc0000cccc0000cccc00007cc70000000000
+d015501150cccc0550cccc05000000000000000000000000000000000000000000000000000000000000000000cccc0000cccc0000cccc0000c77c0000000000
 0111550150cccc0550cccc05000000000000000000000000000000000000000000000000000000000000000000c7770000cccc0000cccc0000cccc0000000000
 1111111005cccc5005cccc50000000000000000000000000000000000000000000000000000000000000000000cccc00007c770000cccc0000cccc0000000000
 0220000008080000010100000801000008010000080100000008000000008000070000c00c0000000c0007000000000004000000000000400000000000000000
@@ -2122,30 +2343,30 @@ d015501150cccc0550cccc0500000000000111000006660000066600000666000006660000066600
 00000000000000000000000000000000000000000000000000880000000088000000000000000000000000000000000004ddd04d04dd0d40040000d000000040
 000000000000000000000000000000000000000000000000000800000000800000000000000000000000000000000000000d0000000d00000400000000000040
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000040040000400400000000000040
-00000000000000000000000000000000009999000009900000099000000990000000000000000000000000000000000000000000071117000000000000000000
-000aaa000000a0000000a0000000a00009aaaa90009aa900009aa900009aa900088088000000000000f0ff0000f0ff0000f0ff00007117000007770000000000
-00a000a0000a0a000000a000000a0a009aaaaaa909aaaa90009aa90009aaaa908288888000f6ff0000666600606666060066660000071700000c7c0000007700
-00a009a0000a9a000000a000000a9a009aaaa9a909aa9a90009aa90009a9aa908288888000969600009696006096960600969600000070000007070000007700
-00a099a0000a9a000000a000000a9a009aaaa9a909aa9a90009aa90009a9aa900828880000666600006666000066660060666606000000000000000000000000
-000aaa000000a0000000a0000000a0009aa99aa909aaaa90009aa90009aaaa900088800000666600006666000066660060666606000000000000600000000000
+000aaa000000a0000000a0000000a000009999000009900000099000000990000000000000000000000000000000000000000000071117000000000000000000
+00a000a0000a0a000000a000000a0a0009aaaa90009aa900009aa900009aa900088088000000000000f0ff0000f0ff0000f0ff00007117000000000000000000
+00a009a0000a9a000000a000000a9a009aaaaaa909aaaa90009aa90009aaaa908288888000f6ff00006666006066660600666600000717000000000000007700
+00a099a0000a9a000000a000000a9a009aaaa9a909aa9a90009aa90009a9aa908288888000969600009696006096960600969600000070000000000000007700
+000aaa000000a0000000a0000000a0009aaaa9a909aa9a90009aa90009a9aa900828880000666600006666000066660060666606000000000000000000000000
+000000000000000000000000000000009aa99aa909aaaa90009aa90009aaaa900088800000666600006666000066660060666606000000000000000000000000
 0000000000000000000000000000000009aaaa90009aa900009aa900009aa9000008000000666600006666000066660000666600000000000000000000000000
 00000000000000000000000000000000009999000009900000099000000990000000000000600600006006000060060000600600000000000000000000000000
-07000000070000000700000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-77700000777000007770000077700000077777000777770007777700077777000777770000777700077777700000000000000000000000000000000000000000
-07000000070077700700000007000000077cc770077ccc00077cc770077ccc00077ccc00077ccc000cc77cc00000000000000000000000000000000000000000
+0700000007000000070000000700000000000000000000000000000000000000000000000000000000000000b0000000aaa00000ccc000008080000000000000
+7770000077700000777000007770000007777700077777000777770007777700077777000077770007777770b0000000aaa000000c0000008880000000000000
+07000000070077700700000007000000077cc770077ccc00077cc770077ccc00077ccc00077ccc000cc77cc0bb000000a0000000cc0000008080000000000000
 000808000007000700000c0000000000077777c007777000077777c0077770000777700007700000000770000000000000000000000000000000000000000000
-008288800007cc070777000007770000077ccc00077cc000077c7700077cc000077cc00007700000000770000000000000000000000000000000000000000000
-008288800007ccc70c7c0c000c7c0c0c07700000077777000770c77007700000077777000c777700000770000000000000000000000000000000000000000000
-000888000006ccc607070000070700000cc000000ccccc000cc00cc00cc000000ccccc0000cccc00000cc0000000000000000000000000000000000000000000
+008288800007cc070777000007770000077ccc00077cc000077c7700077cc000077cc0000770000000077000b0b0b000aaa0aa00ccc0ccc08880000000000000
+008288800007ccc70c7c0c000c7c0c0c07700000077777000770c77007700000077777000c77770000077000b0b0b0000a00a000c0c0ccc08880000000000000
+000888000006ccc607070000070700000cc000000ccccc000cc00cc00cc000000ccccc0000cccc00000cc0000b00bb000a0aa000c0c0c0008000000000000000
 000080000000666000000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000700000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000007770000077707770000000000000000000000000000000000011100000022000000000000000000000000000000000000000000000000000
-0000000000000000070000000700c7c00111111000111100001111000011110001888100002ee200002222000000000000000000000000000000000000000000
-00000000000000000000ccc000007070188ee8810188e81000188100018e88100187871002eeee2002eeee200000000000000000000000000000000000000000
-00000000000000007770ccc000000000011ee110001ee100001ee100001ee1001888881002e7e7202eeeeee20000000000000000000000000000000000000000
-0000000000000000c7c0ccc000000600000110000001100000011000000110001888110002eeee202eee7e720000000000000000000000000000000000000000
-00000000000000007070000000000000000000000000000000000000000000001811000000222200022222200000000000000000000000000000000000000000
-00000000000000000000000000000600000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000
+0000000000000000070000000700000000000000000000000000000000000000000000000000000000000000000bb0000766dc0000000c000000c00000000000
+000000000000000077700000777077700000000000000000000000000000000000111000000220000000000000b33b000766dc0000000c000000c00000c00000
+0000000000000000070000000700c7c00111111000111100001111000011110001888100002ee2000022220000b33b0b0766dc0000c0c1c0000c1c0000cc000c
+00000000000000000000ccc000007070188ee8810188e81000188100018e88100187871002eeee2002eeee20bbb7370b0076c0000c1c11c00cc111c00cc1c0cc
+00000000000000007770ccc000000000011ee110001ee100001ee100001ee1001888881002e7e7202eeeeee2b0b33bbb0076c000c111111cc111111cc1111c1c
+0000000000000000c7c0ccc000000600000110000001100000011000000110001888110002eeee202eee7e72b0b33b000077c000c11ff11cc11ff11cc11ff11c
+00000000000000007070000000000000000000000000000000000000000000001811000000222200022222200b3bb3b0000700000c1ff1c00c1ff1c00c1ff1c0
+00000000000000000000000000000600000000000000000000000000000000000100000000000000000000000bb00bb00000000000cccc0000cccc0000cccc00
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000700000006700000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000007777000006777000077770000767700000000000000000000000000000000000000000000000000000000000000000
@@ -2155,29 +2376,29 @@ d015501150cccc0550cccc0500000000000111000006660000066600000666000006660000066600
 00000000000000000000000000000000007007000070070007007000070700000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000007007000000070000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000aaaaa000aaaaa000aaa0000aaaaa00aaaaaaaaaaaaaaaa00aaaaa00aaaaaa000000000000000000000000000000000000000000000000000000000
-000000000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa00000000000000000000000000000000000000000000000000000000
-00000000aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa00000000000000000000000000000000000000000000000000000000
-00000000aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa00000000000000000000000000000000000000000000000000000000
-00000000aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa00000000000000000000000000000000000000000000000000000000
-00000000aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa00000000000000000000000000000000000000000000000000000000
-00000000aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa00000000000000000000000000000000000000000000000000000000
-000000000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa00000000000000000000000000000000000000000000000000000000
-0555555003113113035535530131b1b000000000000000000004400000ffff000000000000000000000000000000000000000000000000000000000000000000
-50dddd051311300353dd3d033b1b13300000000000000000000f90000f0000f00000000000000000000000000000000000000000000000000000000000000000
-5d0dd0d5d05301d35d0dd3d3b331333d000000000000000000044000f00f000f0000000000000000000000000000000000000000000000000000000000000000
-5dd00dd5dd0311dd53d03dd533b3b13b0000000000e0e00000094000f0f0007f0000000000000000000000000000000000000000000000000000000000000000
-5dd00dd5dd05011d5dd03dd3b303033d00000000000a000000044000f000707f0000000000000000000000000000000000000000000000000000000000000000
-5d0dd0d5d01550115d0dd0d5d3135b330008000000e0e00000099000f000077f0000000000000000000000000000000000000000000000000000000000000000
-50dddd050111550150dddd050113550300898000000300000004f0000f0777f00000000000000000000000000000000000000000000000000000000000000000
-0555555011111110055555501311311300080000003000000004400000ffff000000000000000000000000000000000000000000000000000000000000000000
-055555500611611676d67d7076767670000000000000000000077000007777000000000000000000000000000000000000000000000000000000000000000000
-5066660516116006dddd777767777777000000000000000000077000077770700000000000000000000000000000000000000000000000000000000000000000
-56066065d05601d67d7d7dc7707777c7000000000000000000047000777607070000000000000000000000000000000000000000000000000000000000000000
-56600665dd0611dddddc07d76c7c07070000000000e070000009d000776776d70000000000000000000000000000000000000000000000000000000000000000
-56600665dd05011dd07ddc06607ccc0600000000000a0000000dd000d06076670000000000000000000000000000000000000000000000000000000000000000
-56066065d0155011dddd70d66c0c70c6000700000070700000099000d00076670000000000000000000000000000000000000000000000000000000000000000
-5066660501115501ddddddd667c607c60079700000636000000df0000d7d7dd70000000000000000000000000000000000000000000000000000000000000000
-055555501111111067606760676067600668660006366600000dd00007dddd000000000000000000000000000000000000000000000000000000000000000000
+000000000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa00000000000000000000001000000010000000100000001000000060
+00000000aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa00000000000000000010110000601100001011000010160000101100
+00000000aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa00000000000000000001100000011000000610000001600000011000
+00000000aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa00000000000000000001100000011000000610000001600000011000
+00000000aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa00000000000000000010010000100100006001000010060000100100
+00000000aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa00000000000000000010000000100000006000000010000000100000
+000000000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa00000000000000000100000006000000010000000100000001000000
+0555555003113113035535530131b1b000000000000000000004400000ffff00055555500911911a0a55a55a01a1a1a00000000000000a000007f00000777700
+50dddd051311300353dd3d033b1b13300000000000000000000f90000f0000f05044440519119009594494099a1a19900000000f00a0a000000f700007000070
+5d0dd0d5d05301d35d0dd3d3b331333d000000000000000000044000f00f000f54044045405a014954044949a991aaad00a000fa0a00a00a000ff00070070007
+5dd00dd5dd0311dd53d03dd533b3b13b0000000000e0e00000094000f0f0007f54400445440911445940944599a9a1aa0faf0faf0a0a0aa00007f00070700077
+5dd00dd5dd05011d5dd03dd3b303033d00000000000a000000044000f000707f544004454405011454409449a90909ad0fa00af00aa0a090000ff00070007077
+5d0dd0d5d01550115d0dd0d5d3135b330008000000e0e00000099000f000077f540440454015501154044045d9194a9a09f0fa00a0a090a00007700070000777
+50dddd050111550150dddd050113550300898000000300000004f0000f0777f05044440501115501504444050119440909f09f00909a0a00000f700007077770
+0555555011111110055555501311311300080000003000000004400000ffff00055555501111111005555550191191190900900099a90909000ff00000777700
+055555500611611676d67d7076767670000000000000000000077000007777000000000002112112021021220020202000000000000000000000100000000100
+5066660516116006dddd777767777777000000000000000000077000077770700011110011111001111111012202011000000010000001000001000000001010
+56066065d05601d67d7d7dc7707777c7000000000000000000047000777607070101101010510101110110112110111d00101100000011100000100000001001
+56600665dd0611dddddc07d76c7c07070000000000e070000009d000776776d70110011015011101111011011121201200011000010001000000100000100101
+56600665dd05011dd07ddc06607ccc0600000000000a0000000dd000d06076670110011005050111110011011101011d00011000000001000000100001010101
+56066065d0155011dddd70d66c0c70c6000700000070700000099000d0007667010110100005501111011011d101511100100100010001000001000010001001
+5066660501115501ddddddd667c607c60079700000636000000df0000d7d7dd70011110000005501101111010001550100100000010001000001000001000010
+055555501111111067606760676067600668660006366600000dd00007dddd000000000000000110011111100100100101000000010001000001000000111100
 0555555009ff9ff90fffff5f0fffff9f00000000003003000004400000ffff000000000000000000000000000000000000000000000000000000000000000000
 50ffff05f9ff900959ff9dfff99ff9f90000000000b03b00000f90000f0000f00000000000000000000000000000000000000000000000000000000000000000
 5f0ff0f5f9f90ff9fffff9f99ffff999000000000003330300044000f00f000f0000000000000000000000000000000000000000000000000000000000000000
@@ -2186,14 +2407,14 @@ d015501150cccc0550cccc0500000000000111000006660000066600000666000006660000066600
 5f0ff0f5d0155ff1fd0fd0f5ff9950f90400400033b0330000099000f000077f0000000000000000000000000000000000000000000000000000000000000000
 50ffff050111550150dddd0509ff55f100440400b3303b000004f0000f0777f00000000000000000000000000000000000000000000000000000000000000000
 055555501111111005555550191191900040000033b033000004400000ffff000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+055555500e11e11e0e55e55e0e12e21e00000000000000000004400000fefe000000000000000000000000000000000000000000e000e0000000000000000000
+50dddd051211200e5edd2d0ee2e12e2e0000000000000000000f90009f000ef000000000000000000000000000000000000000000e0e0e000000000000000000
+5d0dd0d5d05e01d25d0dd2de20eee222000000000000998000044000800f090e0000000000000000000000000000000000000000e09000800000000000000000
+5dd00dd5d20211dd52d02dd5dd2e222e000000000809899900094000f0e0087e0000000000000000000000000000000000000000800900000000000000000000
+5dd00dd5d202011d5dd02dd2de25eeed000000008880050000044000e0e0707e0000000000000000000000000000000008000000008098000000000000000000
+5d0dd0d5d21550115d0dd0d5d02550ee006000000500060000099000e090077e0000000000000000000000000000000008000800000090000000000000000000
+50dddd050211550150dddd050111550e06660000006000600004f0009f8777f90000000000000000000000000000000000008080000900000000000000000000
+0555555011111110055555501121111000500000060000600004400080ffff080000000000000000000000000000000008080000009000000000000000000000
 44444440444440004444400044444000004400004400440007000000000000000000000000000000000000000000000000000000000000000000000000000000
 407700404fff40004666400046664000004640004f44640077700000000000000000000000000000000000000000000000000000000000000000000000000000
 0470040004f4000004f4000004640000444664004ff6640007044444000000000000000000000000000000000000000000000000000000000000000000000000
