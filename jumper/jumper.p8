@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
 -- constants
-ver="0.11.0"
+ver="0.16.0"
 
 xmax=16
 ymax=16
@@ -28,74 +28,32 @@ biome={
 	grass={
 		name="grass",
 		icon=89,
-		ter_bloc=128,
-		ter_roc2=129,
-		ter_blc2=130,
-		ter_gras=131,
-		pas_flw1=132,
-		pas_flw2=133,
-		pas_stem=134,
-		pas_tree=135
+		blk_s=128
 	},
 	ice={
 		name="ice",
 		icon=92,
-		ter_bloc=144,
-		ter_roc2=145,
-		ter_blc2=146,
-		ter_gras=147,
-		pas_flw1=148,
-		pas_flw2=149,
-		pas_stem=150,
-		pas_tree=151
+		blk_s=144
 	},
 	desert={
 		name="desert",
 		icon=91,
-		ter_bloc=160,
-		ter_roc2=161,
-		ter_blc2=162,
-		ter_gras=163,
-		pas_flw1=164,
-		pas_flw2=165,
-		pas_stem=166,
-		pas_tree=167
+		blk_s=160
 	},
 	fungi={
 		name="fungi",
 		icon=39,
-		ter_bloc=176,
-		ter_roc2=177,
-		ter_blc2=178,
-		ter_gras=179,
-		pas_flw1=180,
-		pas_flw2=181,
-		pas_stem=182,
-		pas_tree=183
+		blk_s=176
 	},
 	heaven={
 		name="heaven",
 		icon=39,
-		ter_bloc=136,
-		ter_roc2=137,
-		ter_blc2=138,
-		ter_gras=139,
-		pas_flw1=140,
-		pas_flw2=141,
-		pas_stem=142,
-		pas_tree=143
+		blk_s=136
 	},
 	dark={
 		name="dark",
 		icon=39,
-		ter_bloc=152,
-		ter_roc2=153,
-		ter_blc2=154,
-		ter_gras=155,
-		pas_flw1=156,
-		pas_flw2=157,
-		pas_stem=158,
-		pas_tree=159
+		blk_s=152
 	}
 }
 
@@ -148,7 +106,7 @@ hud_bot=122
 --prices
 prices={50,100,150,200}
 b_prices={
-	100,100,100,100,100,100,100
+	100,200,200,200,200,200,200
 }
 
 --logo
@@ -170,7 +128,8 @@ function reset()
 	--vars
 	last_level=nil
 	l_type="norm"
-	l_num=0
+	l_num=-1
+	b_num=1
 	scroll=0
 	l_tm=0
 	sprinkles={}
@@ -189,8 +148,9 @@ function reset()
 	total_enim=0
 	total_lvls=0
 	cur_lvl_cns=0
-	cb_idx=6
+	cb_idx=4
 	cb=biome_order[cb_idx]
+	extra_e=-1
 	//cb=biome.dark//biome.grass
 	--functions
 	clear_objects()
@@ -279,6 +239,7 @@ function copy_table(t)
 	return ll
 end
 
+--[[
 function print_level()
 	for j=0,ymax-1 do
 		local s=""
@@ -289,11 +250,14 @@ function print_level()
 	end
 	printh("")
 end
+]]--
 
 function level_solid(i,j)
 	local b=level[j][i]
-	return (b>=cb.ter_bloc and
-						b<=cb.ter_gras) or
+	//return (b>=cb.ter_bloc and
+	return (b>=cb.blk[0] and
+						//b<=cb.ter_gras) or
+						b<=cb.blk[3]) or
 						b==ter_rock or
 						b==ter_pipe or
 						b==ter_water
@@ -341,6 +305,7 @@ function col_bb(a,b)
 		ay+a.h>=by
 end
 
+--[[
 function draw_bb(o)
 	rect(
 		o.x-o.w/2,
@@ -349,6 +314,8 @@ function draw_bb(o)
 		o.y+o.h/2,
 		8)	
 end
+]]--
+
 
 function next_b_idx()
 	return max(
@@ -423,30 +390,13 @@ function _draw()
 	
 	if hit<=0 or flr(hit)%2==0 then
 		draw_player()
-		if(l_num>0)draw_hud()
+		if(l_num>=0)draw_hud()
 		
 	end
 	if l_type=="shop" then
 		draw_shop()
 	elseif l_type=="frst" then
 		draw_first()
-	end
-	
-	if last_a!=nil then
-		rect(
-			last_a.x-last_a.w/2,
-			last_a.y-last_a.h/2,
-			last_a.x+last_a.w/2,
-			last_a.y+last_a.h/2,
-			12)
-	end
-		if last_b!=nil then
-		rect(
-			last_b.x-last_b.w/2,
-			last_b.y-last_b.h/2,
-			last_b.x+last_b.w/2,
-			last_b.y+last_b.h/2,
-			9)
 	end
 end
 
@@ -535,7 +485,7 @@ function draw_hud()
 	draw_hud_lvl()
 end
 
-hud_lvl_x=115
+hud_lvl_x=1
 function draw_hud_lvl()
 	--[[
 	print("lvl",
@@ -551,22 +501,30 @@ function draw_hud_lvl()
 	print(l_num,
 		hud_lvl_x+1,hud_bot,3)
 	]]--
+	--[[
 	local b=1000
 	local l_tot=""
 	while b>l_num and b>10 do
 		b=b/10
 		if(b>l_num)l_tot=l_tot.."0"
 	end
+	]]--
 	
 	--[[
 	print(l_tot..l_num,
 		hud_lvl_x+1,hud_bot,3)
 	]]--
+	--[[
 	print(l_tot..l_num,
 		hud_lvl_x+0,hud_bot,11)
+	]]--
+	print(b_num.."/6",
+		hud_lvl_x,hud_bot,11)
+	print(
+			l_num+1,hud_lvl_x+24,hud_bot,3)
 end
 
-hud_c_x=1
+hud_c_x=112
 function draw_hud_coins()
 	--[[
 	spr(flr(hud.tm)%4+s_coin_hud,
@@ -589,11 +547,11 @@ function draw_hud_coins()
 		hud_c_x+0,hud_bot,10)
 end
 
-hud_hp_x=22
+hud_hp_x=32
 function draw_hud_hp()
 	//palt(0,false)
 	//palt(15,true)
-	
+	--[[
 	print("hp",
 		hud_hp_x+1,
 		hud_bot,
@@ -602,6 +560,7 @@ function draw_hud_hp()
 		hud_hp_x,
 		hud_bot,
 		14)
+	]]--
 	for i=1,pp.hp_tanks do
 		local c=pp.hp/(i*4)
 		local r=min((i*4)-pp.hp,4)
@@ -619,14 +578,6 @@ hud_j_x=64
 function draw_hud_jump()
 	local ttl=p_jump_min+pp.w_tanks
 	
-	print("jmp",
-		hud_j_x+1,
-		hud_bot,
-		1)
-	print("jmp",
-		hud_j_x,
-		hud_bot,
-		12)
 	for i=1,ttl do
 		//palt(0,false)
 		//palt(15,true)
@@ -740,7 +691,6 @@ function update_bullets()
 		else		
 			for e in all(enemy)do
 				if col_bb(b,e) then
-					printh("herere")
 					del(bullets,b)
 					damage_enemy(e)
 				end
@@ -827,25 +777,42 @@ end
 -- ==========
 -- scrolling
 -- ===================
+function create_cb()
+	cb.blk={}
+	for i=0,7 do
+		cb.blk[i]=cb.blk_s+i
+	end
+end
+
 function init_scroll()
 	cur_lvl_cns=0
 	clear_objects()
 	scroll=1
-	l_num=min(l_num+1,999)
+	//l_tot=min(l_num+1,999)
+	l_num=(l_num+1)%10
 	total_lvls+=1
 	last_level=copy_table(level)
-	if l_num%10==0 then
+	if l_num==9 then
 		l_type="shop"
 		init_shop()
 	else
+	--[[
 		if l_num!=1 and 
 					l_num%10==1 and
 					pp.new_biome then
+	--]]
+		if l_num==0 and pp.new_biome then
 			cb_idx+=1
 			if cb_idx>#biome_order then
 				cb_idx=1
 			end
+			b_num+=1
 			cb=biome_order[cb_idx]
+			create_cb()
+		end
+		if l_num==0 then
+			--printh("after shop: "..pp.coin)
+			--printh(" ")
 		end
 		//if(l_num==11)cb=biome.desert
 		//if(l_num==21)cb=biome.ice
@@ -962,17 +929,17 @@ function init_shop()
 	shop={
 		x=78,y=200,tm=0,idx=0,
 		labels={
+		"next biome",
 		"+1 heart",
 		"+1 water tank",
 		"+1 bullet spread",
-		"next biome"
 		},
 		err_tm=0,
 		bought=false,
 		bt_tm=0
 	}
 	level={}
-	local gr=cb.ter_gras
+	local gr=cb.blk[3]//cb.ter_gras
 	local s_level={
 		{0,0,0,0,46,47,0,0},
 		{0,0,0,0,44,45,0,0},
@@ -994,6 +961,8 @@ function init_shop()
 	end end
 	
 	add_terrain()
+	
+	--printh("coins at shop "..b_num..": "..pp.coin)
 end
 
 function draw_shop()
@@ -1067,15 +1036,16 @@ function update_shopping()
 	end
 	if btnp(❎) then
 		local i=shop.idx
-		if(i<3 and price_lvls[i+1]>4)return
-		if(i==3 and pp.new_biome)return
+		if(i>0 and price_lvls[i]>4)return
+		if(i==0 and pp.new_biome)return
 		local p=b_prices[next_b_idx()]
-		if i<3 then
-			p=prices[price_lvls[i+1]]
+		if i>0 then
+			p=prices[price_lvls[i]]
 		end
 		if pp.coin>=p then
-			if(i<3)price_lvls[i+1]+=1
+			if(i>0)price_lvls[i]+=1
 			pp.coin-=p
+			--printh("spent: "..p)
 			shop.bought=true
 			pp.shopping=false
 			shop.tm=20
@@ -1099,37 +1069,28 @@ end
 
 function apply_upgrade(i)
 	if i==0 then
+		pp.new_biome=true
+		--printh("  on biome")
+	elseif i==1 then
 	-- +1 hearts
 		pp.hp_tanks+=1
 		pp.hp=pp.hp_tanks*4
 		-- game_tm+=time_add_shop
-	elseif i==1 then
+		--printh("  on heart")
+	elseif i==2 then
 	-- +1 water tank
 		pp.w_tanks+=1
-	elseif i==2 then
+		--printh("  on tank")
+	elseif i==3 then
 	-- +1 bullet num
 		pp.bullet_num+=1
-	elseif i==3 then
-		pp.new_biome=true
+		--printh("  on spread")
 	end
 end
 
 function draw_shopping()
 	rectfill(10,25,117,68,1)
 	rect(9,24,118,69,7)
-	
-	--item
-	for i=0,2 do
-		local p=nil
-		if price_lvls[i+1]<5 then
-			p=prices[price_lvls[i+1]]
-		end
-		
-		draw_shop_item(i+64,17+(i*26),
-			30,p,(i==shop.idx))
-	end
-	
-	line(90,30,90,45,0)
 	
 	--biome item
 	local b_idx=next_b_idx()
@@ -1139,10 +1100,23 @@ function draw_shopping()
 	end
 	draw_shop_item(
 		biome_order[b_idx].icon,
-		98,
+		17,
 		30,
 		b_prc,
-		shop.idx==3)
+		shop.idx==0)
+		
+	line(37,30,37,45,0)
+	
+	--item
+	for i=0,2 do
+		local p=nil
+		if price_lvls[i+1]<5 then
+			p=prices[price_lvls[i+1]]
+		end
+		
+		draw_shop_item(i+64,45+(i*26),
+			30,p,(i+1==shop.idx))
+	end
 	
 	--label
 	if shop.err_tm>0 then
@@ -1150,7 +1124,7 @@ function draw_shopping()
 			print("need more coins",
 				38,50,7)
 			end
-	elseif shop.idx<3 and price_lvls[shop.idx+1]>4 then
+	elseif shop.idx>0 and price_lvls[shop.idx]>4 then
 		print("sold out",52,50,7)
 	elseif shop.idx==3  and pp.new_biome then
 		print("biome got",50,50,7)
@@ -1167,7 +1141,7 @@ function draw_shopping()
 end
 
 function draw_shop_item(
-s,x,y,p,active)
+	s,x,y,p,active)
 	if not active then
 		for i=0,15 do
 			pal(i,0)
@@ -1175,12 +1149,14 @@ s,x,y,p,active)
 	end
 	--icon
 	spr(s,x,y)
+	--printh(s)
 	
 	--price
 	if p==nil then
 		print("----",x-3,y+11,7)
 	else
 		spr(48,x-6,y+10)
+		--printh(x..", "..y)
 		local b=p_max_coin
 		local s=""
 		while b>p and b>10 do
@@ -1237,7 +1213,7 @@ function init_first()
 				level[j][i]=s_level[j-6][i-3]
 			end
 	end end
-	
+	create_cb()
 	add_terrain()
 end
 
@@ -1291,8 +1267,7 @@ end
 -- andy latham (andylatham82)
 -- cart: 25597
 --
--- slightly modified for my
--- usecase :)
+-- slightly modified :)
 function init_parallax()
 	--tables to hold map pieces
 	//map_bg={} --bg layer 1
@@ -1646,11 +1621,24 @@ function draw_player_dead()
 		print(total_perf,70,58,12)
 	end
 	-- total levels
+	--[[
 	if pp.d_tm1>0.5 then
 		print("levels:",39,69,5)
 		print("levels:",39,68,7)
 		print(total_lvls,70,69,3)
 		print(total_lvls,70,68,11)
+		print("press ❎ to continue",
+			24,101,1)
+		print("press ❎ to continue",
+			24,100,7)
+	end
+	]]--
+	-- total biomes
+	if pp.d_tm1>0.5 then
+		print("biomes:",39,69,5)
+		print("biomes:",39,68,7)
+		print(b_num,70,69,3)
+		print(b_num,70,68,11)
 		print("press ❎ to continue",
 			24,101,1)
 		print("press ❎ to continue",
@@ -1746,11 +1734,6 @@ end
 -- level
 
 function init_level()
-	-- clear level
-	-- all cells initialized to 0.
-	-- solids assigned 1, then are
-	-- set to a terrain or passive
-	-- value.
 	l_type="norm"
 	perfect=0
 	local too_small=true
@@ -1779,10 +1762,32 @@ function init_level()
 	add_terrain()
 	add_coins()
 	add_bats()
+	--[[
 	add_blobs()
 	if(cb.name=="desert")add_cacti()
 	if(cb.name=="dark")add_flame_s()
+	]]--
 	--add_times()
+	-- 0 = bat
+	-- 1 = cac
+	-- 2 = ice
+	-- 3 = --
+	-- 4 = flm
+	-- 5 = god
+	if(b_num>6)extra_e=rand(0,5)
+	extra_e=3
+	--printh("ex "..extra_e)
+	local es={add_blob}
+	if(cb.name=="desert" or extra_e==1)add(es,add_cacti)
+	if(cb.name=="dark" or extra_e==4)add(es,add_flame_s)
+	if(cb.name=="fungi" or extra_e==3)add(es,add_blob_2)
+	if l_num>4 then
+		local i=rand(1,#es)
+		add(es,es[i])
+	end
+	for f in all(es)do
+		f()
+	end 
 end
 
 function add_terrain()
@@ -1806,8 +1811,6 @@ function add_terrain()
 	-- jk - also use this for blobs
 	player_start_points={}
 	
-
-	
 	for j=1,ymax-2 do
 	for i=1,xmax-2 do
 		--if solid
@@ -1815,15 +1818,15 @@ function add_terrain()
 			level[j][i]=ter_rock
 			--add random blocks
 			if chance(10) then
-				level[j][i]=cb.ter_bloc
+				level[j][i]=cb.blk[0]//cb.ter_bloc
 			elseif chance(10) then
 				level[j][i]=ter_pipe
 			end
 			--if top rock
 			if level[j-1][i]==0 then
-				level[j][i]=cb.ter_gras
+				level[j][i]=cb.blk[3]//cb.ter_gras
 				if chance(10) then
-					level[j][i]=cb.ter_bloc
+					level[j][i]=cb.blk[0]//cb.ter_bloc
 				end
 				--add potential start point
 				add(player_start_points,{
@@ -1832,21 +1835,23 @@ function add_terrain()
 				--add flower
 				if chance(30) then
 					level[j-1][i]=
-						rand(cb.pas_flw1,cb.pas_flw2)
+						//rand(cb.pas_flw1,cb.pas_flw2)
+						rand(cb.blk[4],cb.blk[5])
 				--add tree
 				elseif chance(30) then
 					local rh=rand(1,3)
 					for k=1,rh do
-						level[j-k][i]=cb.pas_stem
+						level[j-k][i]=cb.blk[6]//cb.pas_stem
 					end
-					level[j-(rh+1)][i]=cb.pas_tree
+					level[j-(rh+1)][i]=cb.blk[7]//cb.pas_tree
 				end
 			--if below grass
-			elseif level[j-1][i]==cb.ter_gras then
+			//elseif level[j-1][i]==cb.ter_gras then
+			elseif level[j-1][i]==cb.blk[3] then
 				if level[j][i]==ter_rock then
-					level[j][i]=cb.ter_roc2
+					level[j][i]=cb.blk[1]//cb.ter_roc2
 				else
-					level[j][i]=cb.ter_blc2
+					level[j][i]=cb.blk[2]//cb.ter_blc2
 				end
 			--if below water
 			elseif level[j-1][i]==ter_pipe or
@@ -1906,6 +1911,7 @@ function cell_auto()
 	return num<1
 end
 
+--[[
 function get_surr(j,i)
 	local imin=max(i-1,0)
 	local imax=min(i+1,xmax-1)
@@ -1914,6 +1920,17 @@ function get_surr(j,i)
 	local n=0
 	for jj=jmin,jmax do
 	for ii=imin,imax do
+		if(level[jj][ii]==1)n+=1
+	end end
+	if(level[j][i]==1)n-=1
+	return n
+end
+]]--
+
+function get_surr(j,i)
+	local n=0
+	for jj=max(j-1,0),min(j+1,ymax-1) do
+	for ii=max(i-1,0),min(i+1,xmax-1) do
 		if(level[jj][ii]==1)n+=1
 	end end
 	if(level[j][i]==1)n-=1
@@ -1964,8 +1981,6 @@ end
 
 function draw_coins()
 	for c in all(coins)do
-		local cx=c.x-c.w/2
-		local cy=c.y-c.h/2
 		c.tm+=0.1
 		if c.val==val_green then
 			pal(9,3)
@@ -1974,7 +1989,9 @@ function draw_coins()
 			pal(9,2)
 			pal(10,8)
 		end
-		spr((flr(c.tm)%4)+52,cx,cy)
+		spr((flr(c.tm)%4)+52,
+			c.x-c.w/2,
+			c.y-c.h/2)
 		pal()
 		--draw_bb(c)
 	end
@@ -1992,13 +2009,13 @@ function draw_enemies()
 		if(e.tp=="icicle")draw_icicle(e)
 		if(e.tp=="flame")draw_flame(e)
 		if(e.tp=="flame_s")draw_flame_s(e)
+		if(e.tp=="beam")draw_beam(e)
 	end
 end
 
 function update_enemies()
-	if l_num%10==0 then
-		return
-	end
+	if(l_num==9)return
+	
 	for e in all(enemy)do
 		if(e.tp=="blob")update_blob(e)
 		if(e.tp=="bat")update_bat(e)
@@ -2006,15 +2023,16 @@ function update_enemies()
 		if(e.tp=="icicle")update_icicle(e)
 		if(e.tp=="flame")update_flame(e)
 		if(e.tp=="flame_s")update_flame_s(e)
+		if(e.tp=="beam")update_beam(e)
 	end
-	if(cb.name=="ice")spawn_icicles()
+	if((cb.name=="ice" or extra_e==2) and chance(2))add_icicles()
+	if((cb.name=="heaven" or extra_e==5) and chance(1))add_beam()
 end
 
 function damage_enemy(e)
 	add_flash(e.x,e.y)
 	
-	if(e.tp=="icicle")return
-	//if(e.tp=="flame_s")return
+	if(e.hp==nil)return
 	
 	e.hp-=1
 	if e.hp<=0 then
@@ -2026,9 +2044,18 @@ function damage_enemy(e)
 end
 
 -- blobs
-function add_blobs()
+function add_blob()
+	add_blob_hp(1)
+end
+
+function add_blob_2()
+	add_blob_hp(2)
+end
+
+function add_blob_hp(hp)
 	local idx=rand(1,#player_start_points)
 	local bt=player_start_points[idx]
+	--[[
 	if bt==nil then
 		for i=0,20 do
 			printh("======= here =======")
@@ -2037,6 +2064,7 @@ function add_blobs()
 		printh("psp "..#player_start_points)
 		return
 	end
+	]]--
 	local bdx=1
 	if(chance(50))bdx=-1
 	add(enemy,{
@@ -2044,7 +2072,9 @@ function add_blobs()
 		x=(bt.i*8)+4,
 		y=((bt.j*8)+4)+128,
 		w=6,h=6,dx=bdx,
-		tm=0,hp=hp_blob,
+		tm=0,hp=hp,
+		dark=hp==2,
+		shoot=false,
 		hpc=hpc_high
 	})
 end
@@ -2052,20 +2082,45 @@ end
 function draw_blob(b)
 	local bx=b.x-b.w/2
 	local by=b.y-b.h/2
-	spr(89+flr(b.tm)%2,
+	local s=89
+	if b.dark then
+		//pal(2,8)
+		//pal(14,9)
+		s=105
+	end
+	spr(s+flr(b.tm)%2,
 		bx,by,1,1,
 		b.dx==-1,false)
+	pal()
 	--draw_bb(b)
 end
 
 function update_blob(b)
 	b.tm+=0.1
+	if(b.dark)b.tm+=0.1
 	if(col_bb(pp,b))player_hit(b.x,b.y)
-	b.x+=b.dx*0.1
+	b.x+=b.dx*(b.dark and 0.2 or 0.1)
 	if point_free(b.x,b.y+4) or
 				not place_free(b,b.dx*0.1,0) then
 		b.dx*=-1
-	end 
+	end
+	if(not b.dark)return
+	if flr(b.tm)%8==0 and b.shoot==false then
+		b.shoot=true
+		add_bullet(
+			b.x,b.y,0,-5,
+			100,1,15,
+			false,true)
+		--[[
+		add_bullet(
+			b.x,b.y,-2,-5,
+			100,1,11,
+			false,true)
+		]]--
+		sfx(19)
+	elseif flr(b.tm)%8!=0 then
+		b.shoot=false
+	end
 end
 
 -- bats
@@ -2074,13 +2129,13 @@ function add_bats()
 	-- todo, should this chance
 	-- be determined by the level
 	-- gen code??
-	local bc=((l_num-1)%10)*10
+	local bc=(l_num-1)*10
 	if not chance(bc) then
 		return
 	end
 	local bmin,bmax=1,2
-	if(l_num%10>5)bmin,bmax=2,3
-	if(l_num%10>7)bmin,bmax=3,5
+	if(l_num>5)bmin,bmax=2,3
+	if(l_num>7)bmin,bmax=3,5
 	for i=1,rand(bmin,bmax) do
 		local finding=true
 		while finding do
@@ -2129,7 +2184,8 @@ function update_bat(b)
 	elseif bi>xmax-1 then
 		b.xtm=0
 	elseif pt>=ter_rock and 
-				pt<cb.pas_flw1 then
+				//pt<cb.pas_flw1 then
+				pt<cb.blk[4] then
 		if sin(b.xtm)>0 then
 			b.x-=2
 			b.xtm=0
@@ -2215,7 +2271,7 @@ function add_icicles()
 	add(enemy,{
 		tp="icicle",
 		x=ri*8,y=4,dy=0,w=5,h=7,
-		0,0,tm=0,hp=1,falling=false,
+		0,0,tm=0,falling=false,
 		hpc=0
 		})
 end
@@ -2250,11 +2306,13 @@ function update_icicle(i)
 	end
 end
 
+--[[
 function spawn_icicles()
 	if chance(2) then
 		add_icicles()
 	end
 end
+]]--
 
 function add_flame(x,y)
 	add(enemy,{
@@ -2318,6 +2376,54 @@ function update_flame_s(f)
 	end
 end
 
+function add_beam(d)
+	local w,h,x,y=128,8,64,pp.y
+	if(chance(50))w,h,x,y=8,128,pp.x,64
+	add(enemy,{
+		tp="beam",
+		x=x,y=y,w=w,h=h,
+		tm=0,
+		hpc=0
+		})
+end
+
+function draw_beam(b)
+	if b.tm<5 then
+		if(flr(b.tm)%2==0)return
+		if b.x==64 then
+			line(0,b.y,128,b.y,10)
+		else
+			line(b.x,0,b.x,128,10)
+		end
+	elseif b.tm>=6 then
+		local of=flr(b.tm)
+		if b.x==64 then
+			line(0,b.y-of,128,b.y-of,10)
+			line(0,b.y+of,128,b.y+of,10)
+		else
+			line(b.x-of,0,b.x-of,128,10)
+			line(b.x+of,0,b.x+of,128,10)
+		end
+	else
+		rectfill(
+			b.x-b.w/2,b.y-b.h/2,
+			b.x+b.w/2,b.y+b.h/2,10)
+	end
+	--draw_bb(b)
+end
+
+function update_beam(b)
+	b.tm+=0.2
+	if(b.tm>5 and b.tm<6 and col_bb(pp,b))player_hit(b.x,b.y)
+	if(b.tm>10)del(enemy,b)
+end
+
+--[[
+function spawn_beams()
+	if(chance(2))add_beam()
+end
+]]--
+
 __gfx__
 00000000111111110000000000000001110000000000000000000000dddddddd000000000000000ddd0000000000000000000000007777000000000000000000
 00000000111111110000000000000111111000000000000000000000dddddddd0000000000000dddddd000000000000000000000007777000000000000000000
@@ -2367,13 +2473,13 @@ d015501150cccc0550cccc0500000000000000000000000000000000000000000000000000000000
 0000000000000000c7c0ccc000000600000110000001100000011000000110001888110002eeee202eee7e72b0b33b000077c000c11ff11cc11ff11cc11ff11c
 00000000000000007070000000000000000000000000000000000000000000001811000000222200022222200b3bb3b0000700000c1ff1c00c1ff1c00c1ff1c0
 00000000000000000000000000000600000000000000000000000000000000000100000000000000000000000bb00bb00000000000cccc0000cccc0000cccc00
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000700000006700000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000007777000006777000077770000767700000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000007777000077777000776770007777700000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000006767000077670007777770007767700000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000007777000077770007077000070700000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000007007000070070007007000070700000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000000000000000000000000000dd000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000700000006700000000000000000000d99d0000dddd000000000000000000000000000000000000000000
+0000000000000000000000000000000000777700000677700007777000076770000000000d8888d00d8998d00099990000888800000000000000000000000000
+0000000000000000000000000000000000777700007777700077677000777770000000000d9787d0d888888d0988889008999980000000000000000000000000
+0000000000000000000000000000000000676700007767000777777000776770000000000d9888d0d998787d9888888989999998000000000000000000000000
+00000000000000000000000000000000007777000077770007077000070700000000000000dddd000dddddd09888787989997978000000000000000000000000
+00000000000000000000000000000000007007000070070007007000070700000000000000600600000660000999999008888880000000000000000000000000
 00000000000000000000000000000000007007000000070000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000aaaaa000aaaaa000aaa0000aaaaa00aaaaaaaaaaaaaaaa00aaaaa00aaaaaa000000000000000000000000000000000000000000000000000000000
 000000000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa00000000000000000000001000000010000000100000001000000060
