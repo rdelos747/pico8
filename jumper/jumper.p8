@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
 -- constants
-ver="0.16.0"
+ver="0.16.2"
 
 xmax=16
 ymax=16
@@ -148,7 +148,7 @@ function reset()
 	total_enim=0
 	total_lvls=0
 	cur_lvl_cns=0
-	cb_idx=4
+	cb_idx=1
 	cb=biome_order[cb_idx]
 	extra_e=-1
 	//cb=biome.dark//biome.grass
@@ -395,8 +395,12 @@ function _draw()
 	end
 	if l_type=="shop" then
 		draw_shop()
+		if b_num==6 and scroll==0 then
+			draw_first_last("its ok to keep going")
+		end
 	elseif l_type=="frst" then
-		draw_first()
+		draw_first_last("its ok to jump down")
+		print(ver,1,122,6)
 	end
 end
 
@@ -472,8 +476,8 @@ end
 
 function draw_creds()
 	print("a game by",48,5,1)
-	print("raf @ gold team",
-		35,12,1)
+	print("raf+ryan @ gold team",
+		26,12,1)
 end
 
 function draw_hud()
@@ -1217,14 +1221,11 @@ function init_first()
 	add_terrain()
 end
 
-function draw_first()
+function draw_first_last(s)
 	first.tm+=0.01
 	first.y+=cos(first.tm)*0.3
-	print("its ok to jump down",
-		26,first.y+101,1)
-	print("its ok to jump down",
-		26,first.y+100,7)
-	print(ver,1,122,6)
+	print(s,26,first.y+101,1)
+	print(s,26,first.y+100,7)
 	draw_creds()
 end
 
@@ -1768,14 +1769,13 @@ function init_level()
 	if(cb.name=="dark")add_flame_s()
 	]]--
 	--add_times()
-	-- 0 = bat
+	-- 0 = blb
 	-- 1 = cac
 	-- 2 = ice
-	-- 3 = --
+	-- 3 = blb 2
 	-- 4 = flm
 	-- 5 = god
 	if(b_num>6)extra_e=rand(0,5)
-	extra_e=3
 	--printh("ex "..extra_e)
 	local es={add_blob}
 	if(cb.name=="desert" or extra_e==1)add(es,add_cacti)
