@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
 -- constants
-ver="0.17.0"
+ver="0.18.0"
 
 xmax=16
 ymax=16
@@ -120,7 +120,7 @@ show_logo=true
 
 has_died=false
 first_run=true
-play_music=false
+play_music=true
 
 --init
 
@@ -185,8 +185,8 @@ function init_player()
 		can_die=false,
 		coin=0,
 		--water=3,
-		water=6,
-		w_tanks=2,
+		water=3,
+		w_tanks=1,
 		bullet_dist=10,
 		bullet_size=0.5,
 		bullet_num=1,
@@ -218,6 +218,8 @@ function chance(n)
 end
 
 function ang_lerp(a1,a2,t)
+-- temp for tokens
+--[[
 	a1=a1%1
 	a2=a2%1
 	if abs(a1-a2)>0.5 then
@@ -228,6 +230,7 @@ function ang_lerp(a1,a2,t)
 		end
 	end
 	return ((1-t)*a1+t*a2)%1
+	]]--
 end
 
 function copy_table(t)
@@ -245,13 +248,14 @@ function print_level()
 	for j=0,ymax-1 do
 		local s=""
 		for i=0,xmax-1 do
-			s=s..level[j][i]
+			s=s..level[j][i].." "
 		end 
 		printh(s)
 	end
 	printh("")
 end
 ]]--
+
 
 function level_solid(i,j)
 	local b=level[j][i]
@@ -784,7 +788,10 @@ function create_cb()
 	end
 end
 
+xx=0
 function init_scroll()
+	xx+=1
+	printh(xx)
 	cur_lvl_cns=0
 	clear_objects()
 	scroll=1
@@ -1819,7 +1826,8 @@ function add_terrain()
 				level[j][i]=ter_pipe
 			end
 			--if top rock
-			if level[j-1][i]==0 then
+			if level[j-1][i]==0 or 
+						level[j-1][i]==pas_watr then
 				level[j][i]=cb.blk[3]//cb.ter_gras
 				if chance(10) then
 					level[j][i]=cb.blk[0]//cb.ter_bloc
@@ -1839,7 +1847,9 @@ function add_terrain()
 					for k=1,rh do
 						level[j-k][i]=cb.blk[6]//cb.pas_stem
 					end
-					level[j-(rh+1)][i]=cb.blk[7]//cb.pas_tree
+					--printh(i.." "..j)
+					--printh(j-(rh+1))
+					level[max(j-(rh+1),0)][i]=cb.blk[7]//cb.pas_tree
 				end
 			--if below grass
 			//elseif level[j-1][i]==cb.ter_gras then
@@ -2061,6 +2071,12 @@ function add_blob_hp(hp)
 		return
 	end
 	]]--
+	--printh("=here=")
+	--printh(#player_start_points)
+	--printh(idx)
+	--printh(bt)
+	--print_level()
+	--printh(pp.hp)
 	local bdx=1
 	if(chance(50))bdx=-1
 	add(enemy,{
