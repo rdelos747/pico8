@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
 -- constants
-ver="0.18.0"
+ver="0.19.0"
 
 xmax=16
 ymax=16
@@ -77,9 +77,9 @@ val_red=10
 hp_bat=2
 hp_blob=1
 hp_cac=2
-hp_flame=1
-flame_t=0.1
-flame_s=0.28
+--hp_flame=1
+--flame_t=0.1
+--flame_s=0.28
 flame_spawn_t=20
 
 --hp
@@ -90,7 +90,7 @@ hp_loss_hit=2
 hp_loss_bot=2
 
 --player
-p_max_coin=10000
+p_max_coin=9999
 p_jump_min=2
 b_spread=5
 b_speed=4
@@ -100,14 +100,11 @@ b_fall_max=2
 p_shoot_delay=4
 
 --hud
-hud_top=1
-hud_bot=122
+--hud_top=1
+--hud_bot=122
 
 --prices
 prices={50,100,150,200}
-b_prices={
-	200,200,200,200,200,200,200
-}
 
 --logo
 logo={
@@ -120,14 +117,14 @@ show_logo=true
 
 has_died=false
 first_run=true
-play_music=true
+--play_music=true
 
 --init
 
 function reset()
 	--vars
 	last_level=nil
-	l_type="norm"
+	--l_type="norm"
 	l_num=-1
 	b_num=1
 	scroll=0
@@ -161,7 +158,7 @@ function reset()
 	init_hud()
 	
 	if not first_run then
-		_music(24)
+		music(24)
 	end
 	has_died=false
 end
@@ -215,22 +212,6 @@ end
 
 function chance(n)
 	return rand(0,100) < n
-end
-
-function ang_lerp(a1,a2,t)
--- temp for tokens
---[[
-	a1=a1%1
-	a2=a2%1
-	if abs(a1-a2)>0.5 then
-		if a1>a2 then
-			a2+=1
-		else
-			a1+=1
-		end
-	end
-	return ((1-t)*a1+t*a2)%1
-	]]--
 end
 
 function copy_table(t)
@@ -328,17 +309,21 @@ function next_b_idx()
 		1)
 end
 
+--[[
 function set_pause()
 	pause=4
 end
+]]--
 
 function set_hit()
 	hit=12
 end
 
+--[[
 function _music(n)
 	if(play_music)music(n)
 end
+]]--
 
 -- ==========
 -- init
@@ -347,7 +332,8 @@ function _init()
 	printh("------start------")
 	//reset()
 	init_parallax()
-	_music(24)
+	//_music(24)
+	music(24)
 end
 
 -- ==========
@@ -398,14 +384,15 @@ function _draw()
 		if(l_num>=0)draw_hud()
 		
 	end
-	if l_type=="shop" then
-		draw_shop()
-		if b_num==6 and scroll==0 then
-			draw_first_last("its ok to keep going")
-		end
-	elseif l_type=="frst" then
+
+	if l_num==-1 then
 		draw_first_last("its ok to jump down")
 		print(ver,1,122,6)
+	elseif l_num==9 then
+		draw_shop()
+		if cb_idx==6 and scroll==0 then
+			draw_first_last("its ok to keep going")
+		end
 	end
 end
 
@@ -445,7 +432,8 @@ function _update()
 		
 		if pp.hp<=0 then
 			if not has_died then
-				_music(56)
+				//_music(56)
+				music(56)
 			end
 			first_run=false
 			has_died=true
@@ -459,6 +447,18 @@ function _update()
 		//update_blobs()
 		update_enemies()
 		update_hps()
+		
+		if cb_idx==6 and l_num==9 then
+			if spr_tm==0 then
+				spr_tm=5
+				add_sprinkles(
+					rand(0,128),
+					rand(0,128)
+				)
+				sfx(5)
+			end
+			spr_tm-=1
+		end
 	end
 	
 	if pp.y>128+8 then
@@ -471,6 +471,7 @@ function _update()
 		return
 	end
 end
+spr_tm=0
 
 -- ==========
 -- hud
@@ -487,7 +488,7 @@ end
 
 function draw_hud()
 	hud.tm+=0.2
-	rectfill(0,hud_bot-1,128,hud_bot+6,0)
+	rectfill(0,122-1,128,122+6,0)
 	draw_hud_coins()
 	draw_hud_hp()
 	draw_hud_jump()
@@ -528,9 +529,9 @@ function draw_hud_lvl()
 		hud_lvl_x+0,hud_bot,11)
 	]]--
 	print(b_num.."/6",
-		hud_lvl_x,hud_bot,11)
+		hud_lvl_x,122,11)
 	print(
-			l_num+1,hud_lvl_x+24,hud_bot,3)
+			l_num+1,hud_lvl_x+22,122,3)
 end
 
 hud_c_x=112
@@ -542,21 +543,20 @@ function draw_hud_coins()
 	]]--
 	local b=p_max_coin
 	local s_tot=""
-	local s_cur=""
 	while b>pp.coin and b>10 do
 		b=b/10
 		if(b>pp.coin)s_tot=s_tot.."0"
 	end
 	
-	--[[
+	--[[`
 	print(s_tot..pp.coin,
 		hud_c_x+1,hud_bot,9)
 	]]--
 	print(s_tot..pp.coin,
-		hud_c_x+0,hud_bot,10)
+		hud_c_x+0,122,10)
 end
 
-hud_hp_x=32
+hud_hp_x=24
 function draw_hud_hp()
 	//palt(0,false)
 	//palt(15,true)
@@ -575,15 +575,15 @@ function draw_hud_hp()
 		local r=min((i*4)-pp.hp,4)
 		local x=hud_hp_x+9+(i-1)*6
 		if c>=1 then
-			spr(33,x,hud_bot)
+			spr(33,x,122)
 		else
-			spr(34+r%4,x,hud_bot)
+			spr(34+r%4,x,122)
 		end
 	end
 	//palt()
 end
 
-hud_j_x=64
+hud_j_x=56
 function draw_hud_jump()
 	local ttl=p_jump_min+pp.w_tanks
 	for i=1,p_jump_min do
@@ -594,7 +594,7 @@ function draw_hud_jump()
 		end
 		spr(19,
 			hud_j_x+6+(i*5),
-			hud_bot)
+			122)
 		pal()
 	end
 	for i=1,pp.w_tanks do
@@ -605,12 +605,12 @@ function draw_hud_jump()
 		if nw==0 then
 			spr(20,
 				hud_j_x+16+(i*6),
-				hud_bot)
+				122)
 		else
 			spr(
 				20+(nw*2)-(flr(hud.tm)%2),
 				hud_j_x+16+(i*6),
-				hud_bot)
+				122)
 		end
 	end
 end
@@ -674,7 +674,7 @@ function update_bullets()
 		b.x+=b.dx
 		b.y+=b.dy
 		
-		if b.f==true then
+		if b.f then
 			if(b.dx>0)b.dx=max(0,b.dx-b_fall_decel_h)
 			if(b.dx<0)b.dx=min(0,b.dx+b_fall_decel_h)
 			b.dy=min(b.dy+b_fall_accel_v,b_fall_max)
@@ -687,14 +687,14 @@ function update_bullets()
 			del(bullets,b)
 		end
 
-		if b.p==false then
+		if not b.p then
 			if col_bb(pp,b) then
 				player_hit(b.x,b.y)
 				del(bullets,b)
 			end
 		else		
 			for e in all(enemy)do
-				if col_bb(b,e) then
+				if col_bb(b,e) and e.hp!=nil then
 					del(bullets,b)
 					damage_enemy(e)
 				end
@@ -788,10 +788,8 @@ function create_cb()
 	end
 end
 
-xx=0
+final_shop=false
 function init_scroll()
-	xx+=1
-	printh(xx)
 	cur_lvl_cns=0
 	clear_objects()
 	scroll=1
@@ -800,8 +798,16 @@ function init_scroll()
 	total_lvls+=1
 	last_level=copy_table(level)
 	if l_num==9 then
-		l_type="shop"
+		--l_type="shop"
 		init_shop()
+		if cb_idx==6 then
+			if not final_shop then
+				pp.coin+=1000
+				add_flare(42,50,"1000 coins")
+				sfx(9)
+			end
+			final_shop=true
+		end
 	else
 	--[[
 		if l_num!=1 and 
@@ -810,6 +816,7 @@ function init_scroll()
 	--]]
 		if l_num==0 and pp.new_biome then
 			cb_idx+=1
+			final_shop=false
 			if cb_idx>#biome_order then
 				cb_idx=1
 			end
@@ -817,14 +824,10 @@ function init_scroll()
 			cb=biome_order[cb_idx]
 			create_cb()
 		end
-		if l_num==0 then
-			--printh("after shop: "..pp.coin)
-			--printh(" ")
-		end
 		//if(l_num==11)cb=biome.desert
 		//if(l_num==21)cb=biome.ice
 		pp.new_biome=false
-		l_type="norm"
+		--l_type="norm"
 		init_level()
 	end
 end
@@ -932,7 +935,7 @@ end
 -- shop
 -- ===================
 function init_shop()
-	l_type="shop"
+	--l_type="shop"
 	shop={
 		x=78,y=200,tm=0,idx=0,
 		labels={
@@ -968,7 +971,7 @@ function init_shop()
 	end end
 	
 	add_terrain()
-	
+	--b_prc=b_prices[min(b_num,4)]
 	--printh("coins at shop "..b_num..": "..pp.coin)
 end
 
@@ -1045,7 +1048,8 @@ function update_shopping()
 		local i=shop.idx
 		if(i>0 and price_lvls[i]>4)return
 		if(i==0 and pp.new_biome)return
-		local p=b_prices[next_b_idx()]
+		//local p=b_prices[next_b_idx()]
+		local p=200
 		if i>0 then
 			p=prices[price_lvls[i]]
 		end
@@ -1101,15 +1105,11 @@ function draw_shopping()
 	
 	--biome item
 	local b_idx=next_b_idx()
-	local b_prc=b_prices[b_idx]
-	if pp.new_biome then
-		b_prc=nil
-	end
 	draw_shop_item(
 		biome_order[b_idx].icon,
 		17,
 		30,
-		b_prc,
+		not pp.new_biome and 200 or nil,
 		shop.idx==0)
 		
 	line(37,30,37,45,0)
@@ -1133,7 +1133,7 @@ function draw_shopping()
 			end
 	elseif shop.idx>0 and price_lvls[shop.idx]>4 then
 		print("sold out",52,50,7)
-	elseif shop.idx==3  and pp.new_biome then
+	elseif shop.idx==0  and pp.new_biome then
 		print("biome got",50,50,7)
 	else
 		local ll=shop.labels[shop.idx+1]
@@ -1203,7 +1203,7 @@ end
 -- ===================
 
 function init_first()
-	l_type="frst"
+	--l_type="frst"
 	first={tm=0,y=0}
 	level={}
 	local s_level={
@@ -1355,7 +1355,11 @@ function draw_player()
 	local pdx=pp.x-pp.w-1
 	local pdy=(pp.y-pp.h/2)+1
 	
-	if(pp.can_die)pal(7,8)
+	if((b_num==6 and l_num==9) or b_num>6)pal(7,10)
+	if pp.can_die then 
+		pal(7,8)
+		pal(10,8)
+	end
 	spr(13,pdx,pdy,1,1,pp.drr==-1,false)
 	if pp.tm>0 then
 		spr(15,pdx,pdy,1,1,flr(pp.tm)%2==0,false)
@@ -1677,7 +1681,7 @@ function touch_coin()
 			end
 			
 			pp.coin=min(pp.coin,p_max_coin)
-			total_coin=min(total_coin,p_max_coin)
+			--total_coin=min(total_coin,p_max_coin)
 			return
 		end
 	end
@@ -1738,7 +1742,7 @@ end
 -- level
 
 function init_level()
-	l_type="norm"
+	--l_type="norm"
 	perfect=0
 	local too_small=true
 	while too_small do
@@ -1784,9 +1788,13 @@ function init_level()
 	if(cb.name=="desert" or extra_e==1)add(es,add_cacti)
 	if(cb.name=="dark" or extra_e==4)add(es,add_flame_s)
 	if(cb.name=="fungi" or extra_e==3)add(es,add_blob_2)
-	if l_num>4 then
-		local i=rand(1,#es)
-		add(es,es[i])
+	if l_num>4 or b_num>12 then
+		for nyse=0,mid(0,flr(b_num/6)-1,5)do
+			--
+			printh(nyse)
+			local i=rand(1,#es)
+			add(es,es[i])
+		end
 	end
 	for f in all(es)do
 		f()
@@ -1825,17 +1833,27 @@ function add_terrain()
 			elseif chance(10) then
 				level[j][i]=ter_pipe
 			end
-			--if top rock
+			
+			--add potential start point
 			if level[j-1][i]==0 or 
 						level[j-1][i]==pas_watr then
+				add(player_start_points,{
+					j=j-1,i=i
+				})
+			end
+			
+			--if top rock
+			if level[j-1][i]==0 then
 				level[j][i]=cb.blk[3]//cb.ter_gras
 				if chance(10) then
 					level[j][i]=cb.blk[0]//cb.ter_bloc
 				end
 				--add potential start point
+				--[[
 				add(player_start_points,{
 					j=j-1,i=i
 				})
+				]]--
 				--add flower
 				if chance(30) then
 					level[j-1][i]=
@@ -2055,7 +2073,7 @@ function add_blob()
 end
 
 function add_blob_2()
-	add_blob_hp(2)
+	add_blob_hp(3)
 end
 
 function add_blob_hp(hp)
@@ -2085,7 +2103,7 @@ function add_blob_hp(hp)
 		y=((bt.j*8)+4)+128,
 		w=6,h=6,dx=bdx,
 		tm=0,hp=hp,
-		dark=hp==2,
+		dark=hp==3,
 		shoot=false,
 		hpc=hpc_high
 	})
@@ -2117,10 +2135,10 @@ function update_blob(b)
 		b.dx*=-1
 	end
 	if(not b.dark)return
-	if flr(b.tm)%8==0 and b.shoot==false then
+	if flr(b.tm)%6==0 and b.shoot==false then
 		b.shoot=true
 		add_bullet(
-			b.x,b.y,0,-5,
+			b.x,b.y,0,-6,
 			100,1,15,
 			false,true)
 		--[[
@@ -2130,7 +2148,7 @@ function update_blob(b)
 			false,true)
 		]]--
 		sfx(19)
-	elseif flr(b.tm)%8!=0 then
+	elseif flr(b.tm)%6!=0 then
 		b.shoot=false
 	end
 end
@@ -2284,7 +2302,8 @@ function add_icicles()
 		tp="icicle",
 		x=ri*8,y=4,dy=0,w=5,h=7,
 		0,0,tm=0,falling=false,
-		hpc=0
+		hpc=0,
+		hp=10000
 		})
 end
 
@@ -2329,28 +2348,32 @@ end
 function add_flame(x,y)
 	add(enemy,{
 		tp="flame",
-		tp="flame",
 		x=x,y=y,
-		w=8,h=8,tm=rand(1,3),
-		hp=hp_flame,
+		w=8,h=8,tm=0,
+		--hp=hp_flame,
 		hpc=0,
-		a=rnd(1)
+		--a=atan2(pp.x-x,pp.y-y)
+		a=0
 	})
 end
 
 function draw_flame(f)
 	local fx=f.x-f.w/2
 	local fy=f.y-f.h/2
-	spr(93+flr(f.tm),fx,fy)
+	if(f.tm<6 and flr(f.tm)%2==0)return
+	spr(93+flr(f.tm%3),fx,fy)
+	//pal()
 	--draw_bb(i)
 end
 
 function update_flame(f)
-	f.tm=(f.tm+0.2)%3
-	local ang=atan2(pp.x-f.x,pp.y-f.y)
-	f.a=ang_lerp(f.a,ang,flame_t)
-	f.x+=flame_s*cos(f.a)
-	f.y+=flame_s*sin(f.a)
+	f.tm=f.tm+0.3
+	if f.tm<6 then
+		f.a=atan2(pp.x-f.x,pp.y-f.y)
+		return
+	end
+	f.x+=1.5*cos(f.a)
+	f.y+=1.5*sin(f.a)
 	if(col_bb(pp,f))player_hit(f.x,f.y)
 end
 
@@ -2362,7 +2385,7 @@ function add_flame_s()
 		x=(bt.i*8)+4,
 		y=((bt.j*8)+4)+128,
 		w=8,h=8,
-		tm=0,hp=20,
+		tm=0,
 		hpc=100
 	})
 end
@@ -2403,18 +2426,18 @@ function draw_beam(b)
 	if b.tm<5 then
 		if(flr(b.tm)%2==0)return
 		if b.x==64 then
-			line(0,b.y,128,b.y,10)
+			line(0,b.y,128,b.y,7)
 		else
-			line(b.x,0,b.x,128,10)
+			line(b.x,0,b.x,128,7)
 		end
 	elseif b.tm>=6 then
 		local of=flr(b.tm)
 		if b.x==64 then
-			line(0,b.y-of,128,b.y-of,10)
-			line(0,b.y+of,128,b.y+of,10)
+			line(0,b.y-of,128,b.y-of,7)
+			line(0,b.y+of,128,b.y+of,7)
 		else
-			line(b.x-of,0,b.x-of,128,10)
-			line(b.x+of,0,b.x+of,128,10)
+			line(b.x-of,0,b.x-of,128,7)
+			line(b.x+of,0,b.x+of,128,7)
 		end
 	else
 		rectfill(
@@ -2427,7 +2450,7 @@ end
 function update_beam(b)
 	b.tm+=0.2
 	if(b.tm>5 and b.tm<6 and col_bb(pp,b))player_hit(b.x,b.y)
-	if(b.tm>10)del(enemy,b)
+	if(b.tm>8)del(enemy,b)
 end
 
 --[[
@@ -2692,13 +2715,13 @@ __sfx__
 920300003f6650f000110001300015000160001800018000150001500016000190001b0001e000200002200023000260000000000000000000000000000000000000000000000000000000000000000000000000
 480300000c1600f150111401313015120161101811018110001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100
 200600000c0670c0671306713067160671606718067180671a0671a0671d0671d0671f0671f067220672206724062240622405224052240422404224032240322402224022240122401200002000020000200002
-930300001375015750187501a7501f750217500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+920300001375015750187501a7501f750217500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 480300000c7600f05013040131300070000700007000c700007000070000700007000070000700007000070000700007000070000700007000070000700007000070000700007000070000700007000070000700
-9303000015750177501c7501e75023750257500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+9203000015750177501c7501e75023750257500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 480200000e6501f64012630006000060000600006000c640006000761000600006000060000600006000060000600006000060000600006000060000600006000060000600006000060000600006000060000600
 000400002b650256501f65019650220601f0601906015060100500c0500904007040220501f0501905015050100400c0400903007030220401f0401904015040100300c0300902007020220301f0301903015030
 00040000100200c0200901007010220201f0201902015020100100c0100901007010220101f0101901015010100100c0100901007010220001f0001900015000100000c0000900007000220001f0001900015000
-480100000d7000f7001270014700197001b7001510013700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+460800000c0670c0671306713067160671606718067180671a0671a0671d0671d0671f0671f06722067220672406724067260672606729067290672b0672b0672e0572e057300523005230042300323002230012
 00020000240502205018050130500a140051400a10007100041000610004100011000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100
 000100001f5701a570135700e57009570055700257000570045000650004500015000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500
 000300002305023030280502803000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
