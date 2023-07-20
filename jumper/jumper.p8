@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
 -- constants
-ver="0.20.0-stats"
+ver="0.21.0"
 
 --xmax=16
 --ymax=16
@@ -23,7 +23,7 @@ ter_watr=18
 
 --biome specific
 cb=nil -- cur biome
-cb_idx=1
+--cb_idx=1
 biome={
 	grass={
 		name="grass",
@@ -90,7 +90,7 @@ biome_order={
 --hp_loss_bot=2
 
 --player
-p_max_coin=9999
+--p_max_coin=9999
 --p_jump_min=2
 --b_spread=5
 --b_speed=4
@@ -140,12 +140,12 @@ function reset()
 	pause=0
 	hit=0
 	perfect=0
-	total_coin=0
+	--total_coin=0
 	total_perf=0
 	total_enim=0
 	total_lvls=0
 	cur_lvl_cns=0
-	cb_idx=5
+	cb_idx=1
 	cb=biome_order[cb_idx]
 	extra_e=-1
 	//cb=biome.dark//biome.grass
@@ -305,8 +305,20 @@ end
 
 function next_b_idx()
 	return max(
-		(cb_idx+1)%(#biome_order+1),
+		(cb_idx+1)%(7),
 		1)
+	--return max((b_num+1)%7,1)
+end
+
+function val_with_zero(v)
+	--local c=min(pp.coin,9999)
+	local b=9999//p_max_coin
+	local s=""
+	while b>v and b>10 do
+		b=b/10
+		if(b>v)s=s.."0"
+	end
+	return s..v
 end
 
 --[[
@@ -448,7 +460,7 @@ function _update()
 		update_enemies()
 		update_hps()
 		
-		--[[
+		
 		// take out for stat tokens
 		if cb_idx==6 and l_num==9 then
 			if spr_tm==0 then
@@ -461,7 +473,6 @@ function _update()
 			end
 			spr_tm-=1
 		end
-		]]--
 	end
 	
 	if pp.y>128+8 then
@@ -544,18 +555,21 @@ function draw_hud_coins()
 		hud_c_x,hud_top)
 	print(":",hud_c_x+7,hud_top,7)
 	]]--
-	local b=p_max_coin
+	local c=min(pp.coin,9999)
+	--[[
+	local b=9999//p_max_coin
 	local s_tot=""
-	while b>pp.coin and b>10 do
+	while b>c and b>10 do
 		b=b/10
-		if(b>pp.coin)s_tot=s_tot.."0"
+		if(b>c)s_tot=s_tot.."0"
 	end
+	]]--
 	
 	--[[`
 	print(s_tot..pp.coin,
 		hud_c_x+1,hud_bot,9)
 	]]--
-	print(s_tot..pp.coin,
+	print(val_with_zero(c),
 		hud_c_x+0,122,10)
 end
 
@@ -792,12 +806,13 @@ function create_cb()
 end
 
 final_shop=false
---pp_last_coin=0
+pp_last_coin=0
+pre_shop_coin=0
 function init_scroll()
 	// stat
 	if l_num==9 then
 		// stat
-		//printh("biome "..b_num..": "..pre_shop_coin.." ("..pre_shop_coin-pp_last_coin..")".." -> "..pp.coin.." ("..pp.coin-pp_last_coin..")")
+		printh("biome "..b_num..": "..pre_shop_coin.." ("..pre_shop_coin-pp_last_coin..")".." -> "..pp.coin.." ("..pp.coin-pp_last_coin..")")
 		pp_last_coin=pp.coin
 	end
 	cur_lvl_cns=0
@@ -812,7 +827,8 @@ function init_scroll()
 		init_shop()
 		if cb_idx==6 then
 			if not final_shop then
-				pp.coin=min(pp.coin+1000,p_max_coin)
+				--pp.coin=min(pp.coin+1000,p_max_coin)
+				pp.coin+=1000
 				add_flare(42,50,"1000 coins")
 				sfx(9)
 			end
@@ -825,11 +841,12 @@ function init_scroll()
 					pp.new_biome then
 	--]]
 		if l_num==0 and pp.new_biome then
-			cb_idx+=1
+			--cb_idx+=1
 			final_shop=false
-			if cb_idx>#biome_order then
-				cb_idx=1
-			end
+			--if cb_idx>#biome_order then
+			--	cb_idx=1
+			--end
+			cb_idx=next_b_idx()
 			b_num+=1
 			cb=biome_order[cb_idx]
 			create_cb()
@@ -949,8 +966,6 @@ end
 -- ==========
 -- shop
 -- ===================
---pre_shop_coin=0
---last_pre_shop_coin=0
 function init_shop()
 	--l_type="shop"
 	shop={
@@ -992,8 +1007,6 @@ function init_shop()
 	--printh("coins at shop "..b_num..": "..pp.coin)
 	
 	//shop stat 
-	//printh("at shop "..b_num.." with "..pp.coin)
-	--last_pre_shop_coin=pre_shop_coin
 	pre_shop_coin=pp.coin //stat
 end
 
@@ -1185,14 +1198,8 @@ function draw_shop_item(
 		print("----",x-3,y+11,7)
 	else
 		spr(48,x-6,y+10)
-		--printh(x..", "..y)
-		local b=p_max_coin
-		local s=""
-		while b>p and b>10 do
-			b=b/10
-			if(b>p)s=s.."0"
-		end
-		print(s..p,x+2,y+11,7)
+		print(val_with_zero(p),
+			x+2,y+11,7)
 	end
 	pal()
 end
@@ -1377,8 +1384,7 @@ function draw_player()
 	local pdx=pp.x-pp.w-1
 	local pdy=(pp.y-pp.h/2)+1
 	
-	// for stat
-	--if((b_num==6 and l_num==9) or b_num>6)pal(7,10)
+	if((b_num==6 and l_num==9) or b_num>6)pal(7,10)
 	if pp.can_die then 
 		pal(7,8)
 		pal(10,8)
@@ -1634,8 +1640,8 @@ function draw_player_dead()
 	if pp.d_tm1>0.2 then
 		print("coins:",43,39,5)
 		print("coins:",43,38,7)
-		print(total_coin,70,39,9)
-		print(total_coin,70,38,10)
+		print(pp.coin,70,39,9)
+		print(pp.coin,70,38,10)
 	end
 	-- total enemies
 	if pp.d_tm1>0.3 then
@@ -1684,14 +1690,14 @@ function touch_coin()
 			del(coins,c)
 			pp.coin+=c.val
 			cur_lvl_cns+=c.val
-			total_coin+=c.val
+			--total_coin+=c.val
 			add_flare(pp.x,pp.y,c.val)
 			
 			if #coins==0 then
 				perfect=1
 				total_perf+=1
 				pp.coin+=cur_lvl_cns
-				total_coin+=cur_lvl_cns
+				--total_coin+=cur_lvl_cns
 				sfx(2)
 			else
 				if c.val==val_green then
@@ -1703,7 +1709,7 @@ function touch_coin()
 				end
 			end
 			
-			pp.coin=min(pp.coin,p_max_coin)
+			--pp.coin=min(pp.coin,p_max_coin)
 			--total_coin=min(total_coin,p_max_coin)
 			return
 		end
@@ -1958,23 +1964,6 @@ function cell_auto()
 	return num<1
 end
 
---[[
-function get_surr(j,i)
-	local imin=max(i-1,0)
-	local imax=min(i+1,xmax-1)
-	local jmin=max(j-1,0)
-	local jmax=min(j+1,ymax-1)
-	local jmax=min(j+1,ymax-1)
-	local n=0
-	for jj=jmin,jmax do
-	for ii=imin,imax do
-		if(level[jj][ii]==1)n+=1
-	end end
-	if(level[j][i]==1)n-=1
-	return n
-end
-]]--
-
 function get_surr(j,i)
 	local n=0
 	for jj=max(j-1,0),min(j+1,15) do
@@ -2005,27 +1994,44 @@ end
 
 function add_coins()
 	coins={}
-	for j=0,14 do
-	for i=0,15 do
-		if level[j][i]==0 and
-					//coin chance
-					chance(5) then
-			level[j][i]=-1 -- keep track of cells with items
-			--local sp=s_coin
-			local val=1
-			if chance(10) then
-				--sp=s_coin2
-				val=5
-			elseif chance(10) then
-				--sp=s_coin3
-				val=10
+	--[[
+		ryan:
+		min level coin value
+	]]--
+	local min_v=rand(12,20)
+	--printh("adding "..coin_n)
+	--printh("min v "..min_v)
+	--local t_v=0
+	while min_v>0 do
+		local ri,rj=rand(0,15),rand(0,14)
+		if level[rj][ri]==0 then
+			level[rj][ri]=-1
+			local v=1			
+			local c=rand(1,100)
+			--[[
+				ryan:
+				red coin probability
+			]]--
+			if c<=9 then
+				v=10
+			--[[
+				ryan:
+				green coin probability
+			]]--
+			elseif c<=19 then
+				v=5
 			end
+			min_v-=v
+			t_v+=v
+			
 			add(coins,{
-				x=i*8+4,y=j*8+4,w=8,h=8,
-				tm=0,val=val
+				x=ri*8+4,y=rj*8+4,w=8,h=8,
+				tm=0,val=v
 			})
+			--printh("adding coin with val "..v)
 		end
-	end end
+	end
+	--printh("  total v "..t_v)
 end
 
 function draw_coins()
