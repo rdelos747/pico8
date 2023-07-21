@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
 -- constants
-ver="0.21.0"
+ver="0.22.0"
 
 --xmax=16
 --ymax=16
@@ -147,22 +147,65 @@ function reset()
 	cur_lvl_cns=0
 	cb_idx=1
 	cb=biome_order[cb_idx]
-	extra_e=-1
+	--extra_e=-1
+	extra_cac=false
+	extra_mush=false
+	extra_sword=false
+	extra_beam=false
+	extra_ice=false
 	//cb=biome.dark//biome.grass
 	--functions
 	clear_objects()
 	//init_level()
 	init_first()
 		
-	init_player()
+	//init_player()
 	init_hud()
 	
 	if not first_run then
 		music(24)
 	end
 	has_died=false
+	
+	// init player
+	local idx=rand(1,#player_start_points)
+	local pt=player_start_points[idx]
+	
+	pp={
+		x=(pt.i*8)+4,y=(pt.j*8)+4,
+		w=3,h=6
+	}
+	
+	pp_drr=1
+	pp_drr_y=0
+	pp_tm=0
+	pp_jump_press=false
+	pp_jump=0
+	pp_landed=false
+	pp_dy=0
+ pp_can_die=false
+	pp_coin=0
+	pp_water=3
+	pp_w_tanks=1
+	pp_bullet_dist=10
+	--pp_bullet_size=0.5
+	pp_bullet_num=1
+	pp_shoot=0
+	pp_w_tm=0
+	pp_hp=8
+	pp_hp_tanks=2
+	pp_hit=0
+	pp_hit_dx=0
+	pp_hit_dy=0
+	pp_shopping=false
+	pp_can_shop=false
+	pp_d_tm0=0 --die animation
+	pp_d_tm1=0 --die rest animation
+	pp_d_cntr=false
+	pp_new_biome=false
 end
 
+--[[
 function init_player()
 	--player_start_points should be
 	-- initialized by now
@@ -202,6 +245,7 @@ function init_player()
 		new_biome=false
 	}
 end
+]]--
 
 -->8
 -- general
@@ -346,6 +390,14 @@ function _init()
 	init_parallax()
 	//_music(24)
 	music(24)
+	
+	--[[
+	local av=0
+	for i=1,100 do
+		av+=rand(25,54)
+	end
+	printh("ave: "..av/100)
+	]]--
 end
 
 -- ==========
@@ -367,7 +419,7 @@ function _draw()
 		return
 	end
 	
-	if pp.hp<=0 then
+	if pp_hp<=0 then
 		draw_player_dead()
 		return
 	end
@@ -437,12 +489,12 @@ function _update()
 	if scroll>0 then
 		update_scroll()
 	else
-		if pp.shopping then
+		if pp_shopping then
 			update_shopping()
 			return
 		end
 		
-		if pp.hp<=0 then
+		if pp_hp<=0 then
 			if not has_died then
 				//_music(56)
 				music(56)
@@ -476,8 +528,8 @@ function _update()
 	end
 	
 	if pp.y>128+8 then
-		if pp.can_die then
-			pp.hp-=2
+		if pp_can_die then
+			pp_hp-=2
 			set_hit()
 			sfx(16)
 		end
@@ -555,7 +607,7 @@ function draw_hud_coins()
 		hud_c_x,hud_top)
 	print(":",hud_c_x+7,hud_top,7)
 	]]--
-	local c=min(pp.coin,9999)
+	local c=min(pp_coin,9999)
 	--[[
 	local b=9999//p_max_coin
 	local s_tot=""
@@ -587,9 +639,9 @@ function draw_hud_hp()
 		hud_bot,
 		14)
 	]]--
-	for i=1,pp.hp_tanks do
-		local c=pp.hp/(i*4)
-		local r=min((i*4)-pp.hp,4)
+	for i=1,pp_hp_tanks do
+		local c=pp_hp/(i*4)
+		local r=min((i*4)-pp_hp,4)
 		local x=hud_hp_x+9+(i-1)*6
 		if c>=1 then
 			spr(33,x,122)
@@ -602,9 +654,9 @@ end
 
 hud_j_x=56
 function draw_hud_jump()
-	local ttl=2+pp.w_tanks
+	local ttl=2+pp_w_tanks
 	for i=1,2 do
-		if i<=pp.jump then
+		if i<=pp_jump then
 			pal(6,1)
 			pal(7,1)
 			pal(12,1)
@@ -614,10 +666,10 @@ function draw_hud_jump()
 			122)
 		pal()
 	end
-	for i=1,pp.w_tanks do
+	for i=1,pp_w_tanks do
 		local nw=mid(
 			0,
-			pp.water-(pp.w_tanks*3-i*3),
+			pp_water-(pp_w_tanks*3-i*3),
 			3)
 		if nw==0 then
 			spr(20,
@@ -677,10 +729,10 @@ end
 -- bullets
 -- ===================
 function add_bullet(x,y,dx,dy,
-	tm,rad,c,p,fall)
+	tm,c,p,fall)
 	add(bullets,{
 		x=x,y=y,dx=dx,dy=dy,
-		w=rad*2,h=rad*2,
+		w=1,h=1,
 		tm=tm,c=c,p=p,f=fall
 	})
 end
@@ -812,8 +864,8 @@ function init_scroll()
 	// stat
 	if l_num==9 then
 		// stat
-		printh("biome "..b_num..": "..pre_shop_coin.." ("..pre_shop_coin-pp_last_coin..")".." -> "..pp.coin.." ("..pp.coin-pp_last_coin..")")
-		pp_last_coin=pp.coin
+		printh("biome "..b_num..": "..pre_shop_coin.." ("..pre_shop_coin-pp_last_coin..")".." -> "..pp_coin.." ("..pp_coin-pp_last_coin..")")
+		pp_last_coin=pp_coin
 	end
 	cur_lvl_cns=0
 	clear_objects()
@@ -828,7 +880,7 @@ function init_scroll()
 		if cb_idx==6 then
 			if not final_shop then
 				--pp.coin=min(pp.coin+1000,p_max_coin)
-				pp.coin+=1000
+				pp_coin+=1000
 				add_flare(42,50,"1000 coins")
 				sfx(9)
 			end
@@ -840,7 +892,7 @@ function init_scroll()
 					l_num%10==1 and
 					pp.new_biome then
 	--]]
-		if l_num==0 and pp.new_biome then
+		if l_num==0 and pp_new_biome then
 			--cb_idx+=1
 			final_shop=false
 			--if cb_idx>#biome_order then
@@ -853,7 +905,7 @@ function init_scroll()
 		end
 		//if(l_num==11)cb=biome.desert
 		//if(l_num==21)cb=biome.ice
-		pp.new_biome=false
+		pp_new_biome=false
 		--l_type="norm"
 		init_level()
 		
@@ -870,7 +922,7 @@ function update_scroll()
 	if scroll<128 then
 		scroll+=scr_spd
 		pp.y-=scr_spd
-		pp.can_die=true
+		pp_can_die=true
 		shop.y-=scr_spd
 		for e in all(enemy)do
 			e.y-=scr_spd
@@ -1007,7 +1059,7 @@ function init_shop()
 	--printh("coins at shop "..b_num..": "..pp.coin)
 	
 	//shop stat 
-	pre_shop_coin=pp.coin //stat
+	pre_shop_coin=pp_coin //stat
 end
 
 function draw_shop()
@@ -1044,24 +1096,24 @@ function draw_shop()
 	
 	-- shop box
 	//if(shop.bought)return
-	if pp.shopping then
+	if pp_shopping then
 		draw_shopping()
 	elseif pp.y==shop.y+4 and
 				pp.x<shop.x and
 				pp.x>shop.x-20 then
 		draw_shop_ask()
-		pp.can_shop=true
+		pp_can_shop=true
 		if btnp(❎) and 
-					not pp.shopping and
+					not pp_shopping and
 					not shop.bought then
-			pp.shopping=true
+			pp_shopping=true
 			sfx(13)
 		else
 			shop.bought=false
 		end
 	else
-		if pp.can_shop then
-			pp.can_shop=false
+		if pp_can_shop then
+			pp_can_shop=false
 			shop.tm=20
 		end
 		draw_shop_yell()
@@ -1070,7 +1122,7 @@ end
 
 function update_shopping()
 	if btnp(🅾️) then
-		pp.shopping=false
+		pp_shopping=false
 		shop.tm=20
 		shop.err_tm=0
 		return
@@ -1082,18 +1134,18 @@ function update_shopping()
 	if btnp(❎) then
 		local i=shop.idx
 		if(i>0 and price_lvls[i]>4)return
-		if(i==0 and pp.new_biome)return
+		if(i==0 and pp_new_biome)return
 		//local p=b_prices[next_b_idx()]
 		local p=200
 		if i>0 then
 			p=prices[price_lvls[i]]
 		end
-		if pp.coin>=p then
+		if pp_coin>=p then
 			if(i>0)price_lvls[i]+=1
-			pp.coin-=p
+			pp_coin-=p
 			--printh("spent: "..p)
 			shop.bought=true
-			pp.shopping=false
+			pp_shopping=false
 			shop.tm=20
 			apply_upgrade(i)
 			sfx(13)
@@ -1115,21 +1167,21 @@ end
 
 function apply_upgrade(i)
 	if i==0 then
-		pp.new_biome=true
+		pp_new_biome=true
 		--printh("  on biome")
 	elseif i==1 then
 	-- +1 hearts
-		pp.hp_tanks+=1
-		pp.hp=pp.hp_tanks*4
+		pp_hp_tanks+=1
+		pp_hp=pp_hp_tanks*4
 		-- game_tm+=time_add_shop
 		--printh("  on heart")
 	elseif i==2 then
 	-- +1 water tank
-		pp.w_tanks+=1
+		pp_w_tanks+=1
 		--printh("  on tank")
 	elseif i==3 then
 	-- +1 bullet num
-		pp.bullet_num+=1
+		pp_bullet_num+=1
 		--printh("  on spread")
 	end
 end
@@ -1144,7 +1196,7 @@ function draw_shopping()
 		biome_order[b_idx].icon,
 		17,
 		30,
-		not pp.new_biome and 200 or nil,
+		not pp_new_biome and 200 or nil,
 		shop.idx==0)
 		
 	line(37,30,37,45,0)
@@ -1168,7 +1220,7 @@ function draw_shopping()
 			end
 	elseif shop.idx>0 and price_lvls[shop.idx]>4 then
 		print("sold out",52,50,7)
-	elseif shop.idx==0  and pp.new_biome then
+	elseif shop.idx==0  and pp_new_biome then
 		print("biome got",50,50,7)
 	else
 		local ll=shop.labels[shop.idx+1]
@@ -1385,13 +1437,13 @@ function draw_player()
 	local pdy=(pp.y-pp.h/2)+1
 	
 	if((b_num==6 and l_num==9) or b_num>6)pal(7,10)
-	if pp.can_die then 
+	if pp_can_die then 
 		pal(7,8)
 		pal(10,8)
 	end
-	spr(13,pdx,pdy,1,1,pp.drr==-1,false)
-	if pp.tm>0 then
-		spr(15,pdx,pdy,1,1,flr(pp.tm)%2==0,false)
+	spr(13,pdx,pdy,1,1,pp_drr==-1,false)
+	if pp_tm>0 then
+		spr(15,pdx,pdy,1,1,flr(pp_tm)%2==0,false)
 	else
 		spr(14,pdx,pdy)
 	end
@@ -1416,40 +1468,40 @@ end
 
 p_last_water=-1
 function update_player()	
-	if pp.hit>0 then
-		pp.hit-=1
-		if place_free(pp,pp.hit_dx,0) then
-			pp.x+=pp.hit_dx
+	if pp_hit>0 then
+		pp_hit-=1
+		if place_free(pp,pp_hit_dx,0) then
+			pp.x+=pp_hit_dx
 		end
-		if place_free(pp,0,pp.hit_dy) then
-			pp.y+=pp.hit_dy
+		if place_free(pp,0,pp_hit_dy) then
+			pp.y+=pp_hit_dy
 		end
-		if(pp.hit==3)set_hit()
+		if(pp_hit==3)set_hit()
 		return
 	end
 	
 	-- left/right movement
 	local move=false
 	if btn(⬅️) then
-		pp.drr=-1
+		pp_drr=-1
 		move=true
 	elseif btn(➡️) then
-		pp.drr=1
+		pp_drr=1
 		move=true
 	end
 	if move then
-		pp.tm+=0.2
-		if place_free(pp,1*pp.drr,0) then
-			pp.x+=pp.drr
+		pp_tm+=0.2
+		if place_free(pp,1*pp_drr,0) then
+			pp.x+=pp_drr
 		end
 	else
-		pp.tm=0
+		pp_tm=0
 	end
 	
 	-- vertical pointing
-	pp.drr_y=0
-	if(btn(⬆️))pp.drr_y=-1
-	if(btn(⬇️))pp.drr_y=1
+	pp_drr_y=0
+	if(btn(⬆️))pp_drr_y=-1
+	if(btn(⬇️))pp_drr_y=1
 	
 	player_jump()
 	player_fall()
@@ -1458,23 +1510,23 @@ function update_player()
 	--touch_time()
 	touch_hps()
 	
-	if(pp.w_tm>0)pp.w_tm-=1
+	if(pp_w_tm>0)pp_w_tm-=1
 	
 	if touch_water() and 
-				pp.w_tm==0 then
-		pp.w_tm=5
-		pp.water=min(
-			pp.water+1,
-			pp.w_tanks*3
+				pp_w_tm==0 then
+		pp_w_tm=5
+		pp_water=min(
+			pp_water+1,
+			pp_w_tanks*3
 		)
 	
-		if(pp.water%3==1)sfx(3)
-		if(pp.water%3==2)sfx(5)
+		if(pp_water%3==1)sfx(3)
+		if(pp_water%3==2)sfx(5)
 		if	p_last_water%3!=0 and
-					pp.water%3==0 then
+					pp_water%3==0 then
 			sfx(20)
 		end
-		p_last_water=pp.water
+		p_last_water=pp_water
 	end
 end
 
@@ -1485,173 +1537,172 @@ p_max_d=4
 p_accel=0.3
 function player_jump()
 	if btn(🅾️) then
-		if not pp.jump_press and 
-					(pp.jump<2 or 
-					flr(pp.water/3)>0) then
-			if pp.water>2 and pp.jump>=2 then
-				pp.water-=3
+		if not pp_jump_press and 
+					(pp_jump<2 or 
+					flr(pp_water/3)>0) then
+			if pp_water>2 and pp_jump>=2 then
+				pp_water-=3
 			end
-			pp.jump+=1
+			pp_jump+=1
 			jump_t=jump_t_max
 			add_sprinkles(pp.x,pp.y)
 			sfx(1)
 		end
-		pp.jump_press=true
+		pp_jump_press=true
 		if jump_t>0 then
-			pp.dy=-p_max
+			pp_dy=-p_max
 		end
 		jump_t=max(0,jump_t-1)
-	elseif pp.jump_press==true then
-		pp.jump_press=false
+	elseif pp_jump_press==true then
+		pp_jump_press=false
 		jump_t=0
 	end
 end
 
 function player_fall()
-	pp.dy=min(p_max_d,pp.dy+p_accel)
-	if pp.dy<0 then
-		if not place_free(pp,0,min(-1,pp.dy)) then
-			pp.dy=1
+	pp_dy=min(p_max_d,pp_dy+p_accel)
+	if pp_dy<0 then
+		if not place_free(pp,0,min(-1,pp_dy)) then
+			pp_dy=1
 			sfx(4)
 		end
-	elseif place_free(pp,0,max(1,pp.dy)) then
-		pp.landed=false
+	elseif place_free(pp,0,max(1,pp_dy)) then
+		pp_landed=false
 	else
-		if not pp.landed then
-			pp.jump=0
-			pp.can_die=false
+		if not pp_landed then
+			pp_jump=0
+			pp_can_die=false
 			add_stomp(pp.x,pp.y)
 			pp.y=(flr(pp.y/8)*8)+4
 			sfx(6)
 		end
-		pp.landed=true
-		pp.dy=0
+		pp_landed=true
+		pp_dy=0
 	end
-	pp.y+=pp.dy
+	pp.y+=pp_dy
 end
 
 function player_shoot()
 	if btn(❎) then
-		if(pp.shoot!=0)return
-		pp.shoot=4
+		if(pp_shoot!=0)return
+		pp_shoot=4
 		sfx(10)
-		local spread=(pp.bullet_num-1)*5
-		for i=0,pp.bullet_num-1 do
-			local bx=pp.x+(pp.bullet_size*pp.drr)
+		local spread=(pp_bullet_num-1)*5
+		for i=0,pp_bullet_num-1 do
+			local bx=pp.x+pp_drr
 			local by=(pp.y-spread/2)+i*5
-			local bdx,bdy=pp.drr*4,0
+			local bdx,bdy=pp_drr*4,0
 			
-			if pp.drr_y !=0 then
+			if pp_drr_y !=0 then
 				bx=(pp.x-spread/2)+i*5
-				by=pp.y+(pp.bullet_size*pp.drr_y)
-				bdx,bdy=0,pp.drr_y*4
+				by=pp.y+pp_drr_y
+				bdx,bdy=0,pp_drr_y*4
 			end
 			add_bullet(
 				bx,//x
 				by,//y
 				bdx,//dx
 				bdy,//dy
-				pp.bullet_dist,//tm
-				pp.bullet_size,//rad
+				pp_bullet_dist,//tm
 				12,//c
 				true,//p
 				false)//fall
 		end
 	end
-	if pp.shoot>0 then
-		pp.shoot-=1
+	if pp_shoot>0 then
+		pp_shoot-=1
 	end
 end
 
 function player_hit(x,y)
 	if hit>0 or 
-				pp.hit>0 or 
-				pp.can_die then
+				pp_hit>0 or 
+				pp_can_die then
 		return
 	end
 	-- pp.hp-=1
 -- 	game_tm-=time_loss
-	pp.hp-=2
-	pp.hit=5
+	pp_hp-=2
+	pp_hit=5
 	//set_hit()
 	if x>=pp.x then
-		pp.hit_dx=-2
+		pp_hit_dx=-2
 	else
-		pp.hit_dx=2
+		pp_hit_dx=2
 	end
 	if y>=pp.y then
-		pp.hit_dy=-2
+		pp_hit_dy=-2
 	else
-		pp.hit_dy=2
+		pp_hit_dy=2
 	end
 	sfx(16)
 end
 
 function player_dead()
-	if pp.d_tm0<3 then
-		pp.d_tm0+=0.1
+	if pp_d_tm0<3 then
+		pp_d_tm0+=0.1
 	else
-		pp.d_tm1+=0.01
+		pp_d_tm1+=0.01
 	end
 	//elseif pp.d_cntr then
 	//	pp.d_tm1+=0.01
 	//end
-	if pp.d_cntr==false then
-		pp.d_cntr=true
+	if pp_d_cntr==false then
+		pp_d_cntr=true
 		if flr(pp.x) != 64 then
-			pp.d_cntr=false
+			pp_d_cntr=false
 			pp.x+=sgn(64-pp.x)*0.5
 		end
 		if flr(pp.y) != 84 then
-			pp.d_cntr=false
+			pp_d_cntr=false
 			pp.y+=sgn(84-pp.y)*0.5
 		end
 	else
-		pp.y+=sin(pp.d_tm1)*0.4
+		pp.y+=sin(pp_d_tm1)*0.4
 	end
 	
 	if btnp(❎) then
-		if pp.d_tm1>0.5 then
+		if pp_d_tm1>0.5 then
 			reset()
-		elseif not pp.cntr then
-			pp.cntr=true
+		elseif not pp_cntr then
+			pp_cntr=true
 			pp.x=64
 			pp.y=84
-			pp.d_tm1=0.1
-		elseif pp.d_tm1<0.5 then
-			pp.d_tm1=0.6
+			pp_d_tm1=0.1
+		elseif pp_d_tm1<0.5 then
+			pp_d_tm1=0.6
 		end
 	end
 end
 
 function draw_player_dead()
-	spr(100+flr(pp.d_tm0),
+	spr(100+flr(pp_d_tm0),
 		pp.x-4,pp.y-4)
 		
 	print("~game over~",42,12,5)
 	print("~game over~",42,11,7)
 	
 	-- totals
-	if pp.d_tm1>0.1 then
+	if pp_d_tm1>0.1 then
 		print("~totals~",48,29,5)
 		print("~totals~",48,28,7)
 	end
 	-- total coins
-	if pp.d_tm1>0.2 then
+	if pp_d_tm1>0.2 then
 		print("coins:",43,39,5)
 		print("coins:",43,38,7)
-		print(pp.coin,70,39,9)
-		print(pp.coin,70,38,10)
+		print(pp_coin,70,39,9)
+		print(pp_coin,70,38,10)
 	end
 	-- total enemies
-	if pp.d_tm1>0.3 then
+	if pp_d_tm1>0.3 then
 		print("enemies:",35,49,5)
 		print("enemies:",35,48,7)
 		print(total_enim,70,49,2)
 		print(total_enim,70,48,8)
 	end
 	-- total perfects
-	if pp.d_tm1>0.4 then
+	if pp_d_tm1>0.4 then
 		print("perfects:",31,59,5)
 		print("perfects:",31,58,7)
 		print(total_perf,70,59,13)
@@ -1671,7 +1722,7 @@ function draw_player_dead()
 	end
 	]]--
 	-- total biomes
-	if pp.d_tm1>0.5 then
+	if pp_d_tm1>0.5 then
 		print("biomes:",39,69,5)
 		print("biomes:",39,68,7)
 		print(b_num,70,69,3)
@@ -1688,7 +1739,7 @@ function touch_coin()
 		if col_bb(pp,c) then
 					
 			del(coins,c)
-			pp.coin+=c.val
+			pp_coin+=c.val
 			cur_lvl_cns+=c.val
 			--total_coin+=c.val
 			add_flare(pp.x,pp.y,c.val)
@@ -1696,13 +1747,13 @@ function touch_coin()
 			if #coins==0 then
 				perfect=1
 				total_perf+=1
-				pp.coin+=cur_lvl_cns
+				pp_coin+=cur_lvl_cns
 				--total_coin+=cur_lvl_cns
 				sfx(2)
 			else
-				if c.val==val_green then
+				if c.val==5 then
 					sfx(17)
-				elseif c.val==val_red then
+				elseif c.val==10 then
 					sfx(18)
 				else
 					sfx(12)
@@ -1720,7 +1771,7 @@ function touch_hps()
 	for h in all(hps)do
 		if col_bb(pp,h) then
 			del(hps,h)
-			pp.hp=min(pp.hp+1,pp.hp_tanks*4)
+			pp_hp=min(pp_hp+1,pp_hp_tanks*4)
 			sfx(22)
 		end
 	end
@@ -1799,24 +1850,51 @@ function init_level()
 	add_terrain()
 	add_coins()
 	add_bats()
-	--[[
-	add_blobs()
-	if(cb.name=="desert")add_cacti()
-	if(cb.name=="dark")add_flame_s()
-	]]--
-	--add_times()
-	-- 0 = blb
-	-- 1 = cac
-	-- 2 = ice
-	-- 3 = blb 2
-	-- 4 = flm
-	-- 5 = god
-	if(b_num>6)extra_e=rand(0,5)
-	--printh("ex "..extra_e)
+
+	--extra_e=-1
+	extra_cac=false
+	extra_mush=false
+	extra_sword=false
+	extra_beam=false
+	extra_ice=false
+	
+	if b_num>12 then
+		--extra_e=rand(0,2)
+		if(chance(70))extra_cac=true
+		if(chance(70))extra_mush=true
+		if(chance(70))extra_sword=true
+		if(chance(30))extra_ice=true
+		if(chance(30))extra_beam=true
+	elseif b_num>6 then
+		local r=rand(0,4)
+		
+		--if r<3 then
+		--	extra_e=r
+		if r==0 then
+			extra_cac=true
+		elseif r==1 then
+			extra_mush=true
+		elseif r==2 then
+			extra_sword=true
+		elseif r==3 then
+			extra_ice=true
+		else
+			extra_beam=true
+		end
+	end
+	--printh("extra e "..extra_e)
+	--printh("extra i "..(extra_ice and "y" or "n"))
+	--printh("extra b "..(extra_beam and "y" or "n"))
+	--printh(" ")
 	local es={add_blob}
-	if(cb.name=="desert" or extra_e==1)add(es,add_cacti)
-	if(cb.name=="dark" or extra_e==4)add(es,add_flame_s)
-	if(cb.name=="fungi" or extra_e==3)add(es,add_blob_2)
+	--[[
+	if(cb.name=="desert" or extra_e==0)add(es,add_cacti)
+	if(cb.name=="dark" or extra_e==1)add(es,add_flame_s)
+	if(cb.name=="fungi" or extra_e==2)add(es,add_blob_2)
+	]]--
+	if(cb.name=="desert" or extra_cac)add(es,add_cacti)
+	if(cb.name=="dark" or extra_mush)add(es,add_flame_s)
+	if(cb.name=="fungi" or extra_sword)add(es,add_blob_2)
 	if l_num>4 or b_num>12 then
 		for nyse=0,mid(0,flr(b_num/6)-1,5)do
 			--
@@ -1994,44 +2072,36 @@ end
 
 function add_coins()
 	coins={}
-	--[[
-		ryan:
-		min level coin value
-	]]--
-	local min_v=rand(12,20)
-	--printh("adding "..coin_n)
-	--printh("min v "..min_v)
-	--local t_v=0
+
+	local low,high=12,30
+	if b_num>6 then
+		low,high=25,45
+	end
+	local min_v=rand(low,high)
+
 	while min_v>0 do
 		local ri,rj=rand(0,15),rand(0,14)
 		if level[rj][ri]==0 then
 			level[rj][ri]=-1
-			local v=1			
+			local v=1
+			local red,green=13,30
+			if b_num>6 then
+				red,green=20,50
+			end
 			local c=rand(1,100)
-			--[[
-				ryan:
-				red coin probability
-			]]--
-			if c<=9 then
+			if c<=red then
 				v=10
-			--[[
-				ryan:
-				green coin probability
-			]]--
-			elseif c<=19 then
+			elseif c<=green then
 				v=5
 			end
 			min_v-=v
-			t_v+=v
 			
 			add(coins,{
 				x=ri*8+4,y=rj*8+4,w=8,h=8,
 				tm=0,val=v
 			})
-			--printh("adding coin with val "..v)
 		end
 	end
-	--printh("  total v "..t_v)
 end
 
 function draw_coins()
@@ -2058,6 +2128,11 @@ end
 -- general
 function draw_enemies()
 	for e in all(enemy)do
+		if e.hit_t!=nil and e.hit_t>0 then
+			for i=0,15 do
+				pal(i,7)
+			end
+		end
 		if(e.tp=="blob")draw_blob(e)
 		if(e.tp=="bat")draw_bat(e)
 		if(e.tp=="cactus")draw_cactus(e)
@@ -2065,6 +2140,7 @@ function draw_enemies()
 		if(e.tp=="flame")draw_flame(e)
 		if(e.tp=="flame_s")draw_flame_s(e)
 		if(e.tp=="beam")draw_beam(e)
+		pal()
 	end
 end
 
@@ -2079,9 +2155,10 @@ function update_enemies()
 		if(e.tp=="flame")update_flame(e)
 		if(e.tp=="flame_s")update_flame_s(e)
 		if(e.tp=="beam")update_beam(e)
+		if(e.hit_t!=nil and e.hit_t>0)e.hit_t-=1
 	end
-	if((cb.name=="ice" or extra_e==2) and chance(2))add_icicles()
-	if((cb.name=="heaven" or extra_e==5) and chance(1))add_beam()
+	if((cb.name=="ice" or extra_ice) and chance(2))add_icicles()
+	if((cb.name=="heaven" or extra_beam) and chance(1))add_beam()
 end
 
 function damage_enemy(e)
@@ -2090,6 +2167,7 @@ function damage_enemy(e)
 	if(e.hp==nil)return
 	
 	e.hp-=1
+	e.hit_t=5
 	if e.hp<=0 then
 		-- add_flare(b.x,b.y,time_add_blob)
 		add_hps(e.x,e.y,e.hpc)
@@ -2136,7 +2214,8 @@ function add_blob_hp(hp)
 		tm=0,hp=hp,
 		dark=hp==3,
 		shoot=false,
-		hpc=10
+		hpc=10,
+		hit_t=0
 	})
 end
 
@@ -2170,7 +2249,7 @@ function update_blob(b)
 		b.shoot=true
 		add_bullet(
 			b.x,b.y,0,-6,
-			100,1,15,
+			100,15,
 			false,true)
 		--[[
 		add_bullet(
@@ -2212,7 +2291,8 @@ function add_bats()
 					oy=rj*8,
 					tm=0,hp=2,
 					ytm=0,xtm=0,
-					hpc=10
+					hpc=10,
+					hit_t=0
 				})
 				--y=((bt.j*8)+4)+128,
 			end
@@ -2272,7 +2352,7 @@ function update_bat(b)
 				b.x+(dx*2),
 				b.y+(dy*2),
 				dx,dy,
-				100,1,14,false,false)
+				100,14,false,false)
 			sfx(19)
 		end
 	end
@@ -2289,7 +2369,8 @@ function add_cacti()
 		w=8,h=8,
 		tm=0,hp=2,
 		shoot=false,
-		hpc=10
+		hpc=10,
+		hit_t=0
 	})
 end	
 
@@ -2314,11 +2395,11 @@ function update_cactus(c)
 		c.shoot=true
 		add_bullet(
 			c.x,c.y,2,-5,
-			100,1,11,
+			100,11,
 			false,true)
 		add_bullet(
 			c.x,c.y,-2,-5,
-			100,1,11,
+			100,11,
 			false,true)
 		sfx(19)
 	elseif flr(c.tm)%8!=0 then
