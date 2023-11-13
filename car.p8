@@ -2,9 +2,9 @@ pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
 px,py=0,0
-vx,vy=0,0
-pts={}
 ang=0.25
+dftx,dfty=0,0
+spd=0
 camx,camy=0,0
 
 gear=1
@@ -26,50 +26,44 @@ gears={
 	}
 }
 rpm=0 //[0,1]
-spd=0
-turn=0
-grip=0
 
-pts_1={
-	{530,-330},
-	{530,230},
-	{470,230},
-	{470,300},
-	{430,430},
-	{300,460}
-}
+turn=0
+turn_actual=0 //debug
+grip=0
 
 skids={}
 
+wheels={
+	{-3,-5,true},//fl
+	{3,-5,true},	//fr
+	{-3,5,true},	//rl
+	{3,5,true}   //rr
+}
+
 function rot(x,y)
-	local a=ang+0.25
 	x-=px
 	y-=py
-	local rx=x*cos(a)-y*sin(a)
-	local ry=x*sin(a)+y*cos(a)
+	local rx,ry=rot_pt(x,-y,-ang+0.25)
 	rx+=camx+64
 	ry+=camy+115
 	return rx,ry
 end
 
+function rot_pt(x,y,a)
+	local rx=x*cos(a)+y*sin(a)
+	local ry=x*sin(a)-y*cos(a)
+	return rx,ry
+end
+
+function dist(x1,y1,x2,y2)
+ local a0,b0=abs(x1-x2),abs(y1-y2)
+ return max(a0,b0)*0.9609+min(a0,b0)*0.3984
+end
+
 function _init()
 	printh("=== start ===")
-	//add(pts,{-20,-20})
-	//add(pts,{20,-20})
-	//add(pts,{20,20})
-	//add(pts,{-20,20})
-	//add(pts,{530,-330})
-	
-	--[[
-	for i=0,100 do
-		add(pts,{i*100,20})
-		add(pts,{i*100,-20})
-	end
-	]]--
-	
-	for p in all(pts_1) do
-		add(pts,p)
-	end
+
+	create_track()
 	
 	px=pts[1][1]
 	py=pts[1][2]
@@ -77,17 +71,26 @@ end
 
 function _draw()
 	cls()
-	camx=px-64
-	camy=py-115
+	camx=flr(px-64)
+	camy=flr(py-115)
 	camera(camx,camy)
 	
 	--points
 	for i=1,#pts do
-		local p1=pts[i]
-		local p2=pts[(i%#pts)+1]
-		local x1,y1=rot(p1[1],p1[2])
-		local x2,y2=rot(p2[1],p2[2])
-		line(x1,y1,x2,y2,7)
+		local cp1=crnrs[i]
+		local cp2=crnrs[(i%#crnrs)+1]
+		local cx1,cy1=rot(cp1[1],cp1[2])
+		local cx2,cy2=rot(cp2[1],cp2[2])
+		
+		local ap1=apexs[i]
+		local ap2=apexs[(i%#apexs)+1]
+		local ax1,ay1=rot(ap1[1],ap1[2])
+		local ax2,ay2=rot(ap2[1],ap2[2])
+		
+		line(cx1,cy1,cx2,cy2,7)
+		line(ax1,ay1,ax2,ay2,7)
+		ppx,ppy=rot(pts[i][1],pts[i][2])
+		pset(ppx,ppy,8)
 	end
 	
 	--skids
@@ -97,20 +100,65 @@ function _draw()
 	end
 	
 	-- player
-	rect(px-3,py-5,px+3,py+5)
-	//rect(px-5,py-5,px-7,py-3)
+	rect(px-3,py-5,px+3,py+5,7)
+	for w in all(wheels)do
+		pset(px-w[1],py+w[2],
+			w[3] and 11 or 8)
+	end
 	
 	-- debug
-	print("ang:"..ang,camx,camy)
+	print("ang:"..ang,camx,camy,7)
 	print("x,y:"..px..","..py,camx,camy+8)
 	print("spd:"..spd,camx,camy+16)
-	
+	print("trn:"..turn,camx,camy+24)
+	print("grp:"..grip,camx,camy+32)
+	print("turn a:"..turn_actual,camx,camy+40)
+	print("dft:"..dftx.." "..dfty,camx,camy+48)
+			
 	-- map
 	rect(camx,camy+100,camx+28,camy+127,7)
-	mx=((px+50)/1100)*28
-	my=((py+50)/1400)*28
+	
+	for i=1,#pts do
+		local cur=pts[i]
+		local nxt=pts[i%#pts+1]
+			
+		local cx,cy=cur[1],cur[2]
+		local nx,ny=nxt[1],nxt[2]
+		line(
+			camx+((cx+500)/1000)*28,
+			camy+100+((cy+500)/1000)*28,
+			camx+((nx+500)/1000)*28,
+			camy+100+((ny+500)/1000)*28,
+			14)
+	end
+	
+	--debug
+	for t in all(tris) do
+		//if t[5] then
+			for i=1,3 do
+				local cur=t[i]
+				local nxt=t[i%3+1]
+			
+				local cx,cy=cur[1],cur[2]
+				local nx,ny=nxt[1],nxt[2]
+				line(
+					camx+((cx+500)/1000)*28,
+					camy+100+((cy+500)/1000)*28,
+					camx+((nx+500)/1000)*28,
+					camy+100+((ny+500)/1000)*28,
+					11)
+					
+				cx,cy=rot(cur[1],cur[2])
+				nx,ny=rot(nxt[1],nxt[2])
+				line(cx,cy,nx,ny,t[5]and 11or 1)
+			end
+		//end
+	end
+	
+	mx=((px+500)/1000)*28
+	my=((py+500)/1000)*28
 	mx2=mx+cos(ang)
-	my2=my-sin(ang)
+	my2=my+sin(ang)
 	pset(camx+mx,camy+100+my,7)
 	pset(camx+mx2,camy+100+my2,9)
 	
@@ -123,6 +171,14 @@ function _draw()
 		7)
 	print(gear,camx+115,camy+106,7)
 
+	--speed
+	circ(camx+90,camy+122,10,7)
+	a=(spd/200)*0.8+0.3
+	line(camx+90,camy+122,
+		camx+90+cos(a)*5,
+		camy+122+sin(-a)*5,
+		7)
+
 	--turn
 	rect(camx+54,camy+122,camx+74,camy+127)
 	rectfill(camx+64,camy+123,
@@ -130,10 +186,16 @@ function _draw()
 	line(camx+64,camy+125,
 		camx+64+10*grip,camy+125,11)
 	line(camx+64,camy+125,
-		camx+64-9*grip,camy+125,11)		
+		camx+64-9*grip,camy+125,11)	
 end
 
+on_track_lf=true
 function _update()
+	--reset triangles
+	for t in all(tris) do
+		t[5]=false
+	end
+	
 	local last_g=gear
 	if(btnp(❎))gear=min(5,gear+1)
 	if(btnp(🅾️))gear=max(1,gear-1)
@@ -176,36 +238,202 @@ function _update()
 		turn=max(0,turn-0.05)
 	end
 	
-	local fx=cos(ang)*spd/60
-	local fy=sin(ang)*spd/60
+	-- forward vel
+	local fx=cos(ang)*spd/30
+	local fy=sin(ang)*spd/30
 	
-	local dx,dy=0,0
-	grip=1-((spd-80)/300)
-	//printh(grip)
-	local slip=abs(turn)-grip
-	// printh(slip)
-	if slip>0 then
-		spd=max(0,spd-0.1)
-		dx=cos(ang-0.5*sgn(turn))*slip*spd/60
-		dy=sin(ang-0.5*sgn(turn))*slip*spd/60
-		printh(slip.." "..dx.." "..dy)
+	grip=min(1,1-((spd-80)/300))
+	
+	local car_on_track=true
+	for i=1,#wheels do
+		local w=wheels[i]
+		w[3]=true
+
+		local rx,ry=rot_pt(w[1],w[2],ang+0.25)
+		
+		if not on_track(px+rx,py+ry) then
+			grip-=0.15
+			w[3]=false
+			car_on_track=false
+		end
+	end
+	//on_track(px,py)
+	
+	-- drift vel
+	dftx,dfty=0,0
+	if abs(turn)>grip then
 		add(skids,{px,py})
-		ang=(ang+turn*0.001)%1
-	elseif spd>0 then
-		ang=(ang+turn*0.01)%1
+		dftx=cos(ang+0.25*abs(turn)*sgn(turn))*1
+		dfty=sin(ang+0.25*abs(turn)*sgn(turn))*1
 	end
 	
-	vx=fx+dx
-	vy=fy+dy
+	turn_actual=turn*grip
+	ang=(ang-turn*grip*0.01)%1
+		
+	px+=fx+dftx
+	py+=fy+dfty
 	
-	px+=vx
-	py-=vy
-	
+	on_track_lf=car_on_track
 	
 	local off=flr(rpm*23)*5
 	sfx(flr(off/30),0,off%30)
 	sfx(flr(off/30)+5,1,off%30)
 end
+-->8
+-- track
+
+crnrs={}
+apexs={}
+tris={}
+
+pts={
+	{-100,100},
+	{-100,0},// start
+	{-100,-100},//start chicane
+	{0,-100},
+	{0,-200},
+	{40,-240},
+	{150,-240},
+	{400,-210},
+	{400,200},
+	{370,300},
+	{300,300},
+	{270,270},
+	{270,200},
+	{230,170},
+	{200,170}
+}
+--[[
+pts={
+	{-100,-100},
+	{100,-100},
+	{100,100},
+	{-100,100}
+}
+]]--
+
+function create_track()
+	-- calculate corners and apexes
+	for i=1,#pts do
+	
+		local prv=pts[i==1 and #pts or i-1]
+		local cur=pts[i]
+		local nxt=pts[i%#pts+1]
+			
+		local px,py=prv[1],prv[2]
+		local cx,cy=cur[1],cur[2]
+		local nx,ny=nxt[1],nxt[2]
+		
+		local a=atan2(nx-px,ny-py)
+		local amtx=abs(30/cos(a+0.25))
+		local amty=abs(30/sin(a+0.25))
+		//amtx,amty=30,30
+		add(crnrs,{
+			flr(cx+cos(a+0.25)*amtx),
+			flr(cy+sin(a+0.25)*amty)
+		})
+		amtx=abs(30/cos(a+0.75))
+		amty=abs(30/sin(a+0.75))
+		//amtx,amty=30,30
+		add(apexs,{
+			flr(cx+cos(a+0.75)*amtx),
+			flr(cy+sin(a+0.75)*amty)
+		})	
+	end
+	
+	-- calculate triangles
+	for i=1,#crnrs do
+		local cur_c=crnrs[i]
+		local cur_p=apexs[i]
+		local nxt_c=crnrs[i%#crnrs+1]
+		local nxt_p=apexs[i%#apexs+1]
+		local pt=pts[i]
+		printh(pt[1].." "..pt[2])
+		
+	//	local 
+		
+		add(tris,{
+			{cur_c[1],cur_c[2]},
+			{nxt_c[1],nxt_c[2]},
+			{cur_p[1],cur_p[2]},
+			{pt[1],pt[2]},//center
+			{false} //debug
+		})
+		add(tris,{
+			{nxt_c[1],nxt_c[2]},
+			{nxt_p[1],nxt_p[2]},
+			{cur_p[1],cur_p[2]},
+			{pt[1],pt[2]},//center
+			{false} //debug
+		})
+	end
+end
+
+function on_track(x,y)
+	local found=false
+	for t in all(tris)do
+		local d=dist(px,py,t[4][1],t[4][2])
+		if d<300 and 
+					pt_in_tri(x,y,t) then
+			//printh(d)
+			t[5]=true //debug
+			//return true
+			found=true
+		end
+	end
+	return found
+end
+
+
+function pt_in_tri(x,y,tr)
+	local p0x,p0y=tr[1][1],tr[1][2]
+	local p1x,p1y=tr[2][1],tr[2][2]
+	local p2x,p2y=tr[3][1],tr[3][2]
+	
+	local dx=x-p2x
+	local dy=y-p2y
+	local dx21=p2x-p1x
+	local dy12=p1y-p2y
+	local d=dy12*(p0x-p2x)+dx21*(p0y-p2y)
+	local s=dy12*dx+dx21*dy
+	local t=(p2y-p0y)*dx+(p0x-p2x)*dy
+	if d<0 then
+		return s<=0 and t<=0 and s+t>=d
+	end
+	
+	return s>=0 and t>=0 and s+t<=d
+end
+
+
+--1839
+--[[
+function pt_in_tri(x,y,tr)
+	local p1x,p1y=tr[1][1],tr[1][2]
+	local p2x,p2y=tr[2][1],tr[2][2]
+	local p3x,p3y=tr[3][1],tr[3][2]
+	
+	local d1=sign(x,y,p1x,p1y,p2x,p2y)
+	local d2=sign(x,y,p2x,p2y,p3x,p3y)
+	local d3=sign(x,y,p3x,p3y,p1x,p1y)
+	
+	local neg=(d1<0)or(d2<0)or(d3<0)
+	local pos=(d1>0)or(d2>0)or(d3>0)
+	
+	if not(neg and pos) then
+		//printh("n "..(neg and "y" or "n"))
+		//printh("p "..(pos and "y" or "n"))
+		return true
+	end
+	
+	return false
+end
+
+function sign(p1x,p1y,p2x,p2y,p3x,p3y)
+	local v=(p1x-p3x)*(p2y-p3y)-(p2x-p3x)*(p1y-p3y)
+	//printh("v "..v)
+	return v
+end
+]]--
 __gfx__
 00000000550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
