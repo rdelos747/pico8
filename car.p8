@@ -9,23 +9,27 @@ camx,camy=0,0
 
 gear=1
 gears={
-	{
+	{// n
+		min=0,max=0,acc=0.03
+	},
+	{// 1
 		min=0,max=40,acc=0.03
 	},
-	{
+	{// 2
 		min=0,max=80,acc=0.02
 	},
-	{
-		min=35,max=120,acc=0.01
+	{// 3
+		min=25,max=120,acc=0.01
 	},
-	{
-		min=100,max=150,acc=0.006
+	{// 4
+		min=50,max=150,acc=0.006
 	},
-	{
-		min=120,max=200,acc=0.004
+	{// 5
+		min=100,max=200,acc=0.004
 	}
 }
 rpm=0 //[0,1]
+//acc=0.03
 
 turn=0
 turn_actual=0 //debug
@@ -40,26 +44,6 @@ wheels={
 	{3,5,true}   //rr
 }
 
-function rot(x,y)
-	x-=px
-	y-=py
-	local rx,ry=rot_pt(x,-y,-ang+0.25)
-	rx+=camx+64
-	ry+=camy+115
-	return rx,ry
-end
-
-function rot_pt(x,y,a)
-	local rx=x*cos(a)+y*sin(a)
-	local ry=x*sin(a)-y*cos(a)
-	return rx,ry
-end
-
-function dist(x1,y1,x2,y2)
- local a0,b0=abs(x1-x2),abs(y1-y2)
- return max(a0,b0)*0.9609+min(a0,b0)*0.3984
-end
-
 function _init()
 	printh("=== start ===")
 
@@ -71,6 +55,116 @@ end
 
 function _draw()
 	cls()
+	draw_pov()	
+end
+
+on_track_lf=true
+function _update()
+	--reset triangles
+	for t in all(tris) do
+		t[5]=false
+	end
+	
+	local last_gear=gear
+	if(btnp(❎))gear=min(#gears,gear+1)
+	if(btnp(🅾️))gear=max(1,gear-1)
+	local g=gears[gear]
+	
+	-- tie rpm to speed
+	if gear>1 then
+		rpm=(spd-g.min)/(g.max-g.min)
+	end
+	
+	--throttle
+	if btn(⬆️) then
+		rpm=min(1,rpm+g.acc)
+		if gear>1 then
+			//hack but w/e
+			spd=max(spd,1)
+		end
+	else		
+		rpm=max(0,rpm-g.acc)
+	end
+	
+	--only accel if proper gear
+	if spd>g.min and spd<=g.max then
+		spd=(g.max-g.min)*rpm+g.min
+	else
+		spd=max(0,spd-1)
+	end
+	
+	--break
+	if btn(⬇️) then
+		spd=max(0,spd-2)
+	end
+	
+	--bad shifts
+	if rpm>1 then
+		printh("bad downshift")
+		rpm=1
+	elseif rpm<=0 and gear>1 then
+		printh("stall")
+		rpm=0
+	end
+		
+	last_gear=gear
+		
+	if btn(⬅️) then
+		turn=max(-1,turn-0.1)
+	elseif btn(➡️) then
+		turn=min(1,turn+0.1)
+	elseif turn<0 then
+		turn=min(0,turn+0.05)
+	elseif turn>0 then
+		turn=max(0,turn-0.05)
+	end
+	
+	-- forward vel
+	local fx=cos(ang)*spd/30
+	local fy=sin(ang)*spd/30
+	
+	grip=min(1,1-((spd-80)/300))
+	
+	local car_on_track=true
+	for i=1,#wheels do
+		local w=wheels[i]
+		w[3]=true
+
+		local rx,ry=rot_pt(w[1],w[2],ang+0.25)
+		
+		if not on_track(px+rx,py+ry) then
+			grip-=0.15
+			w[3]=false
+			car_on_track=false
+		end
+	end
+	//on_track(px,py)
+	
+	-- drift vel
+	dftx,dfty=0,0
+	if abs(turn)>grip then
+		add(skids,{px,py})
+		dftx=cos(ang+0.25*abs(turn)*sgn(turn))*1
+		dfty=sin(ang+0.25*abs(turn)*sgn(turn))*1
+	end
+	
+	turn_actual=turn*grip
+	ang=(ang-turn*grip*0.01)%1
+
+	px+=fx+dftx
+	py+=fy+dfty
+	
+	on_track_lf=car_on_track
+	
+	local off=flr(rpm*23)*5
+	sfx(flr(off/30),0,off%30)
+	sfx(flr(off/30)+5,1,off%30)
+end
+
+-->8
+-- draw
+
+function draw_pov()
 	camx=flr(px-64)
 	camy=flr(py-115)
 	camera(camx,camy)
@@ -141,12 +235,14 @@ function _draw()
 			
 				local cx,cy=cur[1],cur[2]
 				local nx,ny=nxt[1],nxt[2]
-				line(
-					camx+((cx+500)/1000)*28,
-					camy+100+((cy+500)/1000)*28,
-					camx+((nx+500)/1000)*28,
-					camy+100+((ny+500)/1000)*28,
-					11)
+				if t[5] then
+					line(
+						camx+((cx+500)/1000)*28,
+						camy+100+((cy+500)/1000)*28,
+						camx+((nx+500)/1000)*28,
+						camy+100+((ny+500)/1000)*28,
+						11)
+				end
 					
 				cx,cy=rot(cur[1],cur[2])
 				nx,ny=rot(nxt[1],nxt[2])
@@ -169,7 +265,8 @@ function _draw()
 		camx+116+cos(a)*5,
 		camy+122+sin(-a)*5,
 		7)
-	print(gear,camx+115,camy+106,7)
+	print(gear>1 and gear-1 or "n",
+		camx+115,camy+106,7)
 
 	--speed
 	circ(camx+90,camy+122,10,7)
@@ -178,6 +275,8 @@ function _draw()
 		camx+90+cos(a)*5,
 		camy+122+sin(-a)*5,
 		7)
+	print(flr(spd),
+		camx+85,camy+106,7)
 
 	--turn
 	rect(camx+54,camy+122,camx+74,camy+127)
@@ -186,98 +285,7 @@ function _draw()
 	line(camx+64,camy+125,
 		camx+64+10*grip,camy+125,11)
 	line(camx+64,camy+125,
-		camx+64-9*grip,camy+125,11)	
-end
-
-on_track_lf=true
-function _update()
-	--reset triangles
-	for t in all(tris) do
-		t[5]=false
-	end
-	
-	local last_g=gear
-	if(btnp(❎))gear=min(5,gear+1)
-	if(btnp(🅾️))gear=max(1,gear-1)
-	
-	local g=gears[gear]
-	
-	rpm=(spd-g.min)/(g.max-g.min)
-	if rpm > 1 then
-		printh("bad downshift")
-		rpm=1
-	elseif rpm < 0 then
-		printh("bad upshift")
-		rpm=0
-	end
-	
-	if btn(⬇️) then
-		// breaking
-		spd=max(0,spd-2)
-		printh("breaking")
-	else
-		if btn(⬆️) then
-			rpm=min(1,rpm+g.acc)
-		else
-			rpm=max(0,rpm-g.acc)
-			//spd=max(0,spd-0.01)
-		end
-	end
-	
-	if spd>=g.min then
-		spd=(g.max-g.min)*rpm+g.min
-	end
-	
-	if btn(⬅️) then
-		turn=max(-1,turn-0.1)
-	elseif btn(➡️) then
-		turn=min(1,turn+0.1)
-	elseif turn<0 then
-		turn=min(0,turn+0.05)
-	elseif turn>0 then
-		turn=max(0,turn-0.05)
-	end
-	
-	-- forward vel
-	local fx=cos(ang)*spd/30
-	local fy=sin(ang)*spd/30
-	
-	grip=min(1,1-((spd-80)/300))
-	
-	local car_on_track=true
-	for i=1,#wheels do
-		local w=wheels[i]
-		w[3]=true
-
-		local rx,ry=rot_pt(w[1],w[2],ang+0.25)
-		
-		if not on_track(px+rx,py+ry) then
-			grip-=0.15
-			w[3]=false
-			car_on_track=false
-		end
-	end
-	//on_track(px,py)
-	
-	-- drift vel
-	dftx,dfty=0,0
-	if abs(turn)>grip then
-		add(skids,{px,py})
-		dftx=cos(ang+0.25*abs(turn)*sgn(turn))*1
-		dfty=sin(ang+0.25*abs(turn)*sgn(turn))*1
-	end
-	
-	turn_actual=turn*grip
-	ang=(ang-turn*grip*0.01)%1
-		
-	px+=fx+dftx
-	py+=fy+dfty
-	
-	on_track_lf=car_on_track
-	
-	local off=flr(rpm*23)*5
-	sfx(flr(off/30),0,off%30)
-	sfx(flr(off/30)+5,1,off%30)
+		camx+64-9*grip,camy+125,11)
 end
 -->8
 -- track
@@ -348,7 +356,7 @@ function create_track()
 		local nxt_c=crnrs[i%#crnrs+1]
 		local nxt_p=apexs[i%#apexs+1]
 		local pt=pts[i]
-		printh(pt[1].." "..pt[2])
+		//printh(pt[1].." "..pt[2])
 		
 	//	local 
 		
@@ -372,12 +380,16 @@ end
 function on_track(x,y)
 	local found=false
 	for t in all(tris)do
-		local d=dist(px,py,t[4][1],t[4][2])
-		if d<300 and 
-					pt_in_tri(x,y,t) then
-			//printh(d)
+		local close=false
+		for i=1,4 do
+			if dist(px,py,
+							t[i][1],t[i][2])
+						<250 then
+				close=true
+			end
+		end
+		if close and pt_in_tri(x,y,t) then
 			t[5]=true //debug
-			//return true
 			found=true
 		end
 	end
@@ -434,6 +446,29 @@ function sign(p1x,p1y,p2x,p2y,p3x,p3y)
 	return v
 end
 ]]--
+-->8
+--util
+
+function rot(x,y)
+	x-=px
+	y-=py
+	local rx,ry=rot_pt(x,-y,-ang+0.25)
+	rx+=camx+64
+	ry+=camy+115
+	return rx,ry
+end
+
+function rot_pt(x,y,a)
+	local rx=x*cos(a)+y*sin(a)
+	local ry=x*sin(a)-y*cos(a)
+	return rx,ry
+end
+
+function dist(x1,y1,x2,y2)
+ local a0,b0=abs(x1-x2),abs(y1-y2)
+ return max(a0,b0)*0.9609+min(a0,b0)*0.3984
+end
+
 __gfx__
 00000000550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
