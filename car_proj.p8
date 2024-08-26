@@ -1,24 +1,20 @@
 pico-8 cartridge // http://www.pico-8.com
-version 32
+version 42
 __lua__
 carx=0
 cary=0
 wheels={
-	{-4,-4,true},
-	{4,-4,true},
-	{-5,4,true},
-	{5,4,true}
+	{-2,-3,true},
+	{2,-3,true},
+	{-3,3,true},
+	{3,3,true}
 }
-ang=0.75
+ang=0.25
 
-pts={}
-crnrs,crnr_segs={}
-apexs,apex_segs={}
-tris={}
-
---car dimensions
---len: 4.0 meters
---wid: 2.0 meters (6 to scale)
+//pts={}
+//crnr_segs={}
+//apex_segs={}
+//tris={}
 
 --track dimensions
 --wid: 16 meters
@@ -56,6 +52,8 @@ rpm=0
 spd=0
 turn=0
 
+uitf=0 --ui time fast
+
 function _init()
 	printh("=====start=====")
 	create_track()
@@ -66,12 +64,16 @@ end
 function _draw()
 	cls()
 	draw_pov()
-	print(carx.." "..cary,camx+80,camy,7)
-	print(rpm,camx+80,camy+8,7)
-	draw_hud()
-	draw_map()
+	print(flr(carx).." "..flr(cary),camx,camy,7)
+	//print(rpm,camx+80,camy+8,7)
+	//draw_hud()
+	//draw_map()
+	//draw_top_down()
+	print("secx "..secx,camx,camy+8,7)
+	print("secy "..secy,camx,camy+16,7)
 end
 
+secx,secy=0,0
 function _update()
 --[[
 	if btn(⬆️) then
@@ -85,10 +87,17 @@ function _update()
 	if(btn(⬅️))ang+=0.01
 	if(btn(➡️))ang-=0.01
 	]]--
-	for t in all(tris) do
-		t[5]=false
-	end
+	uitf=(uitf+0.5)%30
+	
+	for i=-10,10 do
+	for j=-10,10 do
+		for t in all(tris[i][j]) do
+			t[5]=false
+		end
+	end end
 	update_car()
+	
+	secx,secy=flr(carx/100),flr(cary/100)
 end
 -->8
 -- pov
@@ -100,11 +109,17 @@ function draw_pov()
 	
 	rectfill(
 		camx,camy+64,
-		camx+127,camy+127,1)
-		
-	draw_segs(apex_segs)
-	draw_segs(crnr_segs)
+		camx+127,camy+127,3)
 	
+	for i=max(-10,secx-1),min(10,secx+1)do
+	for j=max(-10,secy-1),min(10,secy+1)do
+	
+		//draw_tris(tris[i][j])
+	
+		draw_segs(apex_segs[i][j])
+		draw_segs(crnr_segs[i][j])
+	end end
+		
 	--[[
 	currently based on the pov
 	constants, the pov scale
@@ -118,10 +133,10 @@ function draw_pov()
 		local wx=wheels[i][1]
 		local wy=wheels[i][2]
 		local wt=wheels[i][3]
-		local cwx=carx-wx
+		local cwx=carx-wx-pov_o*sgn(wx)
 		local cwy=cary+wy
 		rect(cwx,cwy,
-			cwx-2*sgn(wx),cwy-4,
+			cwx-5*sgn(wx),cwy-8,
 			wt and 6 or 9)
 		pset(cwx,cwy,7)
 	end
@@ -130,50 +145,109 @@ function draw_pov()
 		local wx=wheels[i][1]
 		local wy=wheels[i][2]
 		local wt=wheels[i][3]
-		local cwx=carx-wx
+		local cwx=carx-wx-pov_o*sgn(wx)
 		local cwy=cary+wy
 		rect(cwx,cwy,
-			cwx-3*sgn(wx),cwy-6,
+			cwx-7*sgn(wx),cwy-10,
 			wt and 6 or 9)
 		pset(cwx,cwy,7)
 	end
 end
 
-function draw_segs(v)
+function draw_segs(v,c_d)
+	pset(camx,camy,12)
 	local c=0
-	for i=1,#v do
-		local p=v[i]
-		local px,py=pov(p[1],p[2])
-		if px!=nil and py<camy+128 then
-				local p2=v[i%#v+1]
-				local p2x,p2y=pov(p2[1],p2[2])
-				if p2x!=nil then
-					line(px,py,p2x,p2y,
-						7+c%2)
-				end
-			end
+	for i=1,#v-2 do
+		local p=v[i]		
+		local px,py,t,ry=pov(p[1],p[2])
+		
+		local p2=v[i+1]
+		local p2x,p2y=pov(p2[1],p2[2])
+
+		line(px,py,p2x,p2y,
+			t and 9 or 7+c%2)
+		if t then
+			print(ry,
+				max(camx,px),
+				min(camy+120,py),
+				13+c%2)
+		end
 		c+=1
 	end
 end
 
-function pov(x,y)	
+function draw_tris(v)
+	for t in all(v) do
+		local p1x,p1y,t1=pov(t[1][1],t[1][2])
+		local p2x,p2y,t2=pov(t[2][1],t[2][2])
+		local p3x,p3y,t2=pov(t[3][1],t[3][2])
+		
+		local tt=t1 or t2 or t3
+		//if p1x!=nil and 
+		//			p2x!=nil and 
+		//			p3x!=nil then
+			//p01_triangle_163(
+			//p01_triangle_335(
+			//azufasttri(
+			//azulocalfast(
+			pelogen_tri(
+				p1x,p1y,
+				p2x,p2y,
+				p3x,p3y,tt and 1 or 1)
+		//end 
+	end
+end
+
+function pov(x,y,debug)	
 	local dx=x-carx+pov_o*cos(ang)
 	local dy=y-cary+pov_o*sin(ang)
 	
 	local rx,ry=rot(
 		dx,-dy,-ang+0.25)
 		
-	rx*=(pov_h/max(abs(ry),1))
-	rx+=camx+pvt_x
+	//return rx,ry
 	
+	//rx*=pov_h/max(abs(ry),1)
+	//rx+=camx+pvt_x
+	
+	if(abs(ry)<0.1)ry=1*sgn(ry)
 	ry=-(pov_v/ry)
-	if ry>64 or ry<0 then
-		return nil
+	--ry>0 is infront
+	--ry<0 is behind
+	--[[
+	for some reason:
+	- ry increases as it gets to
+			the bottom of the screen.
+	- when it hits the bottom,
+			around 64, its sign flips.
+	]]--
+	
+	//local ryy=0
+	
+	//=(00/10)=0
+	
+	//rx*=(abs(ry)/10)*1
+	//rx=(10/ry)*rx*1
+	
+	local ryy=ry
+
+	local test=false
+	if ry<0 then
+		test=true
+		//printh((ry+64))
+		rx*=((ry+1000)/10)*1
+		ry*=-1
+		ry+=camy+128
+		//rx*=-1
 	else
+		rx*=(abs(ry)/10)*1
 		ry+=camy+64
 	end
 	
-	return rx,ry
+	//rx*=(abs(ry)/10)*1
+	rx+=camx+pvt_x
+	
+	return rx,ry,test,ryy
 end
 
 function rot(x,y,a)
@@ -187,30 +261,52 @@ function dist(x1,y1,x2,y2)
  return max(a0,b0)*0.9609+min(a0,b0)*0.3984
 end
 
-function draw_top_down()
-	rectfill(camx,camy,
-		camx+40,camy+40,0)
-	rect(camx,camy,
-		camx+40,camy+40,7)
-		
-	local a=-ang+0.25
+function draw_top_down()		
+	local a=-ang+0.75
 	
-	for i=1,#pts do
-		local cp1=crnrs[i]
-		local cp2=crnrs[(i%#crnrs)+1]
-		local cx1,cy1=rot(cp1[1],cp1[2],a)
-		local cx2,cy2=rot(cp2[1],cp2[2],a)
-		line(cx1,cy1,cx2,cy2,7)
-		
-		local ap1=apexs[i]
-		local ap2=apexs[(i%#apexs)+1]
-		local ax1,ay1=rot(ap1[1],ap1[2],a)
-		local ax2,ay2=rot(ap2[1],ap2[2],a)
-			line(ax1,ay1,ax2,ay2,7)
+	for i=max(-10,secx-1),min(10,secx+1)do
+	for j=max(-10,secy-1),min(10,secy+1)do
+		for t in all(tris[i][j]) do
+			for i=1,3 do
+				local cur=t[i]
+				local nxt=t[i%3+1]
+							
+				local cx,cy=rot(
+					cur[1]-carx,
+					-(cur[2]-cary),
+					a)
+				local nx,ny=rot(
+					nxt[1]-carx,
+					-(nxt[2]-cary),
+					a)
+				line(
+					camx-cx+64,
+					camy-cy+64,
+					camx-nx+64,
+					camy-ny+64,
+					t[5] and 7 or 5)
+			end
+		end
+	end end
+	
+	--wheels
+	for i=1,2 do
+		local wx=wheels[i][1]
+		local wy=wheels[i][2]
+		local wt=wheels[i][3]
+		local cwx=camx+wx
+		local cwy=camy+wy
+		pset(cwx+64,cwy+64,11)
 	end
 	
-	pset(camx+20,camy+20,11)
-	//pset(camx+20-1
+	for i=3,4 do
+		local wx=wheels[i][1]
+		local wy=wheels[i][2]
+		local wt=wheels[i][3]
+		local cwx=camx+wx
+		local cwy=camy+wy
+		pset(cwx+64,cwy+64,11)
+	end
 end
 
 function draw_map()
@@ -256,6 +352,24 @@ function draw_map()
 			]]--
 			end
 		//end
+	end
+end
+
+--trifill
+function pelogen_tri(l,t,c,m,r,b,col,f)
+	color(col)
+	fillp(f)
+	if(t>m) l,t,c,m=c,m,l,t
+	if(t>b) l,t,r,b=r,b,l,t
+	if(m>b) c,m,r,b=r,b,c,m
+	local i,j,k,r=(c-l)/(m-t),(r-l)/(b-t),(r-c)/(b-m),l
+	while t~=b do
+		for t=ceil(t),min(flr(m),512) do
+			rectfill(l,t,r,t)
+			r+=j
+			l+=i
+		end
+		l,t,m,i=c,m,b,k
 	end
 end
 
@@ -310,47 +424,31 @@ function update_car()
 	--break
 	local breaking=false
 	if btn(⬇️) then
+		// this is too fast breaking
 		spd=max(0,spd-1.1)
 		breaking=true
 	end
 	
 	--bad shifts
 	if rpm>1 then
-		printh("bad downshift")
+		printh("money shift")
 		rpm=1
+		--[[
+		todo: punishment for money
+		shifting
+		if the money shift is over
+		some percent...
+		else, just let it happen
+		]]--
 	elseif rpm<0 and gear>1 then
 		printh("stall")
 		rpm=0
 	end
-	
-	//on_track(carx,cary)
-	
-	local car_on_track=true
-	for i=1,#wheels do
-		local w=wheels[i]
-		w[3]=true
-
-		local rx,ry=rot(
-			w[1],w[2],ang+0.25)
 		
-		if not on_track(carx+rx,cary+ry) then
-			grip-=0.15
-			w[3]=false
-			car_on_track=false
-		end
-	end
-	
-	--[[
-	this should change from just
-	grip to under vs over steer.
-	or at least, at low speeds
-	its under and high its over??
-	]]--
-	
 	--turning
-	local tamt=0.1
+	local tamt=0.05
 	if spd>150 then
-		tamt=0.2
+		tamt=0.1
 	end
 	if btn(⬅️) then
 		turn=max(-1,turn-tamt)
@@ -364,7 +462,23 @@ function update_car()
 	
 	turn_actual=turn
 	grip=min(1,1-((spd-80)/300))
-	dftx,dfty=0,0
+	//dftx,dfty=0,0
+	
+	for i=1,#wheels do
+		local w=wheels[i]
+		w[3]=true
+
+		local rx,ry=rot(
+			w[1],w[2],ang+0.25)
+		
+		if not on_track(carx+rx,cary+ry) then
+			grip=max(0,grip-0.15)
+			w[3]=false
+			if spd>50 then
+				spd-=0.5
+			end
+		end
+	end
 	
 	--[[
 	ok so this is feeling alright.
@@ -387,20 +501,20 @@ function update_car()
 			//turn_actual=0
 			//dftx=cos(ang+0.0*abs(turn)*sgn(turn))*1
 			//dfty=sin(ang+0.0*abs(turn)*sgn(turn))*1
-		else
-		
-			//turn_actual=grip*sgn(turn)	
+		else	
 		end
 	end
 
-	ang=(ang-turn_actual*grip*0.01)%1
+	if spd>0 then
+		ang=(ang-turn_actual*0.01)%1
+	end
 	
 	//1 k/h ~= 0.278 m/s
 	local fx=cos(ang)*spd*0.278/30
 	local fy=sin(ang)*spd*0.278/30
 	
-	carx+=fx+dftx
-	cary+=fy+dfty
+	carx+=fx//+dftx
+	cary+=fy//+dfty
 end
 -->8
 -- hud
@@ -409,7 +523,7 @@ function draw_hud()
 	--tach
 	local x,y=camx+20,camy+115
 	circfill(x,y,15,0)
-	circ(x,y,15,6)
+	circ(x,y,15,rpm==1 and 8 or rpm>0.85 and flr(uitf)%2==0 and 8 or 7)
 	local a=rpm*0.8+0.3
 	line(x+cos(a)*4,y+sin(-a)*4,
 		x+cos(a)*12,y+sin(-a)*12,7)
@@ -420,6 +534,9 @@ function draw_hud()
 	x,y=camx+108,camy+115
 	circfill(x,y,15,0)
 	circ(x,y,15,6)
+	a=spd/gears[#gears].max*0.8+0.3
+	line(x+cos(a)*4,y+sin(-a)*4,
+		x+cos(a)*12,y+sin(-a)*12,7)
 	print(spd,x,y,7)
 	
 	--turn
@@ -468,16 +585,26 @@ pts_base={
 ]]--
 
 function create_track()
-	apexs=create_outer(
-		pts_base,0.75)
+	local pt_segs=create_segs(
+		pts_base,false,20)
+	
+	local apexs=create_outer(
+		pt_segs,0.75)
 		
-	crnrs=create_outer(
-		pts_base,0.25)
+	local crnrs=create_outer(
+		pt_segs,0.25)
 		
-	create_tris()
-		
-	apex_segs=create_segs(apexs)
-	crnr_segs=create_segs(crnrs)
+	tris=create_tris(
+		pt_segs,
+		crnrs,
+		apexs)
+	
+	apex_segs=create_segs(apexs,true)
+	crnr_segs=create_segs(crnrs,true)
+	//printh(#apex_segs)
+	//printh(#crnr_segs)
+	
+	//create_map(pts_base)
 end
 
 function create_outer(pts,v)
@@ -503,8 +630,14 @@ function create_outer(pts,v)
 	return out
 end
 
-function create_segs(pts)
+function create_segs(pts,is_map,v)
+	if(v==nil)v=10
+	
 	local out={}
+	if is_map then
+		out=create_map()
+	end
+	
 	for i=1,#pts do
 		local cur=pts[i]
 		local nxt=pts[i%#pts+1]
@@ -512,16 +645,32 @@ function create_segs(pts)
 		local cx,cy=cur[1],cur[2]
 		local nx,ny=nxt[1],nxt[2]
 		
+		local sex=flr(cx/100)
+		local sey=flr(cy/100)
+		
 		local a=atan2(nx-cx,ny-cy)
 		local go=true
 		local px,py=cx,cy
-		add(out,{cx,cy})
+		
+		if is_map then
+			add(out[sex][sey],{cx,cy})
+		else
+			add(out,{cx,cy})
+		end
+		
 		while go do
 			local d=dist(px,py,nx,ny)
-			if d>10 then
-				px+=10*cos(a)
-				py+=10*sin(a)
-				add(out,{px,py})
+			if d>v then
+				px+=v*cos(a)
+				py+=v*sin(a)
+				//add(out,{px,py})
+				
+				if is_map then
+					add(out[sex][sey],{px,py})
+				else
+					add(out,{px,py})
+				end
+				
 			else
 				go=false
 			end
@@ -531,22 +680,27 @@ function create_segs(pts)
 	return out
 end
 
-function create_tris()
-	for i=1,#crnrs do
-		local cur_c=crnrs[i]
-		local cur_p=apexs[i]
-		local nxt_c=crnrs[i%#crnrs+1]
-		local nxt_p=apexs[i%#apexs+1]
-		local pt=pts_base[i]
+function create_tris(pts,crnr,apex)
+	out=create_map()
+	
+	for i=1,#crnr do
+		local cur_c=crnr[i]
+		local cur_p=apex[i]
+		local nxt_c=crnr[i%#crnr+1]
+		local nxt_p=apex[i%#apex+1]
+		local pt=pts[i]
 		
-		add(tris,{
+		local cx=flr(pt[1]/100)
+		local cy=flr(pt[2]/100)
+		
+		add(out[cx][cy],{
 			{cur_c[1],cur_c[2]},
 			{nxt_c[1],nxt_c[2]},
 			{cur_p[1],cur_p[2]},
 			{pt[1],pt[2]},//center
 			false //debug
 		})
-		add(tris,{
+		add(out[cx][cy],{
 			{nxt_c[1],nxt_c[2]},
 			{nxt_p[1],nxt_p[2]},
 			{cur_p[1],cur_p[2]},
@@ -554,11 +708,29 @@ function create_tris()
 			false //debug
 		})
 	end
+	return out
+end
+
+function create_map()
+	local out={}
+	for i=-10,10 do
+		local row={}
+		for j=-10,10 do
+			row[j]={}
+		end
+		out[i]=row
+	end
+	return out
 end
 
 function on_track(x,y)
 	local found=false
-	for t in all(tris)do
+	local cx=flr(x/100)
+	local cy=flr(y/100)
+	
+	for i=max(-10,cx-1),min(10,cx+1)do
+	for j=max(-10,cy-1),min(10,cy+1)do
+	for t in all(tris[i][j])do
 		local close=false
 		for i=1,4 do
 			if dist(carx,cary,
@@ -572,6 +744,7 @@ function on_track(x,y)
 			found=true
 		end
 	end
+	end end
 	return found
 end
 
