@@ -8,24 +8,51 @@ ang=0.25 // pointing up
 pvt_x=64
 pvt_y=100
 
-pov_h=70 	--horizontal angle?
-pov_v=500 --vertical angle
+//pov_h=70 	--horizontal angle?
+//pov_v=500 --vertical angle
 pov_o=13  --offset (hack?)
 
-pts={
-	{-30,-30},
-	{30,-30},
-	{-30,0},
-	{30,0}
-	//{-30,30},
-	//{30,30},
+pts_l={
+{14,-200},
+{14,-170},
+{14,-150},
+{14,-110},
+	{14,-70},
+	{14,-30},
+	{14,-10},
+	{14,0},
+}
+
+pts_r={
+{-14,-200},
+{-14,-170},
+{-14,-150},
+{-14,-110},
+	{-14,-70},
+	{-14,-30},
+	{-14,-10},
+	{-14,0},
 }
 
 
 function _init()
+	printh("===== start =====")
 	//-pvt_y+(36-500/(de))
+	--[[
 	v=-100+(36-500/1)
 	printh(v)
+	]]--
+	lastv=0
+	for i=10,-10,-1 do
+		local fy=1-(500/i)
+		//dist=500-i*10
+		//vvv=(dist)/500
+		//vvv=500/dist
+		//vvv/=2
+		//d=vvv-lastv
+		//lastv=vvv
+		printh(comb_a({i,fy,fy/i}))
+	end
 end
 
 function _draw()
@@ -65,10 +92,15 @@ function _update()
 	end
 end
 
-function rot(x,y,a)
-	local rx=x*cos(a)+y*sin(a)
-	local ry=x*sin(a)-y*cos(a)
-	return rx,ry
+function comb_a(arr,t)
+	if(t==nil)t=" "
+	local s=arr[1]
+	if #arr>1 then
+		for i=2,#arr do
+			s=s..t..arr[i]
+		end
+	end
+	return s
 end
 -->8
 -- draw functions
@@ -76,25 +108,41 @@ function draw_pt(x,y,info,clamp)
 	if(clamp==nil)clamp=false
 	if clamp then
 		y=mid(camy,y,camy+121)
+		x=mid(camx,x,camx+120)
 	end
 	pset(x,y,11)
+	--[[
 	for i=1,#info do
 		s=info[i]
 		print(s,x,y+2+(i-1)*7,7)
 	end
+	]]--
+	print(
+		comb_a(info),
+		x,y,7)
 end
 
 
 function draw_top_down()
 	pset(camx+64,camy+64,8)
-	for p in all(pts) do
+	for p in all(pts_l) do
 		local cx,cy=rot(
 			p[1]-px,-(p[2]-py),-ang+0.75)
 		
 		draw_pt(
 			camx-cx+64,
 			camy-cy+64,
-			{p[1],p[2],cy})
+			{cy})
+	end
+	
+	for p in all(pts_r) do
+		local cx,cy=rot(
+			p[1]-px,-(p[2]-py),-ang+0.75)
+		
+		draw_pt(
+			camx-cx+64,
+			camy-cy+64,
+			{cy})
 	end
 end
 
@@ -103,50 +151,116 @@ function draw_pov()
 		camx,camy+64,
 		camx+127,camy+127,1)
 		
-	for p in all(pts) do
-		local povx,povy,ry=pov(p[1],p[2])
-		
-		draw_pt(
-			camx-povx,
-			camy-povy,
-			//{p[1].." "..p[2],ry,povy})
-			{ry.." "..povy},true)
-	end
+	draw_pov_secs(pts_l)
+	draw_pov_secs(pts_r)
 	
 	pset(camx+pvt_x,camy+pvt_y,8)
 end
 
+function draw_pov_secs(arr)
+	for i=1,#arr do
+		local p1=arr[i]
+		
+		local povx1,povy1,ry1,de1,fy1,fx1=pov(p1[1],p1[2])
+		
+		if i<#arr then
+			local p2=arr[i+1]
+			local povx2,povy2=pov(p2[1],p2[2])
+		
+			line(povx1,povy1,povx2,povy2,5)
+		end
+		
+		
+		draw_pt(
+			povx1,
+			povy1,
+			//{})
+			//{p[1].." "..p[2],ry,povy})
+			//{ry1.." "..de1.." "..povx1},true)
+			//{ry1,f1,povx},true)
+			{povx1,povy1},true)
+	end
+end
+-->8
+--pov
+
+--[[
+computes the point of view
+projection of points relative
+to the player and camera
+]]--
 function pov(x,y)
 	local dx=x-px//-pov_o*cos(ang)
 	local dy=y-py//-pov_o*sin(ang)
 	
 	--points after top-down roation
 	local rx,ry=rot(
-		dx,-dy,-ang+0.75)
-	//rx+=pov_o*cos(ang+0.75)
-	//ry+=pov_o*sin(ang+0.75)
-//	if(abs(ry)<0.1)ry=1*sgn(ry)
-	
+		dx,-dy,-ang+0.75)	
 	--ry>0: points infront of player
 	--ry<0: points behind player
 
-	local povx,povy=rx,ry
+	//local povx,povy=rx,ry
 	
-	//ry=ry
-	//if(abs(ry)<0.1)ry=1*sgn(ry)
-	local de=ry+pov_o
-	if(abs(de)<0.1)de=1*sgn(de)
-	povy=-pvt_y+(36-500/(abs(de)))
-	//povy-=pov_o
+	local de=max(0.1,ry+pov_o)
+	--deminator for algo below.
+	--if de=0, lua freaks out
+	--if de<0, values wrap to top of screen,
+	-- so just cap at min 0.1
 	
 	
-	//				(64-0 ) == 64
-	//				(64-32) == 32
-	//    (64-64) == 0
+	local far=500
+	--how far in the distance points
+	-- appraoch.
+	--lower values are faster,
+	--higher values are slower
+	--[[
+	local ryh=500-(500-ry)
+	
+	povy=max(
+		-pvt_y+((pvt_y-64)-far/(de)),
+		-128
+	)
+	]]--
+	//	local ff=(500-ry)/500
+	//local ff=500/(500-ry)
+	//local ff=1-(500/ry)
+	//local povy=ry*(ff)
+	local fy=1-(500/de)
+	local povy=(pvt_y-64)+fy
+	povy-=pvt_y
+	--y point on screen after distance
+	-- factored in.
+	--its basically how far from the
+	-- top of the screen to render the
+	-- y coord. 
+	--note: (pvt_y-64) is the horizon 
+	-- relative to the pivot y coord.
 
+	//local povx=rx*min(60/de,7.5)//-pov_o*cos(ang)
+	//povx=(rx*(max(0,64-de)))/50
+	//local fx=(500-ry)
+	//local povx=(rx/fx)
+	//local povx=rx*ff/2
+	//local povx=ff/(rx*2)
+	local fx=max((64-ry)/64,0)
+	//xfx*=(fx/de*10)
+	local povx=rx*fx
+	//povx/=500
+	//povx*=(100/max(ry,0.1))
+	//povx*=((500-ry)/500)
 	povx-=pvt_x
 	
-	return povx,povy,ry
+
+	return camx-povx,camy-povy,ry,de,fy,fx
+	--return values relative to camera,
+	-- just to save tokens later
+
+end
+
+function rot(x,y,a)
+	local rx=x*cos(a)+y*sin(a)
+	local ry=x*sin(a)-y*cos(a)
+	return rx,ry
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

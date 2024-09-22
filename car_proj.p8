@@ -21,8 +21,8 @@ ang=0.25
 
 pvt_x=64
 pvt_y=100
-pov_h=70 	--horizontal angle?
-pov_v=500 --vertical angle
+pov_h=50 	--pov hov?
+pov_d=500 --pov distance
 pov_o=13  --offset (hack?)
 
 t_wid=14 -- half track width
@@ -66,7 +66,7 @@ function _draw()
 	draw_pov()
 	print(flr(carx).." "..flr(cary),camx,camy,7)
 	//print(rpm,camx+80,camy+8,7)
-	//draw_hud()
+	draw_hud()
 	//draw_map()
 	//draw_top_down()
 	print("secx "..secx,camx,camy+8,7)
@@ -114,7 +114,7 @@ function draw_pov()
 	for i=max(-10,secx-1),min(10,secx+1)do
 	for j=max(-10,secy-1),min(10,secy+1)do
 	
-		//draw_tris(tris[i][j])
+		draw_tris(tris[i][j])
 	
 		draw_segs(apex_segs[i][j])
 		draw_segs(crnr_segs[i][j])
@@ -136,7 +136,7 @@ function draw_pov()
 		local cwx=carx-wx-pov_o*sgn(wx)
 		local cwy=cary+wy
 		rect(cwx,cwy,
-			cwx-5*sgn(wx),cwy-8,
+			cwx-4*sgn(wx),cwy-8,
 			wt and 6 or 9)
 		pset(cwx,cwy,7)
 	end
@@ -177,6 +177,7 @@ function draw_segs(v,c_d)
 end
 
 function draw_tris(v)
+	c=0
 	for t in all(v) do
 		local p1x,p1y,t1=pov(t[1][1],t[1][2])
 		local p2x,p2y,t2=pov(t[2][1],t[2][2])
@@ -194,60 +195,30 @@ function draw_tris(v)
 				p1x,p1y,
 				p2x,p2y,
 				p3x,p3y,tt and 1 or 1)
-		//end 
+				//p3x,p3y,1+c%2)
+		//end
+		c+=1
 	end
 end
 
-function pov(x,y,debug)	
-	local dx=x-carx+pov_o*cos(ang)
-	local dy=y-cary+pov_o*sin(ang)
+function pov(x,y)
+	local dx=x-carx
+	local dy=y-cary
 	
 	local rx,ry=rot(
-		dx,-dy,-ang+0.25)
-		
-	//return rx,ry
+		dx,-dy,-ang+0.75)	
 	
-	//rx*=pov_h/max(abs(ry),1)
-	//rx+=camx+pvt_x
+	local de=max(0.1,ry+pov_o)
 	
-	if(abs(ry)<0.1)ry=1*sgn(ry)
-	ry=-(pov_v/ry)
-	--ry>0 is infront
-	--ry<0 is behind
-	--[[
-	for some reason:
-	- ry increases as it gets to
-			the bottom of the screen.
-	- when it hits the bottom,
-			around 64, its sign flips.
-	]]--
+	local povy=max(
+		-pvt_y+((pvt_y-64)-pov_d/(de)),
+		-128
+	)
 	
-	//local ryy=0
+	local povx=rx*min(60/de,7.5)
+	povx-=pvt_x
 	
-	//=(00/10)=0
-	
-	//rx*=(abs(ry)/10)*1
-	//rx=(10/ry)*rx*1
-	
-	local ryy=ry
-
-	local test=false
-	if ry<0 then
-		test=true
-		//printh((ry+64))
-		rx*=((ry+1000)/10)*1
-		ry*=-1
-		ry+=camy+128
-		//rx*=-1
-	else
-		rx*=(abs(ry)/10)*1
-		ry+=camy+64
-	end
-	
-	//rx*=(abs(ry)/10)*1
-	rx+=camx+pvt_x
-	
-	return rx,ry,test,ryy
+	return camx-povx,camy-povy//,true,rx
 end
 
 function rot(x,y,a)
