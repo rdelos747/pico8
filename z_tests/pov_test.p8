@@ -110,7 +110,7 @@ function draw_pt(x,y,info,clamp)
 		y=mid(camy,y,camy+121)
 		x=mid(camx,x,camx+120)
 	end
-	pset(x,y,11)
+	pset(x,y,12)
 	--[[
 	for i=1,#info do
 		s=info[i]
@@ -119,12 +119,11 @@ function draw_pt(x,y,info,clamp)
 	]]--
 	print(
 		comb_a(info),
-		x,y,7)
+		x+1,y,7)
 end
 
 
 function draw_top_down()
-	pset(camx+64,camy+64,8)
 	for p in all(pts_l) do
 		local cx,cy=rot(
 			p[1]-px,-(p[2]-py),-ang+0.75)
@@ -144,6 +143,9 @@ function draw_top_down()
 			camy-cy+64,
 			{cy})
 	end
+	
+	pset(camx+64,camy+64+pov_o,8)
+	pset(px+0,py+0,11)
 end
 
 function draw_pov()
@@ -161,7 +163,7 @@ function draw_pov_secs(arr)
 	for i=1,#arr do
 		local p1=arr[i]
 		
-		local povx1,povy1,ry1,de1,fy1,fx1=pov(p1[1],p1[2])
+		local povx1,povy1,ry1,de1=pov(p1[1],p1[2])
 		
 		if i<#arr then
 			local p2=arr[i+1]
@@ -178,7 +180,7 @@ function draw_pov_secs(arr)
 			//{p[1].." "..p[2],ry,povy})
 			//{ry1.." "..de1.." "..povx1},true)
 			//{ry1,f1,povx},true)
-			{povx1,povy1},true)
+			{ry1,povy1},true)
 	end
 end
 -->8
@@ -201,6 +203,7 @@ function pov(x,y)
 
 	//local povx,povy=rx,ry
 	
+	//local de=max(0.1,ry+pov_o)
 	local de=max(0.1,ry+pov_o)
 	--deminator for algo below.
 	--if de=0, lua freaks out
@@ -208,26 +211,16 @@ function pov(x,y)
 	-- so just cap at min 0.1
 	
 	
-	local far=500
+	local pov_d=500
 	--how far in the distance points
 	-- appraoch.
 	--lower values are faster,
 	--higher values are slower
-	--[[
-	local ryh=500-(500-ry)
-	
-	povy=max(
-		-pvt_y+((pvt_y-64)-far/(de)),
+
+	local povy=max(
+		-pvt_y+((pvt_y-64)-pov_d/(de)),
 		-128
 	)
-	]]--
-	//	local ff=(500-ry)/500
-	//local ff=500/(500-ry)
-	//local ff=1-(500/ry)
-	//local povy=ry*(ff)
-	local fy=1-(500/de)
-	local povy=(pvt_y-64)+fy
-	povy-=pvt_y
 	--y point on screen after distance
 	-- factored in.
 	--its basically how far from the
@@ -236,22 +229,10 @@ function pov(x,y)
 	--note: (pvt_y-64) is the horizon 
 	-- relative to the pivot y coord.
 
-	//local povx=rx*min(60/de,7.5)//-pov_o*cos(ang)
-	//povx=(rx*(max(0,64-de)))/50
-	//local fx=(500-ry)
-	//local povx=(rx/fx)
-	//local povx=rx*ff/2
-	//local povx=ff/(rx*2)
-	local fx=max((64-ry)/64,0)
-	//xfx*=(fx/de*10)
-	local povx=rx*fx
-	//povx/=500
-	//povx*=(100/max(ry,0.1))
-	//povx*=((500-ry)/500)
+	local povx=rx*min(60/de,7.5)
 	povx-=pvt_x
-	
 
-	return camx-povx,camy-povy,ry,de,fy,fx
+	return camx-povx,camy-povy,ry,de
 	--return values relative to camera,
 	-- just to save tokens later
 

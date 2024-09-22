@@ -11,11 +11,6 @@ wheels={
 }
 ang=0.25
 
-//pts={}
-//crnr_segs={}
-//apex_segs={}
-//tris={}
-
 --track dimensions
 --wid: 16 meters
 
@@ -91,7 +86,7 @@ function _update()
 	
 	for i=-10,10 do
 	for j=-10,10 do
-		for t in all(tris[i][j]) do
+		for t in all(r_tris[i][j]) do
 			t[5]=false
 		end
 	end end
@@ -114,10 +109,12 @@ function draw_pov()
 	for i=max(-10,secx-1),min(10,secx+1)do
 	for j=max(-10,secy-1),min(10,secy+1)do
 	
-		draw_tris(tris[i][j])
-	
-		draw_segs(apex_segs[i][j])
-		draw_segs(crnr_segs[i][j])
+		draw_tris(r_tris[i][j],1)
+		
+		draw_tris(a_tris[i][j],12)
+		
+		draw_tris(c_tris[i][j],12)
+		//draw_tris(c_tris[i][j],12)
 	end end
 		
 	--[[
@@ -176,14 +173,15 @@ function draw_segs(v,c_d)
 	end
 end
 
-function draw_tris(v)
-	c=0
+function draw_tris(v,c)
+	//c=0
 	for t in all(v) do
+		c=t[5]
 		local p1x,p1y,t1=pov(t[1][1],t[1][2])
 		local p2x,p2y,t2=pov(t[2][1],t[2][2])
 		local p3x,p3y,t2=pov(t[3][1],t[3][2])
 		
-		local tt=t1 or t2 or t3
+		//local tt=t1 or t2 or t3
 		//if p1x!=nil and 
 		//			p2x!=nil and 
 		//			p3x!=nil then
@@ -194,10 +192,10 @@ function draw_tris(v)
 			pelogen_tri(
 				p1x,p1y,
 				p2x,p2y,
-				p3x,p3y,tt and 1 or 1)
+				p3x,p3y,c)
 				//p3x,p3y,1+c%2)
 		//end
-		c+=1
+		//`c+=1
 	end
 end
 
@@ -559,27 +557,51 @@ function create_track()
 	local pt_segs=create_segs(
 		pts_base,false,20)
 	
-	local apexs=create_outer(
-		pt_segs,0.75)
+	local apexs_1=create_outer(
+		pt_segs,0.75,t_wid)
+	local apexs_2=create_outer(
+		pt_segs,0.75,t_wid+1)
 		
-	local crnrs=create_outer(
-		pt_segs,0.25)
+	local crnrs_1=create_outer(
+		pt_segs,0.25,t_wid)
+	local crnrs_2=create_outer(
+		pt_segs,0.25,t_wid+1)
 		
-	tris=create_tris(
+	r_tris=create_tris(
 		pt_segs,
-		crnrs,
-		apexs)
+		crnrs_1,
+		apexs_1)
 	
-	apex_segs=create_segs(apexs,true)
-	crnr_segs=create_segs(crnrs,true)
+	local apex_segs_1=create_segs(
+		apexs_1,false)
+	local apex_segs_2=create_segs(
+		apexs_2,false)
+		
+	a_tris=create_tris(
+		apex_segs_1,
+		apex_segs_1,
+		apex_segs_2)
+		
+	local crnr_segs_1=create_segs(
+		crnrs_1,false)
+	local crnr_segs_2=create_segs(
+		crnrs_2,false)
+	
+	c_tris=create_tris(
+		crnr_segs_1,
+		crnr_segs_1,
+		crnr_segs_2)
+		
+	
 	//printh(#apex_segs)
 	//printh(#crnr_segs)
 	
 	//create_map(pts_base)
 end
 
-function create_outer(pts,v)
+function create_outer(pts,v,wid)
 	local out={}
+	local last_a=nil
 	for i=1,#pts do
 	
 		local prv=pts[i==1 and #pts or i-1]
@@ -591,11 +613,19 @@ function create_outer(pts,v)
 		local nx,ny=nxt[1],nxt[2]
 		
 		local a=atan2(nx-px,ny-py)
-		local amtx=abs(t_wid/cos(a+v))
-		local amty=abs(t_wid/sin(a+v))
+		//printh(a)
+		local dff=0
+		if last_a!=nil then
+			dff=abs(a-last_a)
+			printh(dff)
+		end
+		last_a=a
+		local amtx=abs(wid/cos(a+v))
+		local amty=abs(wid/sin(a+v))
 		add(out,{
 			flr(cx+cos(a+v)*amtx),
-			flr(cy+sin(a+v)*amty)
+			flr(cy+sin(a+v)*amty),
+			dff>0
 		})
 	end
 	return out
@@ -609,6 +639,7 @@ function create_segs(pts,is_map,v)
 		out=create_map()
 	end
 	
+	local c=1
 	for i=1,#pts do
 		local cur=pts[i]
 		local nxt=pts[i%#pts+1]
@@ -623,10 +654,18 @@ function create_segs(pts,is_map,v)
 		local go=true
 		local px,py=cx,cy
 		
+		if not cur[3] then
+			--[[
+			once this is set, it fucks uo
+			all subsequent loopss\
+			]]--
+			c=0
+		end
+		
 		if is_map then
-			add(out[sex][sey],{cx,cy})
+			add(out[sex][sey],{cx,cy,c+1})
 		else
-			add(out,{cx,cy})
+			add(out,{cx,cy,c+1})
 		end
 		
 		while go do
@@ -637,11 +676,12 @@ function create_segs(pts,is_map,v)
 				//add(out,{px,py})
 				
 				if is_map then
-					add(out[sex][sey],{px,py})
+					add(out[sex][sey],{px,py,c+1})
 				else
-					add(out,{px,py})
+					add(out,{px,py,c+1})
 				end
 				
+				c*=-1
 			else
 				go=false
 			end
@@ -652,6 +692,7 @@ function create_segs(pts,is_map,v)
 end
 
 function create_tris(pts,crnr,apex)
+	printh("creating tri")
 	out=create_map()
 	
 	for i=1,#crnr do
@@ -669,14 +710,15 @@ function create_tris(pts,crnr,apex)
 			{nxt_c[1],nxt_c[2]},
 			{cur_p[1],cur_p[2]},
 			{pt[1],pt[2]},//center
-			false //debug
+			pt[3] //color
 		})
+		printh(pt[3])
 		add(out[cx][cy],{
 			{nxt_c[1],nxt_c[2]},
 			{nxt_p[1],nxt_p[2]},
 			{cur_p[1],cur_p[2]},
 			{pt[1],pt[2]},//center
-			false //debug
+			pt[3] //color
 		})
 	end
 	return out
@@ -701,7 +743,7 @@ function on_track(x,y)
 	
 	for i=max(-10,cx-1),min(10,cx+1)do
 	for j=max(-10,cy-1),min(10,cy+1)do
-	for t in all(tris[i][j])do
+	for t in all(r_tris[i][j])do
 		local close=false
 		for i=1,4 do
 			if dist(carx,cary,
