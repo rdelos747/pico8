@@ -84,12 +84,14 @@ function _update()
 	]]--
 	uitf=(uitf+0.5)%30
 	
+	--[[
 	for i=-10,10 do
 	for j=-10,10 do
 		for t in all(r_tris[i][j]) do
 			t[5]=false
 		end
 	end end
+	]]--
 	update_car()
 	
 	secx,secy=flr(carx/100),flr(cary/100)
@@ -109,11 +111,10 @@ function draw_pov()
 	for i=max(-10,secx-1),min(10,secx+1)do
 	for j=max(-10,secy-1),min(10,secy+1)do
 	
-		draw_tris(r_tris[i][j],1)
-		
+		draw_tris(r_tris[i][j])
 		draw_tris(a_tris[i][j])
-		
 		draw_tris(c_tris[i][j])
+		
 		//draw_tris(c_tris[i][j],12)
 	end end
 		
@@ -173,7 +174,7 @@ function draw_segs(v,c_d)
 	end
 end
 
-function draw_tris(v,col)
+function draw_tris(v)
 	
 	for t in all(v) do
 		local p1x,p1y,t1=pov(t[1][1],t[1][2])
@@ -188,10 +189,15 @@ function draw_tris(v,col)
 			//p01_triangle_335(
 			//azufasttri(
 			//azulocalfast(
+			//if col then
+				//printh(t[5])
+			//end
 			pelogen_tri(
 				p1x,p1y,
 				p2x,p2y,
-				p3x,p3y,col and col or t[5])
+				p3x,p3y,
+				//col and col or t[5])
+				t[5])
 				//p3x,p3y,1+c%2)
 		//end
 		//`c+=1
@@ -525,7 +531,7 @@ end
 
 pts_base={
 	{-100,100},
-	{-100,0},// start
+	{-100,0,"start"},// start
 	{-100,-100},//start chicane
 	{0,-100},
 	{0,-200},
@@ -551,6 +557,14 @@ pts_base={
 }
 ]]--
 
+--[[
+segment and outer list params:
+1: x
+2: y
+3: flag (start, bend, etc)
+4: color
+]]--
+
 function create_track()
 	local pt_segs=create_segs(
 		pts_base,false,20)
@@ -565,9 +579,9 @@ function create_track()
 		apexs_0)
 	
 	local apexs_1=create_outer(
-		pt_segs,0.75,t_wid-1)
+		pt_segs,0.75,t_wid-1,"side")
 	local apexs_2=create_outer(
-		pt_segs,0.75,t_wid+1)
+		pt_segs,0.75,t_wid+1,"side")
 	local apex_segs_1=create_segs(
 		apexs_1,false)
 	local apex_segs_2=create_segs(
@@ -578,9 +592,9 @@ function create_track()
 		apex_segs_2)
 		
 	local crnrs_1=create_outer(
-		pt_segs,0.25,t_wid-1)
+		pt_segs,0.25,t_wid-1,"side")
 	local crnrs_2=create_outer(
-		pt_segs,0.25,t_wid+1)
+		pt_segs,0.25,t_wid+1,"side")
 		local crnr_segs_1=create_segs(
 		crnrs_1,false)
 	local crnr_segs_2=create_segs(
@@ -591,7 +605,8 @@ function create_track()
 		crnr_segs_2)
 end
 
-function create_outer(pts,v,wid)
+function create_outer(pts,v,wid,flag)
+	printh("create outer")
 	local out={}
 	local last_a=nil
 	for i=1,#pts do
@@ -605,25 +620,26 @@ function create_outer(pts,v,wid)
 		local nx,ny=nxt[1],nxt[2]
 		
 		local a=atan2(nx-px,ny-py)
-		//printh(a)
 		local dff=0
 		if last_a!=nil then
 			dff=abs(a-last_a)
-			printh(dff)
 		end
 		last_a=a
 		local amtx=abs(wid/cos(a+v))
 		local amty=abs(wid/sin(a+v))
+		//printh(cur[4])
 		add(out,{
 			flr(cx+cos(a+v)*amtx),
 			flr(cy+sin(a+v)*amty),
-			dff>0
+			cur[3] and cur[3] or 
+			dff>0 and "bend" or flag
 		})
 	end
 	return out
 end
 
 function create_segs(pts,is_map,v)
+	printh("creating segs")
 	if(v==nil)v=10
 	
 	local out={}
@@ -646,29 +662,41 @@ function create_segs(pts,is_map,v)
 		local go=true
 		local px,py=cx,cy
 		
+		--[[
 		local is=cur[3] or nxt[3]
 		local col=is and c+7 or 5
-		
-		if is_map then
-			add(out[sex][sey],{cx,cy,col})
-		else
-			add(out,{cx,cy,col})
+		]]--
+		col=1
+		if cur[3]=="start" then
+			col=9
+		elseif cur[3]=="bend" or 
+									nxt[3]=="bend" then
+			col=c+7
+		elseif cur[3]=="side" then
+			col=5
 		end
+		
+		local o={cx,cy,cur[3],col}
+		//printh(o[4])
+		if is_map then
+			add(out[sex][sey],o)
+		else
+			add(out,o)
+		end
+		c*=-1
 		
 		while go do
 			local d=dist(px,py,nx,ny)
 			if d>v then
 				px+=v*cos(a)
 				py+=v*sin(a)
-				//add(out,{px,py})
-				
+			
+				local o2={px,py,cur[3],col}
 				if is_map then
-					add(out[sex][sey],{px,py,col})
+					add(out[sex][sey],o2)
 				else
-					add(out,{px,py,col})
+					add(out,o2)
 				end
-				
-				c*=-1
 			else
 				go=false
 			end
@@ -679,7 +707,7 @@ function create_segs(pts,is_map,v)
 end
 
 function create_tris(pts,crnr,apex)
-	printh("creating tri")
+	//printh("creating tri")
 	out=create_map()
 	
 	for i=1,#crnr do
@@ -692,20 +720,29 @@ function create_tris(pts,crnr,apex)
 		local cx=flr(pt[1]/100)
 		local cy=flr(pt[2]/100)
 		
+		--[[
+		local col=pt[3]
+		if cur_c[4]=="start" then
+			col=9
+			printh("herererere")
+			printh(col)
+		end
+		]]--
+		
 		add(out[cx][cy],{
 			{cur_c[1],cur_c[2]},
 			{nxt_c[1],nxt_c[2]},
 			{cur_p[1],cur_p[2]},
 			{pt[1],pt[2]},//center
-			pt[3] //color
+			pt[4] //color
 		})
-		printh(pt[3])
+		//printh(pt[3])
 		add(out[cx][cy],{
 			{nxt_c[1],nxt_c[2]},
 			{nxt_p[1],nxt_p[2]},
 			{cur_p[1],cur_p[2]},
 			{pt[1],pt[2]},//center
-			pt[3] //color
+			pt[4] //color
 		})
 	end
 	return out
@@ -740,7 +777,7 @@ function on_track(x,y)
 			end
 		end
 		if close and pt_in_tri(x,y,t) then
-			t[5]=true //debug
+			//t[5]=true //debug
 			found=true
 		end
 	end
