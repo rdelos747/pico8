@@ -111,9 +111,9 @@ function draw_pov()
 	
 		draw_tris(r_tris[i][j],1)
 		
-		draw_tris(a_tris[i][j],12)
+		draw_tris(a_tris[i][j])
 		
-		draw_tris(c_tris[i][j],12)
+		draw_tris(c_tris[i][j])
 		//draw_tris(c_tris[i][j],12)
 	end end
 		
@@ -173,10 +173,9 @@ function draw_segs(v,c_d)
 	end
 end
 
-function draw_tris(v,c)
-	//c=0
+function draw_tris(v,col)
+	
 	for t in all(v) do
-		c=t[5]
 		local p1x,p1y,t1=pov(t[1][1],t[1][2])
 		local p2x,p2y,t2=pov(t[2][1],t[2][2])
 		local p3x,p3y,t2=pov(t[3][1],t[3][2])
@@ -192,7 +191,7 @@ function draw_tris(v,c)
 			pelogen_tri(
 				p1x,p1y,
 				p2x,p2y,
-				p3x,p3y,c)
+				p3x,p3y,col and col or t[5])
 				//p3x,p3y,1+c%2)
 		//end
 		//`c+=1
@@ -524,7 +523,6 @@ end
 -->8
 -- track
 
-
 pts_base={
 	{-100,100},
 	{-100,0},// start
@@ -556,47 +554,41 @@ pts_base={
 function create_track()
 	local pt_segs=create_segs(
 		pts_base,false,20)
-	
-	local apexs_1=create_outer(
+		
+	local apexs_0=create_outer(
 		pt_segs,0.75,t_wid)
-	local apexs_2=create_outer(
-		pt_segs,0.75,t_wid+1)
-		
-	local crnrs_1=create_outer(
+	local crnrs_0=create_outer(
 		pt_segs,0.25,t_wid)
-	local crnrs_2=create_outer(
-		pt_segs,0.25,t_wid+1)
-		
 	r_tris=create_tris(
 		pt_segs,
-		crnrs_1,
-		apexs_1)
+		crnrs_0,
+		apexs_0)
 	
+	local apexs_1=create_outer(
+		pt_segs,0.75,t_wid-1)
+	local apexs_2=create_outer(
+		pt_segs,0.75,t_wid+1)
 	local apex_segs_1=create_segs(
 		apexs_1,false)
 	local apex_segs_2=create_segs(
 		apexs_2,false)
-		
 	a_tris=create_tris(
 		apex_segs_1,
 		apex_segs_1,
 		apex_segs_2)
 		
-	local crnr_segs_1=create_segs(
+	local crnrs_1=create_outer(
+		pt_segs,0.25,t_wid-1)
+	local crnrs_2=create_outer(
+		pt_segs,0.25,t_wid+1)
+		local crnr_segs_1=create_segs(
 		crnrs_1,false)
 	local crnr_segs_2=create_segs(
 		crnrs_2,false)
-	
 	c_tris=create_tris(
 		crnr_segs_1,
 		crnr_segs_1,
 		crnr_segs_2)
-		
-	
-	//printh(#apex_segs)
-	//printh(#crnr_segs)
-	
-	//create_map(pts_base)
 end
 
 function create_outer(pts,v,wid)
@@ -654,18 +646,13 @@ function create_segs(pts,is_map,v)
 		local go=true
 		local px,py=cx,cy
 		
-		if not cur[3] then
-			--[[
-			once this is set, it fucks uo
-			all subsequent loopss\
-			]]--
-			c=0
-		end
+		local is=cur[3] or nxt[3]
+		local col=is and c+7 or 5
 		
 		if is_map then
-			add(out[sex][sey],{cx,cy,c+1})
+			add(out[sex][sey],{cx,cy,col})
 		else
-			add(out,{cx,cy,c+1})
+			add(out,{cx,cy,col})
 		end
 		
 		while go do
@@ -676,9 +663,9 @@ function create_segs(pts,is_map,v)
 				//add(out,{px,py})
 				
 				if is_map then
-					add(out[sex][sey],{px,py,c+1})
+					add(out[sex][sey],{px,py,col})
 				else
-					add(out,{px,py,c+1})
+					add(out,{px,py,col})
 				end
 				
 				c*=-1
