@@ -42,30 +42,43 @@ gears={
 		min=50,max=250,acc=0.004
 	}
 }
+--[[
 gear=1
 rpm=0
 spd=0
 turn=0
+
+last_flag=nil
+]]--
+//start_time=nil
 
 uitf=0 --ui time fast
 
 function _init()
 	printh("=====start=====")
 	create_track()
-	carx=pts_base[1][1]
-	cary=pts_base[1][2]
+	reset_car()
+	menuitem(1,"reset car",reset_car)
+
+	set_time_alert(
+		100.05,
+		100.02-100.04
+	)
 end
 
 function _draw()
 	cls()
 	draw_pov()
-	print(flr(carx).." "..flr(cary),camx,camy,7)
+	//print(flr(carx).." "..flr(cary),camx,camy,7)
 	//print(rpm,camx+80,camy+8,7)
 	draw_hud()
 	//draw_map()
 	//draw_top_down()
-	print("secx "..secx,camx,camy+8,7)
-	print("secy "..secy,camx,camy+16,7)
+	//print("secx "..secx,camx,camy+8,7)
+	//print("secy "..secy,camx,camy+16,7)
+	if time_alert_t>0 then
+		draw_time_alert()
+	end
 end
 
 secx,secy=0,0
@@ -84,6 +97,10 @@ function _update()
 	]]--
 	uitf=(uitf+0.5)%30
 	
+	if time_alert_t>0 then
+		time_alert_t-=1
+	end
+	
 	--[[
 	for i=-10,10 do
 	for j=-10,10 do
@@ -95,6 +112,25 @@ function _update()
 	update_car()
 	
 	secx,secy=flr(carx/100),flr(cary/100)
+end
+
+function reset_car()
+	carx=pts_base[1][1]
+	cary=pts_base[1][2]
+	
+	start_time=nil
+	sec1_time=nil
+	sec2_time=nil
+	//last_time=nil
+	best_time=nil
+	times={}
+	
+	gear=1
+	rpm=0
+	spd=0
+	turn=0
+
+	last_flag=nil
 end
 -->8
 -- pov
@@ -111,12 +147,15 @@ function draw_pov()
 	for i=max(-10,secx-1),min(10,secx+1)do
 	for j=max(-10,secy-1),min(10,secy+1)do
 	
+		//draw_tris(g_tris[i][j],15)
 		draw_tris(r_tris[i][j])
 		draw_tris(a_tris[i][j])
 		draw_tris(c_tris[i][j])
 		
 		//draw_tris(c_tris[i][j],12)
 	end end
+	
+	draw_objs()
 		
 	--[[
 	currently based on the pov
@@ -174,7 +213,7 @@ function draw_segs(v,c_d)
 	end
 end
 
-function draw_tris(v)
+function draw_tris(v,c)
 	
 	for t in all(v) do
 		local p1x,p1y,t1=pov(t[1][1],t[1][2])
@@ -197,14 +236,36 @@ function draw_tris(v)
 				p2x,p2y,
 				p3x,p3y,
 				//col and col or t[5])
-				t[5])
+				c and c or t[5])
 				//p3x,p3y,1+c%2)
+			--[[
+			if t[6]=="start" then
+				pset(p1x,p1y,12)
+			end
+			]]--
 		//end
 		//`c+=1
 	end
 end
 
-function pov(x,y)
+function draw_objs()
+	for o in all(objs)do
+		for t in all(o.tris)do
+			local p1x,p1y=pov(t[1][1],t[1][2],t[1][3])
+			local p2x,p2y=pov(t[2][1],t[2][2],t[2][3])
+			local p3x,p3y=pov(t[3][1],t[3][2],t[3][3])
+			pelogen_tri(
+				p1x,p1y,
+				p2x,p2y,
+				p3x,p3y,
+				o.col)
+		end
+	end
+end
+
+function pov(x,y,z)
+	if(z==nil)z=0
+	
 	local dx=x-carx
 	local dy=y-cary
 	
@@ -213,10 +274,19 @@ function pov(x,y)
 	
 	local de=max(0.1,ry+pov_o)
 	
-	local povy=max(
-		-pvt_y+((pvt_y-64)-pov_d/(de)),
-		-128
-	)
+	local povy
+	if z>0 then
+		povy=min(
+			-pvt_y+((pvt_y-64)+pov_d/(de)),
+			128
+		)
+	else
+		povy=max(
+			-pvt_y+((pvt_y-64)-pov_d/(de)),
+			-128
+		)
+	end
+	povy+=z*mid(0,((200-de)/200),1)
 	
 	local povx=rx*min(60/de,7.5)
 	povx-=pvt_x
@@ -438,6 +508,8 @@ function update_car()
 	grip=min(1,1-((spd-80)/300))
 	//dftx,dfty=0,0
 	
+	//on_ground=true
+	local touch_flag=nil
 	for i=1,#wheels do
 		local w=wheels[i]
 		w[3]=true
@@ -445,14 +517,66 @@ function update_car()
 		local rx,ry=rot(
 			w[1],w[2],ang+0.25)
 		
-		if not on_track(carx+rx,cary+ry) then
+		local tri=on_track(carx+rx,cary+ry,r_tris)
+		if not tri then
 			grip=max(0,grip-0.15)
 			w[3]=false
 			if spd>50 then
 				spd-=0.5
 			end
+		else
+		
+		--[[
+			if last_tri!=nil and 
+						last_tri[6]!="start" and 
+						tri[6]=="start" then
+				start_time=time()
+				
+			end	
+			last_tri=tri
+		--]]
+			if tri[6]!=nil then
+				touch_flag=tri[6]
+			end
 		end
 	end
+	
+	if touch_flag=="start" and
+				last_flag!="start" then
+		if start_time!=nil then
+			lap_time=time()-start_time
+			local at={
+				lap_time,
+				sec1_time,
+				sec2_time
+			}
+			add(times,at)
+			set_time_alert(
+				lap_time,
+				best_time and lap_time-best_time[1] or nil
+			)
+			if best_time==nil or 
+						lap_time<best_time[1] then
+				best_time=at
+			end
+		end
+		start_time=time()
+	elseif touch_flag=="sec1" and
+								last_flag!="sec1" then
+		sec1_time=time()-start_time
+		set_time_alert(
+			sec1_time,
+			best_time and sec1_time-best_time[2] or nil
+		)
+	elseif touch_flag=="sec2" and
+								last_flag!="sec2" then
+		sec2_time=time()-start_time
+		set_time_alert(
+			sec2_time,
+			best_time and sec2_time-best_time[3] or nil
+		)
+	end
+	last_flag=touch_flag
 	
 	--[[
 	ok so this is feeling alright.
@@ -487,8 +611,17 @@ function update_car()
 	local fx=cos(ang)*spd*0.278/30
 	local fy=sin(ang)*spd*0.278/30
 	
-	carx+=fx//+dftx
-	cary+=fy//+dfty
+	//lastx=carx
+	//lasty=cary
+	
+	
+	
+	if on_track(carx+fx,cary+fy,g_tris) then
+		carx+=fx//+dftx
+		cary+=fy//+dfty
+	else
+		spd=max(0,spd-1)
+	end
 end
 -->8
 -- hud
@@ -525,6 +658,56 @@ function draw_hud()
 	line(x,camy+113,x,camy+117,13)
 	x=camx+64-20*grip
 	line(x,camy+113,x,camy+117,13)
+	
+	--time
+	if start_time!=nil then
+		print(time()-start_time,camx+50,camy+1,7)
+	else
+		print("---.--",camx+50,camy+1,7)
+	end
+	
+	if best_time==nil then
+		print("bt:---.--",camx,camy+1,13)
+	else
+		print("bt:"..best_time[1],camx,camy+1,14)
+	end
+
+	for i=0,5 do
+		local s="---.--"
+		if #times-i>0 then
+			s=times[#times-i][1]
+		end
+		print("p"..(i+1)..":"..s,
+				camx,camy+7+i*6,13)
+	end
+end
+
+time_alert_t=0
+time_alert={}
+function set_time_alert(t,d)
+	time_alert_t=60
+	if d then
+		time_alert={
+			t,
+			d<0 and d or "+"..d,
+			d<0 and 12 or 8
+		}
+	else
+		time_alert={t}
+	end
+end
+
+function draw_time_alert()
+	if time_alert[2] then
+		print(time_alert[1],
+			camx+38,camy+50,7)
+		print(time_alert[2],
+			camx+67,camy+50,
+			time_alert[3])
+	else
+		print(time_alert[1],
+			camx+52,camy+50,7)
+	end
 end
 -->8
 -- track
@@ -536,11 +719,11 @@ pts_base={
 	{0,-100},
 	{0,-200},
 	{40,-240},
-	{150,-240},
+	{150,-240,"sec1"},
 	{400,-210},
 	{400,200},
 	{370,300},
-	{300,300},
+	{300,300,"sec2"},
 	{270,270},
 	{270,200},
 	{230,170},
@@ -566,6 +749,9 @@ segment and outer list params:
 ]]--
 
 function create_track()
+	objs={}
+	start={x=-1,y=-1,a=0}
+	
 	local pt_segs=create_segs(
 		pts_base,false,20)
 		
@@ -577,6 +763,15 @@ function create_track()
 		pt_segs,
 		crnrs_0,
 		apexs_0)
+		
+	local apexs_g=create_outer(
+		pt_segs,0.75,t_wid*2)
+	local crnrs_g=create_outer(
+		pt_segs,0.25,t_wid*2)
+	g_tris=create_tris(
+		pt_segs,
+		crnrs_g,
+		apexs_g)
 	
 	local apexs_1=create_outer(
 		pt_segs,0.75,t_wid-1,"side")
@@ -595,7 +790,7 @@ function create_track()
 		pt_segs,0.25,t_wid-1,"side")
 	local crnrs_2=create_outer(
 		pt_segs,0.25,t_wid+1,"side")
-		local crnr_segs_1=create_segs(
+	local crnr_segs_1=create_segs(
 		crnrs_1,false)
 	local crnr_segs_2=create_segs(
 		crnrs_2,false)
@@ -603,6 +798,8 @@ function create_track()
 		crnr_segs_1,
 		crnr_segs_1,
 		crnr_segs_2)
+	
+	create_post(start)
 end
 
 function create_outer(pts,v,wid,flag)
@@ -625,6 +822,7 @@ function create_outer(pts,v,wid,flag)
 			dff=abs(a-last_a)
 		end
 		last_a=a
+		
 		local amtx=abs(wid/cos(a+v))
 		local amty=abs(wid/sin(a+v))
 		//printh(cur[4])
@@ -634,6 +832,14 @@ function create_outer(pts,v,wid,flag)
 			cur[3] and cur[3] or 
 			dff>0 and "bend" or flag
 		})
+		
+		--[[
+		this is a hack but whatever
+		]]--
+		if cur[3]=="start" then
+			printh("start at: "..cx.." "..cy.." "..a)
+			start={x=cx,y=cy,a=a}
+		end
 	end
 	return out
 end
@@ -666,13 +872,17 @@ function create_segs(pts,is_map,v)
 		local is=cur[3] or nxt[3]
 		local col=is and c+7 or 5
 		]]--
+		local flag_c=cur[3]
+		local flag_n=nxt[3]
 		col=1
-		if cur[3]=="start" then
+		if flag_c=="start" or
+					flag_c=="sec1" or
+					flag_c=="sec2" then
 			col=9
-		elseif cur[3]=="bend" or 
-									nxt[3]=="bend" then
+		elseif flag_c=="bend" or 
+									flag_n=="bend" then
 			col=c+7
-		elseif cur[3]=="side" then
+		elseif flag_c=="side" then
 			col=5
 		end
 		
@@ -691,7 +901,13 @@ function create_segs(pts,is_map,v)
 				px+=v*cos(a)
 				py+=v*sin(a)
 			
-				local o2={px,py,cur[3],col}
+				local o2={px,py,flag_c,col}
+				if flag_c=="start" or
+							flag_c=="sec1" or
+							flag_c=="sec2" then
+					o2[3]=nil
+					o2[4]=1
+				end
 				if is_map then
 					add(out[sex][sey],o2)
 				else
@@ -734,7 +950,8 @@ function create_tris(pts,crnr,apex)
 			{nxt_c[1],nxt_c[2]},
 			{cur_p[1],cur_p[2]},
 			{pt[1],pt[2]},//center
-			pt[4] //color
+			pt[4], //color
+			pt[3] //flags
 		})
 		//printh(pt[3])
 		add(out[cx][cy],{
@@ -742,10 +959,39 @@ function create_tris(pts,crnr,apex)
 			{nxt_p[1],nxt_p[2]},
 			{cur_p[1],cur_p[2]},
 			{pt[1],pt[2]},//center
-			pt[4] //color
+			pt[4], //color
+			pt[3] //flags
 		})
 	end
 	return out
+end
+
+function create_post(p)		
+	local lx_off=cos(p.a+0.25)
+	local ly_off=sin(p.a+0.25)
+	local rx_off=cos(p.a+0.75)
+	local ry_off=sin(p.a+0.75)
+	local plx=p.x+lx_off*abs(20/lx_off)
+	local ply=p.y+ly_off*abs(20/ly_off)
+	local prx=p.x+rx_off*abs(20/rx_off)
+	local pry=p.y+ry_off*abs(20/ry_off)
+	
+	local o={
+		tris={
+			{
+				{plx,ply,20},
+				{plx,ply,30},
+				{prx,pry,20}
+			},
+			{
+				{plx,ply,30},
+				{prx,pry,20},
+				{prx,pry,30}
+			}
+		},
+		col=12
+	}
+	add(objs,o)
 end
 
 function create_map()
@@ -760,14 +1006,14 @@ function create_map()
 	return out
 end
 
-function on_track(x,y)
-	local found=false
+function on_track(x,y,arr)
+	//local found=false
 	local cx=flr(x/100)
 	local cy=flr(y/100)
-	
 	for i=max(-10,cx-1),min(10,cx+1)do
 	for j=max(-10,cy-1),min(10,cy+1)do
-	for t in all(r_tris[i][j])do
+	for t in all(arr[i][j])do
+		--[[
 		local close=false
 		for i=1,4 do
 			if dist(carx,cary,
@@ -776,13 +1022,14 @@ function on_track(x,y)
 				close=true
 			end
 		end
-		if close and pt_in_tri(x,y,t) then
+		]]--
+		if pt_in_tri(x,y,t) then
 			//t[5]=true //debug
-			found=true
+			return t
 		end
 	end
 	end end
-	return found
+	return nil
 end
 
 
