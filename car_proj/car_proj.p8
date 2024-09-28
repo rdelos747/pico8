@@ -6,6 +6,8 @@ mode=0
 
 times={}
 
+map_sz=16
+
 secx,secy=0,0
 carx,cary,carz=0,0,0
 wheels={
@@ -108,8 +110,8 @@ end
 
 function reset_car()
 	ang=0.25
-	carx=pts_base[1][1]
-	cary=pts_base[1][2]
+	carx=track[1][1]
+	cary=track[1][2]
 	
 	start_time=nil
 	sec1_time=nil
@@ -137,8 +139,8 @@ function draw_pov()
 		camx,camy+64,
 		camx+127,camy+127,3)
 	
-	for i=max(-10,secx-1),min(10,secx+1)do
-	for j=max(-10,secy-1),min(10,secy+1)do
+	for i=max(-map_sz,secx-1),min(map_sz,secx+1)do
+	for j=max(-map_sz,secy-1),min(map_sz,secy+1)do
 	
 		//draw_tris(g_tris[i][j],15)
 		draw_road_tris(r_tris[i][j])
@@ -347,6 +349,7 @@ function dist(x1,y1,x2,y2)
  return max(a0,b0)*0.9609+min(a0,b0)*0.3984
 end
 
+--[[
 function draw_top_down()		
 	local a=-ang+0.75
 	
@@ -394,6 +397,7 @@ function draw_top_down()
 		pset(cwx+64,cwy+64,11)
 	end
 end
+]]--
 
 function draw_map()
 	rectfill(camx,camy,
@@ -568,10 +572,15 @@ function update_car()
 			end
 		end
 		
+		local wsx=flr((carx+rx)/100)
+		local wsy=flr((cary+ry)/100)
+		
 		for k,v in pairs(sects)do
-			for t in all(v.tris) do
-				if pt_in_tri(carx+rx,cary+ry,t) then
-					touch_flag=v.name
+			if wsx==v.sex and wsy==v.sey then
+				for t in all(v.tris) do
+					if pt_in_tri(carx+rx,cary+ry,t) then
+						touch_flag=v.name
+					end
 				end
 			end
 		end
@@ -793,21 +802,71 @@ end
 -- track
 
 pts_base={
-	{-100,100,0},
-	{-100,0,30,"start"},// start
-	{-100,-100,30},//start chicane
-	{0,-100,30},
-	{0,-200,0},
-	{40,-240,0},
-	{150,-240,0,"sec1"},
-	{400,-210,0},
-	{400,200,0},
-	{370,300,-20},
-	{300,300,-20,"sec2"},
-	{270,270,-20},
-	{270,200,-20},
-	{230,170,0},
-	{200,170,0}
+	{
+		{-100,100,0},
+		{-100,0,30,"start"},// start
+		{-100,-100,30},//start chicane
+		{0,-100,30},
+		{0,-200,0},
+		{40,-240,0},
+		{150,-240,0,"sec1"},
+		{400,-210,0},
+		{400,200,0},
+		{370,300,-20},
+		{300,300,-20,"sec2"},
+		{270,270,-20},
+		{270,200,-20},
+		{230,170,0},
+		{200,170,0}
+	},
+	{
+		{1445,-317,0},
+		{1522,-296,0},
+		{1572,-253,0},
+		{1598,-206,0},
+		{1598,-170,0},
+		{1570,-112,0},
+		{1522,-62,0},
+		{1467,-23,0},
+		{1380,4,0},
+		{1078,42,0,"start"},
+		{540,30,0},
+		{-223,30,0},
+		{-242,11,0},
+		{-242,-3,0},
+		{-248,-24,0},
+		{-276,-24,0},
+		{-338,13,0},
+		{-439,29,0},
+		{-466,29,0},
+		{-629,12,0},
+		{-749,-84,0},
+		{-784,-199,0},
+		{-831,-492,0,"sec1"},
+		{-841,-581,0},
+		{-861,-691,0},
+		{-873,-705,0},
+		{-897,-706,0},
+		{-913,-712,0},
+		{-949,-786,0},
+		{-985,-851,0},
+		{-1095,-1066,0},
+		{-1097,-1104,0},
+		{-1079,-1138,0},
+		{-1021,-1182,0},
+		{-742,-1248,0},
+		{-708,-1252,0},
+		{-682,-1220,0},
+		{-485,-872,0},
+		{-203,-551,0,"sec2"},
+		{-76,-413,0},
+		{-33,-388,0},
+		{54,-406,0},
+		{99,-403,0},
+		{159,-365,0},
+		{198,-320,0},
+		{277,-315,0},
+	}
 }
 
 
@@ -828,7 +887,8 @@ segment and outer list params:
 4: color
 ]]--
 
-function create_track()
+function create_track(idx)
+	printh("==create track "..idx.."==")
 	objs={}
 	--[[
 	start={}
@@ -848,7 +908,9 @@ function create_track()
 	widx=0
 	widy=0
 	
-	for p in all(pts_base)do
+	track=pts_base[idx]
+	
+	for p in all(track)do
 		minx=min(minx,p[1])
 		miny=min(miny,p[2])
 		maxx=max(maxx,p[1])
@@ -859,7 +921,7 @@ function create_track()
 	widy=abs(maxy-miny)
 	
 	pt_segs=create_segs(
-		pts_base,false,20)
+		track,false,20)
 		
 	apexs_r=create_outer(
 		pt_segs,0.75,t_wid)
@@ -911,7 +973,7 @@ function create_track()
 end
 
 function create_outer(pts,v,wid,flag)
-	printh("create outer")
+	//printh("create outer")
 	local out={}
 	local last_a=nil
 	for i=1,#pts do
@@ -948,14 +1010,17 @@ function create_outer(pts,v,wid,flag)
 		local flag=cur[4]
 		if sects[flag] then
 			printh(flag.." at: "..cx.." "..cy.." "..a)
-			sects[flag]={x=cx,y=cy,z=cz,a=a}
+			sects[flag]={
+				x=cx,y=cy,z=cz,a=a,
+				sex=flr(cx/100),sey=flr(cy/100)
+			}
 		end
 	end
 	return out
 end
 
 function create_segs(pts,is_map,v)
-	printh("creating segs")
+	//printh("creating segs")
 	if(v==nil)v=10
 	
 	local out={}
@@ -1055,7 +1120,7 @@ function create_tris(pts,crnr,apex)
 			printh(col)
 		end
 		]]--
-		
+		//printh(cx.." "..cy)
 		add(out[cx][cy],{
 			{cur_c[1],cur_c[2],cur_c[3]},
 			{nxt_c[1],nxt_c[2],nxt_c[3]},
@@ -1123,9 +1188,9 @@ end
 
 function create_map()
 	local out={}
-	for i=-10,10 do
+	for i=-map_sz,map_sz do
 		local row={}
-		for j=-10,10 do
+		for j=-map_sz,map_sz do
 			row[j]={}
 		end
 		out[i]=row
@@ -1137,8 +1202,8 @@ function on_track(x,y,arr)
 	//local found=false
 	local cx=flr(x/100)
 	local cy=flr(y/100)
-	for i=max(-10,cx-1),min(10,cx+1)do
-	for j=max(-10,cy-1),min(10,cy+1)do
+	for i=max(-map_sz,cx-1),min(map_sz,cx+1)do
+	for j=max(-map_sz,cy-1),min(map_sz,cy+1)do
 	for t in all(arr[i][j])do
 		--[[
 		local close=false
@@ -1208,8 +1273,8 @@ function draw_track_select()
 		draw_track_outer(crnrs_r)
 		
 		for i=1,10 do
-			local idx=mid(1,flr(ut_tm)-i,#pt_segs)
-			local cur=pt_segs[idx]
+			local idx=mid(1,flr(ut_tm)-i,#track)
+			local cur=track[idx]
 			local x,y=tp_at_scale(cur)
 			pset(x+60,y+60,11)
 		end
@@ -1250,8 +1315,8 @@ function draw_track_outer(arr)
 end
 
 function tp_at_scale(pt)
-	local x=(pt[1]/widx)*60
-	local y=(pt[2]/widy)*60
+	local x=((pt[1]+widx/2)/widx)*60
+	local y=((pt[2]+widy/2)/widy)*60
 	return x,y
 end
 
@@ -1275,7 +1340,7 @@ function update_track_select()
 	ut_idx=mid(0,ut_idx,5)
 	
 	if l_ut_idx!=ut_idx then
-		create_track()
+		create_track(ut_idx+1)
 		ut_tm=1
 		ut_tm2=1
 	end
