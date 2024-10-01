@@ -6,7 +6,8 @@ mode=0
 
 times={}
 
-map_sz=16
+map_sz=14
+sec_sz=100
 
 secx,secy=0,0
 carx,cary,carz=0,0,0
@@ -104,7 +105,7 @@ function _update()
 	
 		update_car()
 	
-		secx,secy=flr(carx/100),flr(cary/100)
+		secx,secy=flr(carx/sec_sz),flr(cary/sec_sz)
 	end
 end
 
@@ -572,8 +573,8 @@ function update_car()
 			end
 		end
 		
-		local wsx=flr((carx+rx)/100)
-		local wsy=flr((cary+ry)/100)
+		local wsx=flr((carx+rx)/sec_sz)
+		local wsy=flr((cary+ry)/sec_sz)
 		
 		for k,v in pairs(sects)do
 			if wsx==v.sex and wsy==v.sey then
@@ -890,11 +891,7 @@ segment and outer list params:
 function create_track(idx)
 	printh("==create track "..idx.."==")
 	objs={}
-	--[[
-	start={}
-	sec1={}
-	sec2={}
-	]]--
+
 	sects={
 		start={},
 		sec1={},
@@ -910,6 +907,9 @@ function create_track(idx)
 	
 	track=pts_base[idx]
 	
+	mis=30000
+	mas=-30000
+	
 	for p in all(track)do
 		minx=min(minx,p[1])
 		miny=min(miny,p[2])
@@ -917,11 +917,16 @@ function create_track(idx)
 		maxy=max(maxy,p[2])
 	end
 	
-	widx=abs(maxx-minx)
-	widy=abs(maxy-miny)
+	
+	twid=abs(maxx-minx)
+	thgt=abs(maxy-miny)
+	for p in all(track)do
+		p[1]-=minx+flr(twid/2)
+		p[2]-=miny+flr(thgt/2)
+	end
 	
 	pt_segs=create_segs(
-		track,false,20)
+		track,false,30)
 		
 	apexs_r=create_outer(
 		pt_segs,0.75,t_wid)
@@ -931,6 +936,8 @@ function create_track(idx)
 		pt_segs,
 		crnrs_r,
 		apexs_r)
+		
+	printh(mis.." "..mas)
 		
 	local apexs_g=create_outer(
 		pt_segs,0.75,t_wid*2)
@@ -970,10 +977,12 @@ function create_track(idx)
 	for k,v in pairs(sects)do
 		create_sect_obj(k,v)
 	end
+	
+	printh("done")
 end
 
 function create_outer(pts,v,wid,flag)
-	//printh("create outer")
+	printh("create outer")
 	local out={}
 	local last_a=nil
 	for i=1,#pts do
@@ -1009,10 +1018,10 @@ function create_outer(pts,v,wid,flag)
 		]]--
 		local flag=cur[4]
 		if sects[flag] then
-			printh(flag.." at: "..cx.." "..cy.." "..a)
+			//printh(flag.." at: "..cx.." "..cy.." "..a)
 			sects[flag]={
 				x=cx,y=cy,z=cz,a=a,
-				sex=flr(cx/100),sey=flr(cy/100)
+				sex=flr(cx/sec_sz),sey=flr(cy/sec_sz)
 			}
 		end
 	end
@@ -1020,7 +1029,7 @@ function create_outer(pts,v,wid,flag)
 end
 
 function create_segs(pts,is_map,v)
-	//printh("creating segs")
+	printh("creating segs")
 	if(v==nil)v=10
 	
 	local out={}
@@ -1036,8 +1045,8 @@ function create_segs(pts,is_map,v)
 		local cx,cy,cz=cur[1],cur[2],cur[3]
 		local nx,ny=nxt[1],nxt[2]
 		
-		local sex=flr(cx/100)
-		local sey=flr(cy/100)
+		local sex=flr(cx/sec_sz)
+		local sey=flr(cy/sec_sz)
 		
 		local a=atan2(nx-cx,ny-cy)
 		local go=true
@@ -1098,7 +1107,7 @@ function create_segs(pts,is_map,v)
 end
 
 function create_tris(pts,crnr,apex)
-	//printh("creating tri")
+	printh("creating tri")
 	out=create_map()
 	
 	for i=1,#crnr do
@@ -1108,8 +1117,8 @@ function create_tris(pts,crnr,apex)
 		local nxt_p=apex[i%#apex+1]
 		local pt=pts[i]
 		
-		local cx=flr(pt[1]/100)
-		local cy=flr(pt[2]/100)
+		local cx=flr(pt[1]/sec_sz)
+		local cy=flr(pt[2]/sec_sz)
 		//local cz=pt[3]
 		
 		--[[
@@ -1121,6 +1130,10 @@ function create_tris(pts,crnr,apex)
 		end
 		]]--
 		//printh(cx.." "..cy)
+		mis=min(mis,cx)
+		mis=min(mis,cy)
+		mas=max(mas,cx)
+		mas=max(mas,cy)
 		add(out[cx][cy],{
 			{cur_c[1],cur_c[2],cur_c[3]},
 			{nxt_c[1],nxt_c[2],nxt_c[3]},
@@ -1200,8 +1213,8 @@ end
 
 function on_track(x,y,arr)
 	//local found=false
-	local cx=flr(x/100)
-	local cy=flr(y/100)
+	local cx=flr(x/sec_sz)
+	local cy=flr(y/sec_sz)
 	for i=max(-map_sz,cx-1),min(map_sz,cx+1)do
 	for j=max(-map_sz,cy-1),min(map_sz,cy+1)do
 	for t in all(arr[i][j])do
@@ -1315,8 +1328,8 @@ function draw_track_outer(arr)
 end
 
 function tp_at_scale(pt)
-	local x=((pt[1]+widx/2)/widx)*60
-	local y=((pt[2]+widy/2)/widy)*60
+	local x=((pt[1]+widx/2)/twid)*60
+	local y=((pt[2]+widy/2)/thgt)*60
 	return x,y
 end
 
