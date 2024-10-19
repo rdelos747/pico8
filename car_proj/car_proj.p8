@@ -1,7 +1,20 @@
 pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
-version="0.0.1"
+--[[
+	todo:
+	update monza:
+	- right side is too long
+	- chicanes arent big enough
+	
+	car:
+	- consider making breaks less
+	effective, also consider same
+	for turn grip. i can still take
+	turns too fast.
+]]--
+
+version="0.0.2"
 mode=0
 
 times={}
@@ -20,6 +33,7 @@ wheels={
 ang=0.25
 grip=0
 wht=0 //wheel time
+last_a=0
 
 --track dimensions
 --wid: 16 meters
@@ -30,7 +44,7 @@ pov_h=50 	--pov hov?
 pov_d=500 --pov distance
 pov_o=13  --offset (hack?)
 
-t_wid=14 -- half track width
+t_wid=16 -- half track width
 
 gears={
 	{// n
@@ -55,6 +69,7 @@ gears={
 		min=100,max=300,acc=0.002
 	}
 }
+break_s=0.8
 
 uitf=0 --ui time fast
 
@@ -79,15 +94,14 @@ function _draw()
 			draw_time_alert()
 		end
 	end
-	
-	if gt then
-		print(dst,camx+100,camy+1,8)
-		print(cdst,camx+100,camy+7,8)
-		print(tdst,camx+100,camy+13,8)
-		print(gt[1][3],camx+100,camy+19,7)
-		print(gt[2][3],camx+100,camy+25,7)
-		print(gt[3][3],camx+100,camy+31,7)
+	--[[
+	if carx and cary then
+	print(carx,camx+100,camy+1,8)
+	print(cary,camx+100,camy+7,8)
 	end
+	]]--
+	print(last_a,camx+100,camy+1,8)
+	print(abs(last_a-ang),camx+100,camy+7,8)
 end
 
 function _update()
@@ -110,9 +124,9 @@ function _update()
 end
 
 function reset_car()
-	ang=0.25
-	carx=track[1][1]
-	cary=track[1][2]
+	ang=car_sa
+	carx=car_sx
+	cary=car_sy
 	
 	start_time=nil
 	sec1_time=nil
@@ -131,6 +145,7 @@ end
 -->8
 -- pov
 
+camx,camy=0,0
 function draw_pov()
 	camx=flr(carx-pvt_x)
 	camy=flr(cary-pvt_y)
@@ -224,6 +239,14 @@ function draw_pov()
 		end
 	end
 	]]--
+	
+	if abs(last_a-ang) >0.3 then
+	spr(65,camx+56,camy+56)
+	spr(65,camx+64,camy+56,1,1,true)
+	spr(65,camx+56,camy+64,1,1,false,true)
+	spr(65,camx+64,camy+64,1,1,true,true)
+	end
+	
 end
 
 function draw_segs(v,c_d)
@@ -248,32 +271,15 @@ function draw_segs(v,c_d)
 	end
 end
 
---[[
-function draw_tris(v,c)
-	
-	for t in all(v) do
-		local p1x,p1y,t1=pov(t[1][1],t[1][2],t[1][3])
-		local p2x,p2y,t2=pov(t[2][1],t[2][2],t[2][3])
-		local p3x,p3y,t2=pov(t[3][1],t[3][2],t[3][3])
-		
-			pelogen_tri(
-				p1x,p1y,
-				p2x,p2y,
-				p3x,p3y,
-				c and c or t[5])
-	end
-end
-]]--
-
 function draw_obj(o)
 	for t in all(o.tris)do
 		draw_tri(t,o.col)
 	end
 end
 
-function draw_road_tris(arr,c)
+function draw_road_tris(arr)
 	for t in all(arr) do
-		draw_tri(t,c and c or t[5])
+		draw_tri(t,t[6])
 	end
 end
 
@@ -283,7 +289,7 @@ function draw_tri(t,c)
 	local p3x,p3y,p3d=pov(t[3][1],t[3][2],t[3][3])
 		
 	if p1d>-13 or p2d>-13 or p3d>-13 then
-		
+	//if p1d>0 or p2d>0 or p3d>0 then	
 		pelogen_tri(
 			p1x,p1y,
 			p2x,p2y,
@@ -455,7 +461,16 @@ function pelogen_tri(l,t,c,m,r,b,col,f)
 	if(m>b) c,m,r,b=r,b,c,m
 	local i,j,k,r=(c-l)/(m-t),(r-l)/(b-t),(r-c)/(b-m),l
 	while t~=b do
-		for t=ceil(t),min(flr(m),512) do
+		--[[
+		not sure why the flr(..,512)
+		was necessary. for tracks where
+		y values are greater it was
+		causing issues. i raised it
+		to 1024, but if its not an 
+		issue i should maybe just make
+		it uncapped???
+		]]--
+		for t=ceil(t),min(flr(m),1024) do
 			rectfill(l,t,r,t)
 			r+=j
 			l+=i
@@ -512,11 +527,10 @@ function update_car()
 		spd=max(0,spd-1)
 	end
 	
-	--break
+	--breaking
 	local breaking=false
 	if btn(⬇️) then
-		// this is too fast breaking
-		spd=max(0,spd-1.1)
+		spd=max(0,spd-break_s)
 		breaking=true
 	end
 	
@@ -609,20 +623,24 @@ function update_car()
 		start_time=time()
 	elseif touch_flag=="sec1" and
 								last_flag!="sec1" then
+		if start_time then
 		sec1_time=time()-start_time
 		set_time_alert(
 			sec1_time,
 			(best_time and best_time[2]) and 
 			sec1_time-best_time[2] or nil
 		)
+		end
 	elseif touch_flag=="sec2" and
 								last_flag!="sec2" then
+		if start_time then
 		sec2_time=time()-start_time
 		set_time_alert(
 			sec2_time,
 			(best_time and best_time[3]) and 
 			sec2_time-best_time[3] or nil
 		)
+		end
 	end
 	last_flag=touch_flag
 	
@@ -668,6 +686,7 @@ function update_car()
 	if gt then
 		carx+=fx//+dftx
 		cary+=fy//+dfty
+		last_a=gt[5]
 	else
 		spd=max(0,spd-1)
 	end
@@ -804,7 +823,7 @@ end
 
 pts_base={
 	{
-		{-100,100,0},
+		{-100,100,0,"car"},
 		{-100,0,30,"start"},// start
 		{-100,-100,30},//start chicane
 		{0,-100,30},
@@ -821,52 +840,53 @@ pts_base={
 		{200,170,0}
 	},
 	{
-		{1445,-317,0},
-		{1522,-296,0},
-		{1572,-253,0},
-		{1598,-206,0},
-		{1598,-170,0},
-		{1570,-112,0},
-		{1522,-62,0},
-		{1467,-23,0},
-		{1380,4,0},
-		{1078,42,0,"start"},
-		{540,30,0},
-		{-223,30,0},
-		{-242,11,0},
-		{-242,-3,0},
-		{-248,-24,0},
-		{-276,-24,0},
-		{-338,13,0},
-		{-439,29,0},
-		{-466,29,0},
-		{-629,12,0},
-		{-749,-84,0},
-		{-784,-199,0},
-		{-831,-492,0,"sec1"},
-		{-841,-581,0},
-		{-861,-691,0},
-		{-873,-705,0},
-		{-897,-706,0},
-		{-913,-712,0},
-		{-949,-786,0},
-		{-985,-851,0},
-		{-1095,-1066,0},
-		{-1097,-1104,0},
-		{-1079,-1138,0},
-		{-1021,-1182,0},
-		{-742,-1248,0},
-		{-708,-1252,0},
-		{-682,-1220,0},
-		{-485,-872,0},
-		{-203,-551,0,"sec2"},
-		{-76,-413,0},
-		{-33,-388,0},
-		{54,-406,0},
-		{99,-403,0},
-		{159,-365,0},
-		{198,-320,0},
-		{277,-315,0},
+	{1350,-317,0},
+{1447,-305,0},
+{1493,-271,0},
+{1538,-206,0},
+{1538,-152,0},
+{1498,-103,0},
+{1351,-38,0},
+{1161,4,0},
+{1002,22,0,"car"},
+{727,33,0,"start"},
+{540,30,0},
+{-223,30,0},
+{-242,11,0},
+{-242,-23,0},
+{-248,-60,0},
+{-284,-60,0},
+{-322,-31,0},
+{-374,1,0},
+{-443,29,0},
+{-510,29,0},
+{-629,12,0},
+{-749,-84,0},
+{-784,-199,0},
+{-831,-492,0,"sec1"},
+{-841,-581,0},
+{-849,-691,0},
+{-865,-705,0},
+{-923,-705,0},
+{-951,-736,0},
+{-991,-837,0},
+{-1037,-942,0},
+{-1095,-1066,0},
+{-1097,-1104,0},
+{-1079,-1138,0},
+{-1021,-1182,0},
+{-742,-1248,0},
+{-708,-1252,0},
+{-682,-1220,0},
+{-485,-872,0},
+{-203,-551,0,"sec2"},
+{-76,-413,0},
+{-33,-388,0},
+{54,-406,0},
+{99,-403,0},
+{159,-365,0},
+{198,-320,0},
+{277,-315,0},
 	}
 }
 
@@ -890,18 +910,29 @@ segment and outer list params:
 
 function create_track(idx)
 	printh("==create track "..idx.."==")
-	objs={}
+	
+	objs=clear(objs)
+	pt_segs=clear(pt_segs)
+	apexs_r=clear(apexs_r)
+	crnrs_r=clear(crnrs_r)
+	r_tris=clear(r_tris)
+	g_tris=clear(g_tris)
+	a_tris=clear(a_tris)
+	c_tris=clear(c_tris)
 
 	sects={
 		start={},
 		sec1={},
 		sec2={}
 	}
+	car_sx=-1
+	car_sy=-1
+	car_sa=-1
 	
 	minx=30000
 	miny=30000
 	maxx=-30000
-	maxx=-30000
+	maxy=-30000
 	widx=0
 	widy=0
 	
@@ -917,7 +948,6 @@ function create_track(idx)
 		maxy=max(maxy,p[2])
 	end
 	
-	
 	twid=abs(maxx-minx)
 	thgt=abs(maxy-miny)
 	for p in all(track)do
@@ -929,20 +959,20 @@ function create_track(idx)
 		track,false,30)
 		
 	apexs_r=create_outer(
-		pt_segs,0.75,t_wid)
+		pt_segs,0.75,t_wid,"road")
 	crnrs_r=create_outer(
-		pt_segs,0.25,t_wid)
+		pt_segs,0.25,t_wid,"road")
 	r_tris=create_tris(
 		pt_segs,
 		crnrs_r,
 		apexs_r)
 		
-	printh(mis.." "..mas)
+	//printh(mis.." "..mas)
 		
 	local apexs_g=create_outer(
-		pt_segs,0.75,t_wid*2)
+		pt_segs,0.75,t_wid*2,"grnd")
 	local crnrs_g=create_outer(
-		pt_segs,0.25,t_wid*2)
+		pt_segs,0.25,t_wid*2,"grnd")
 	g_tris=create_tris(
 		pt_segs,
 		crnrs_g,
@@ -952,80 +982,37 @@ function create_track(idx)
 		pt_segs,0.75,t_wid-1,"side")
 	local apexs_2=create_outer(
 		pt_segs,0.75,t_wid+1,"side")
+	--[[
 	local apex_segs_1=create_segs(
 		apexs_1,false)
 	local apex_segs_2=create_segs(
 		apexs_2,false)
+	]]--
 	a_tris=create_tris(
-		apex_segs_1,
-		apex_segs_1,
-		apex_segs_2)
+		apexs_1,
+		apexs_1,
+		apexs_2)
 		
 	local crnrs_1=create_outer(
 		pt_segs,0.25,t_wid-1,"side")
 	local crnrs_2=create_outer(
 		pt_segs,0.25,t_wid+1,"side")
+	--[[
 	local crnr_segs_1=create_segs(
 		crnrs_1,false)
 	local crnr_segs_2=create_segs(
 		crnrs_2,false)
+	]]--
 	c_tris=create_tris(
-		crnr_segs_1,
-		crnr_segs_1,
-		crnr_segs_2)
+		crnrs_1,
+		crnrs_1,
+		crnrs_2)
 	
 	for k,v in pairs(sects)do
 		create_sect_obj(k,v)
 	end
 	
 	printh("done")
-end
-
-function create_outer(pts,v,wid,flag)
-	printh("create outer")
-	local out={}
-	local last_a=nil
-	for i=1,#pts do
-	
-		local prv=pts[i==1 and #pts or i-1]
-		local cur=pts[i]
-		local nxt=pts[i%#pts+1]
-			
-		local px,py=prv[1],prv[2]
-		local cx,cy,cz=cur[1],cur[2],cur[3]
-		local nx,ny=nxt[1],nxt[2]
-		
-		local a=atan2(nx-px,ny-py)
-		local dff=0
-		if last_a!=nil then
-			dff=abs(a-last_a)
-		end
-		last_a=a
-		
-		local amtx=abs(wid/cos(a+v))
-		local amty=abs(wid/sin(a+v))
-		//printh(cur[4])
-		add(out,{
-			flr(cx+cos(a+v)*amtx),
-			flr(cy+sin(a+v)*amty),
-			cz,
-			cur[4] and cur[4] or 
-			dff>0 and "bend" or flag
-		})
-		
-		--[[
-		this is a hack but whatever
-		]]--
-		local flag=cur[4]
-		if sects[flag] then
-			//printh(flag.." at: "..cx.." "..cy.." "..a)
-			sects[flag]={
-				x=cx,y=cy,z=cz,a=a,
-				sex=flr(cx/sec_sz),sey=flr(cy/sec_sz)
-			}
-		end
-	end
-	return out
 end
 
 function create_segs(pts,is_map,v)
@@ -1049,29 +1036,26 @@ function create_segs(pts,is_map,v)
 		local sey=flr(cy/sec_sz)
 		
 		local a=atan2(nx-cx,ny-cy)
-		local go=true
-		local px,py,pz=cx,cy,cz
 		
-		--[[
-		local is=cur[3] or nxt[3]
-		local col=is and c+7 or 5
-		]]--
 		local flag_c=cur[4]
 		local flag_n=nxt[4]
-		col=1
-		if flag_c=="start" or
-					flag_c=="sec1" or
-					flag_c=="sec2" then
-			col=1
-		elseif flag_c=="bend" or 
-									flag_n=="bend" then
-			col=c+7
-		elseif flag_c=="side" then
-			col=5
+		
+		--[[
+		this is a hack but whatever
+		]]--
+		if flag_c=="car" then
+			car_sx=cx
+			car_sy=cy
+			car_sa=a
+		elseif sects[flag_c] then
+			//printh(flag.." at: "..cx.." "..cy.." "..a)
+			sects[flag_c]={
+				x=cx,y=cy,z=cz,a=a,
+				sex=flr(cx/sec_sz),sey=flr(cy/sec_sz)
+			}
 		end
 		
-		local o={cx,cy,cz,cur[4],col}
-		//printh(o[4])
+		local o={cx,cy,cz}
 		if is_map then
 			add(out[sex][sey],o)
 		else
@@ -1079,19 +1063,15 @@ function create_segs(pts,is_map,v)
 		end
 		c*=-1
 		
+		local px,py=cx,cy
+		local go=true
 		while go do
 			local d=dist(px,py,nx,ny)
 			if d>v then
 				px+=v*cos(a)
 				py+=v*sin(a)
-			
-				local o2={px,py,pz,flag_c,col}
-				if flag_c=="start" or
-							flag_c=="sec1" or
-							flag_c=="sec2" then
-					o2[4]=nil
-					o2[5]=1
-				end
+
+				local o2={px,py,cz}
 				if is_map then
 					add(out[sex][sey],o2)
 				else
@@ -1103,6 +1083,50 @@ function create_segs(pts,is_map,v)
 		end
 	end
 	
+	return out
+end
+
+function create_outer(pts,v,wid,typ)
+	printh("create outer: "..typ)
+	local out={}
+	local last_a=nil
+	for i=1,#pts do
+	
+		local prv=pts[i==1 and #pts or i-1]
+		local cur=pts[i]
+		local nxt=pts[i%#pts+1]
+			
+		local px,py=prv[1],prv[2]
+		local cx,cy,cz=cur[1],cur[2],cur[3]
+		local nx,ny=nxt[1],nxt[2]
+		
+		local a=atan2(nx-px,ny-py)
+		local dff=0
+		if last_a!=nil then
+			dff=abs(a-last_a)
+		end
+		last_a=a
+		
+		local col=1
+		if typ=="side" then
+			if dff>0 then 
+				col=8
+			else
+				col=6
+			end
+		end
+		
+		local amtx=abs(wid/cos(a+v))
+		local amty=abs(wid/sin(a+v))
+		//printh(cur[4])
+		add(out,{
+			flr(cx+cos(a+v)*amtx),
+			flr(cy+sin(a+v)*amty),
+			cz,
+			a,
+			col
+		})
+	end
 	return out
 end
 
@@ -1119,17 +1143,7 @@ function create_tris(pts,crnr,apex)
 		
 		local cx=flr(pt[1]/sec_sz)
 		local cy=flr(pt[2]/sec_sz)
-		//local cz=pt[3]
 		
-		--[[
-		local col=pt[3]
-		if cur_c[4]=="start" then
-			col=9
-			printh("herererere")
-			printh(col)
-		end
-		]]--
-		//printh(cx.." "..cy)
 		mis=min(mis,cx)
 		mis=min(mis,cy)
 		mas=max(mas,cx)
@@ -1139,17 +1153,16 @@ function create_tris(pts,crnr,apex)
 			{nxt_c[1],nxt_c[2],nxt_c[3]},
 			{cur_p[1],cur_p[2],cur_p[3]},
 			{pt[1],pt[2]},//center
-			pt[5], //color
-			pt[4] //flags
+			cur_c[4], //angle
+			cur_c[5] //color
 		})
-		//printh(pt[3])
 		add(out[cx][cy],{
 			{nxt_c[1],nxt_c[2],nxt_c[3]},
 			{nxt_p[1],nxt_p[2],nxt_p[3]},
 			{cur_p[1],cur_p[2],cur_p[3]},
 			{pt[1],pt[2]},//center
-			pt[5], //color
-			pt[4] //flags
+			cur_c[4], //angle
+			cur_c[5] //color
 		})
 	end
 	return out
@@ -1256,6 +1269,19 @@ function pt_in_tri(x,y,tr)
 	
 	return s>=0 and t>=0 and s+t<=d
 end
+
+function clear(arr)
+	if arry and #arr>0 then
+		for o in all(arr)do
+			if type(o)=="table" then
+				clear(o)
+			end
+			del(arr,o)
+		end
+	end
+	
+	return {}
+end
 -->8
 -- title
 
@@ -1328,8 +1354,9 @@ function draw_track_outer(arr)
 end
 
 function tp_at_scale(pt)
-	local x=((pt[1]+widx/2)/twid)*60
-	local y=((pt[2]+widy/2)/thgt)*60
+	local m=max(twid,thgt)
+	local x=((pt[1])/m)*80
+	local y=((pt[2])/m)*80
 	return x,y
 end
 
@@ -1397,11 +1424,22 @@ __gfx__
 44444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444000000000000000000000000000000
 44444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444000000000000000000000000000000
 44444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444000000000000000000000000000000
-00070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00707000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00707000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00070000000008888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00707000000888888888800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000008888888888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00707000088888888888888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00070000088888888888888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000888888888888888800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000887777777777778800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000887777777777778800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000887777777777778800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000887777777777778800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000888888888888888800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000088888888888888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000088888888888888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000008888888888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000888888888800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000008888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070700000700070007770700000000000000000
 ddd0ddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000070700000700070000070700000000000000000
