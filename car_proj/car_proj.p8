@@ -70,6 +70,8 @@ gears={
 	}
 }
 break_s=0.8
+turn_amt=0.05
+turn_mod=0.007
 
 uitf=0 --ui time fast
 
@@ -154,9 +156,12 @@ function draw_pov()
 	rectfill(
 		camx,camy+64,
 		camx+127,camy+127,3)
-	
-	for i=max(-map_sz,secx-1),min(map_sz,secx+1)do
-	for j=max(-map_sz,secy-1),min(map_sz,secy+1)do
+		
+	local povx=flr(secx+2*cos(ang+0.0))
+	local povy=flr(secy+2*sin(ang+0.0))
+		
+	for i=max(-map_sz,povx-3),min(map_sz,povx+3)do
+	for j=max(-map_sz,povy-3),min(map_sz,povy+3)do
 	
 		//draw_tris(g_tris[i][j],15)
 		draw_road_tris(r_tris[i][j])
@@ -546,23 +551,22 @@ function update_car()
 		else, just let it happen
 		]]--
 	elseif rpm<0 and gear>1 then
-		printh("stall")
+		//printh("stall")
 		rpm=0
 	end
 		
 	--turning
-	local tamt=0.05
 	if spd>150 then
-		tamt=0.1
+		//tamt=0.1
 	end
 	if btn(⬅️) then
-		turn=max(-1,turn-tamt)
+		turn=max(-1,turn-turn_amt)
 	elseif btn(➡️) then
-		turn=min(1,turn+tamt)
+		turn=min(1,turn+turn_amt)
 	elseif turn<0 then
-		turn=min(0,turn+0.05)
+		turn=min(0,turn+turn_amt)
 	elseif turn>0 then
-		turn=max(0,turn-0.05)
+		turn=max(0,turn-turn_amt)
 	end
 	
 	turn_actual=turn
@@ -583,7 +587,7 @@ function update_car()
 			grip=max(0,grip-0.15)
 			w[3]=false
 			if spd>50 then
-				spd-=0.5
+				spd-=1
 			end
 		end
 		
@@ -603,6 +607,7 @@ function update_car()
 	
 	if touch_flag=="start" and
 				last_flag!="start" then
+		printh("here")
 		if start_time!=nil then
 			lap_time=time()-start_time
 			local at={
@@ -642,7 +647,10 @@ function update_car()
 		)
 		end
 	end
-	last_flag=touch_flag
+	
+	if touch_flag!=nil then
+		last_flag=touch_flag
+	end
 	
 	--[[
 	ok so this is feeling alright.
@@ -670,7 +678,7 @@ function update_car()
 	end
 
 	if spd>0 then
-		ang=(ang-turn_actual*0.01)%1
+		ang=(ang-turn_actual*turn_mod)%1
 	end
 	
 	//1 k/h ~= 0.278 m/s
@@ -770,7 +778,8 @@ function draw_hud()
 	
 	--time
 	if start_time!=nil then
-		print(time()-start_time,camx+50,camy+1,7)
+		print(ftime(time()-start_time),
+		camx+50,camy+1,7)
 	else
 		print("---.--",camx+50,camy+1,7)
 	end
@@ -778,7 +787,8 @@ function draw_hud()
 	if best_time==nil then
 		print("bt:---.--",camx,camy+1,13)
 	else
-		print("bt:"..best_time[1],camx,camy+1,14)
+		print("bt:"..ftime(best_time[1]),
+		camx,camy+1,14)
 	end
 
 	for i=0,5 do
@@ -786,7 +796,7 @@ function draw_hud()
 		if #times-i>0 then
 			s=times[#times-i][1]
 		end
-		print("p"..(i+1)..":"..s,
+		print("p"..(i+1)..":"..ftime(s),
 				camx,camy+7+i*6,13)
 	end
 end
@@ -817,6 +827,18 @@ function draw_time_alert()
 		print(time_alert[1],
 			camx+52,camy+50,7)
 	end
+end
+
+function ftime(t)
+	if type(t)!="number" then
+		return t
+	end
+	local mins=flr(t/60)
+	local s=""
+	if mins>0 then
+		s=s..mins..":"
+	end
+	return s..t%60
 end
 -->8
 -- track
@@ -1090,6 +1112,7 @@ function create_outer(pts,v,wid,typ)
 	printh("create outer: "..typ)
 	local out={}
 	local last_a=nil
+	local c=true
 	for i=1,#pts do
 	
 		local prv=pts[i==1 and #pts or i-1]
@@ -1109,10 +1132,11 @@ function create_outer(pts,v,wid,typ)
 		
 		local col=1
 		if typ=="side" then
-			if dff>0 then 
-				col=8
+			if dff>0.01 then
+				c=not c 
+				col=c and 8 or 7
 			else
-				col=6
+				col=5
 			end
 		end
 		
