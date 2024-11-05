@@ -2,27 +2,48 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- plane
+
+-- camera
 camx,camy,camz=0,0,0
 cam_ya,cam_pi=0,0
 cam_d=21
 cam_h=-8
 
+-- pov
 fov=0.11
 zfar=500
 znear=3
 lam=(zfar/zfar-znear)
 
+-- collections
 objs={}
 enmy={}
 
+--player
 ppx,ppy,ppz=0,-30,150
 --yaw,pitch,roll
 pp_ya,pp_pi,pp_ro=0.0,0,0
 turnx=0
 turny=0
-pp_targ=nil
-st_e=nil --screen target enemy
-st_p=nil --screen target pos
+wpn=0 --weapon index
+
+pp_targ=nil --target object
+pp_t_idx=0 --targ finding inx
+st_p=nil --[[
+									sp_p[1]=x
+									st_p[2]=y
+									st_p[3]=-1 no targ
+																	0 targ tracked
+																	1 targ locked
+									]]--
+								
+
+
+--constants
+mssl_t=0.05 --missle turn lerp
+alert_m=""
+alert_t=0
+uit=0
 
 function _init()
 	printh("====== start ======")
@@ -34,14 +55,9 @@ function _init()
 	add(objs,obj(obj_base,300,0,0))
 	add(objs,obj(obj_base,0,0,500))
 
-	local e=obj(
-		pp_base,
-		0,-70,0,
-		update_enemy)
-	e.scrx=-1
-	e.scry=-1
-	add(objs,e)
-	add(enmy,e)
+	//add_enemy(-50,-50,0)
+	add_enemy(0,-50,0)
+	//add_enemy(50,-50,0)
 end
 
 function _draw()
@@ -69,11 +85,6 @@ function _draw()
 		else
 			proj_obj(o)
 		end
-		//if o.draw then
-		//	o.draw(o)
-		//else
-		//	draw_obj(o)
-		//end
 	end
 	
 	proj_obj({
@@ -81,51 +92,123 @@ function _draw()
 		x=ppx,y=ppy,z=ppz,
 		ya=pp_ya,pi=pp_pi,ro=pp_ro
 	})
-	
-	
+
 	for t in all(t_sorted)do
 		if type(t[3])=="number" then
 			draw_sprite(t)
 		else
 			draw_tri(t,t[2])
 		end
-		
 	end
 	
-	//printh(turn)
+	draw_map()
 	
+	draw_hud()	
+
+--[[
+	pria(
+		{flr(ppx),flr(ppy),flr(ppz)},
+		0,0,7)
+	pria({pp_ya,pp_pi,},0,6,7)
+	]]--
+end
+
+function draw_hud()
+	-- boxes around enemies
+	for e in all(enmy)do
+		if onscr(e) then
+			if e!=pp_targ or 
+						st_p[3]==1 or
+						flr(uit)==1 then
+				rect(
+					e.scrx-2,e.scry-2,
+					e.scrx+2,e.scry+2,
+					e==pp_targ and 11 or 5)
+				print(
+					"mig-29",
+					e.scrx+3,
+					e.scry-7)
+			end
+		elseif e==pp_targ then
+			local a=(atan2(
+				64-e.scrx,
+				64-e.scry)+0.5)%1
+			
+			pelogen_tri(
+				64+cos(a)*62,
+				64+sin(a)*62,
+				64+cos(a-0.01)*46,
+				64+sin(a-0.01)*46,
+				64+cos(a+0.01)*46,
+				64+sin(a+0.01)*46,
+				11)
+		end
+	end
+	
+	--screen target box
+	if (st_p[3]==0 and flr(uit)==1) or
+				st_p[3]==1 then
+		rect(
+			st_p[1]-2,st_p[2]-2,
+			st_p[1]+2,st_p[2]+2,
+			11)
+	end
+	
+	--crosshairs
 	circ(
 		64+turnx*1000,
 		64+turny*1000,
 		1,7)
 	
-	if st_p then
-		rect(
-			st_p[1]-2,st_p[2]-2,
-			st_p[1]+2,st_p[2]+2,
-			st_p[3]>10 and 8 or 2)
+	--weapons
+	print("targ",96,74,wpn==0 and 11 or 1)
+	print("mssl 750",96,80,wpn==1 and 11 or 1)
+	print("gun  080",96,86,wpn==2 and 11 or 1)
+	//rect(94,72+wpn*7,127,80+wpn*7,11)
+
+	--alert
+	if alert_t>0 then
+		rectfill(
+			49,49,
+			49+#alert_m*4,55,
+			10)
+		print(alert_m,50,50,0)
 	end
-	
-	print("gun  750",94,80,7)
-	print("mssl 080",94,86,7)
-	
-	
-
-	pria(
-		{flr(ppx),flr(ppy),flr(ppz)},
-		0,0,7)
-	pria({pp_ya,pp_pi,},0,6,7)
-
-	
 end
 
 function _update()
+	uit=(uit+0.5)%2
 	update_plane()
 	update_cam()
 	
 	for o in all(objs)do
 		if(o.update)o.update(o)
 	end
+	
+	alert_t=max(alert_t-1,0)
+end
+
+function draw_map()
+	rect(1,1,32,32,1)
+	//fillp(░)
+	//rectfill(1,1,32,32,1)
+	//fillp()
+	
+	for e in all(enmy)do
+		local mx,mz=map_xz(e.x,e.z)
+		pset(
+			mx,mz,
+			pp_targ==e and 9 or 13)
+	end
+	
+	//local mx,mz=map_xz(ppx,ppz)
+	pset(15,15,11)
+end
+
+function map_xz(x,z)
+	local mx=((x-ppx)/1000)*15+15
+	local mz=((z-ppz)/1000)*15+15
+	return mx,mz
 end
 -->8
 -- pov
@@ -283,6 +366,8 @@ end
 
 l_pi=0
 function update_plane()
+	if(btnp(🅾️))wpn=(wpn+1)%3
+	
 	if btn(⬆️) then
 		pp_pi=max(pp_pi-0.01,-0.125)
 	elseif btn(⬇️) then
@@ -331,12 +416,10 @@ function update_plane()
 	pp_ya=pp_ya%1
 	
 	dx,dy,dz=rot3d(
-		0,0,1,
+		0,0,2,
 		pp_pi,
 		pp_ya,
 		0)
-	//dy,dz=rot2d(0,1,pp_pi)
-	//dz,dx=rot2d(dz,0,pp_ya)
 		
 	ppx-=dx
 	ppy-=dy
@@ -344,65 +427,68 @@ function update_plane()
 	
 	ppy=min(0,ppy)
 	
-	-- check enemy on screen
-	local f_targ=nil
-	for e in all(enmy)do
-		if e.scrx>-1 and e.scrx<128 and
-					e.scry>-1 and e.scry<128 then
-			f_targ=e
-		end
+	if btnp(❎) then
+		if(wpn==0)find_targ()
+		if(wpn==1)shoot_mssl()
 	end
-	
-	if not f_targ then
-		-- no targ, clear
-		st_e=nil
-		st_p=nil
-	elseif st_e==nil then
-		-- new targ, start tracking
-		st_e=f_targ
-		st_p={64,64,0}
+		
+	if pp_targ==nil or 
+				not onscr(pp_targ) then
+		st_p={64,64,-1}
 	else
-		-- same targ, update tracking
-		local dfx=st_e.scrx-st_p[1]
-		local dfy=st_e.scry-st_p[2]
-		//loga({dfx,dfy})
+		--update tracking
+		local dfx=pp_targ.scrx-st_p[1]
+		local dfy=pp_targ.scry-st_p[2]
 		if abs(dfx)>3 or abs(dfy)>3 then
 			st_p[1]+=sgn(dfx)
 			st_p[2]+=sgn(dfy)
-		end
-		if abs(dfx)<5 or abs(dfy)<5 then
-			st_p[3]+=1
-		else
 			st_p[3]=0
-		end
-	end
-	
-	
-	if btnp(❎) then
-		if st_e and st_p and 
-					st_p[3]>10 then
-			shoot_mssl(st_e)
 		else
-			shoot_mssl(nil)
+			st_p[1]=pp_targ.scrx
+			st_p[2]=pp_targ.scry
+			st_p[3]=1
 		end
 	end
 end
 
-function shoot_mssl(e)
+function find_targ()
+	local f_targs={}
+	for e in all(enmy)do
+		if onscr(e) then
+			add(f_targs,e)
+		end
+	end
+	st_p={64,64,-1}
+	if #f_targs==0 then
+		pp_t_idx=0
+		pp_targ=nil
+		return
+	else
+		pp_t_idx+=1
+		if pp_t_idx>#f_targs then
+			pp_t_idx=1
+		end
+		pp_targ=f_targs[pp_t_idx]
+	end
+end
+
+function shoot_mssl()
 	local mssl=obj(
 		mssl_base,
-		ppx,ppy+10,ppz,
+		ppx,ppy+2,ppz,
 		update_mssl)
 	mssl.pi=pp_pi
 	mssl.ya=pp_ya
 	mssl.t=200
-	mssl.targ=e
+	if pp_targ and 
+				st_p[3]==1 then
+		mssl.targ=pp_targ
+	end
 	printh("fire")
 	add(objs,mssl)
 end
 
 function update_mssl(m)
-
 	if m.targ then
 		tya=(atan2(
 			m.targ.x-m.x,
@@ -415,14 +501,14 @@ function update_mssl(m)
 			(m.targ.x-m.x)*sin(m.ya)
 		)-0.25)%1
 		
-		loga({pp_pi,m.pi,tpi})
+		//loga({pp_pi,m.pi,tpi})
 		
-		m.ya=ang_lerp(m.ya,tya,0.1)
-		m.pi=ang_lerp(m.pi,tpi,0.1)
+		m.ya=ang_lerp(m.ya,tya,mssl_t)
+		m.pi=ang_lerp(m.pi,tpi,mssl_t)
 	end
 	
 	dx,dy,dz=rot3d(
-		0,0,2,
+		0,0,4,
 		m.pi,
 		m.ya,
 		0)
@@ -441,8 +527,26 @@ function update_mssl(m)
 		smoke.t=20
 		add(objs,smoke)
 	end
+	
+	for e in all(enmy)do
+		local edx=abs(m.x-e.x)
+		local edy=abs(m.y-e.y)
+		local edz=abs(m.z-e.z)
+		
+		if edx<2 and edy<2 and edz<2 then
+			m.t=0
+			e.hp-=50
+			del(objs,m)
+			//printh("missle hit")
+			alert("hit")
+			return
+		end
+	end
+	
 	if m.t==0 or m.y>=0 then
 		del(objs,m)
+		//printh("missle missed")
+		alert("miss")
 	end
 end
 -->8
@@ -453,10 +557,17 @@ function obj(tris,x,y,z,up)
 		tris=tris,
 		x=x,y=y,z=z,
 		ya=0,pi=0,ro=0,
+		scrx=-1,scry=-1,
 		update=up
 	}
-	//comb(o,ext)
 	return o
+end
+
+function onscr(o)
+	return o.scrx>-1 and 
+								o.scrx<128 and
+								o.scry>-1 and 
+								o.scry<128
 end
 
 --[[
@@ -522,9 +633,44 @@ function update_smoke(s)
 	end
 end
 
+function add_enemy(x,y,z)
+	local e=obj(
+		pp_base,
+		x,y,z,
+		update_enemy)
+	e.hp=100
+	add(objs,e)
+	add(enmy,e)
+end
+
 function update_enemy(e)
-	sx,sy=proj(e.x,e.y,e.z)
+	sx,sy,dz=proj(e.x,e.y,e.z)
 	e.scrx,e.scry=flr(sx),flr(sy)
+	e.scrdz=flr(dz)
+	
+	//local pa=
+	
+	dx,dy,dz=rot3d(
+		0,0,1,
+		e.pi,
+		e.ya,
+		0)
+	
+	e.x-=dx
+	e.y-=dy
+	e.z-=dz
+	
+	if e.hp<=0 then
+		del(objs,e)
+		del(enmy,e)
+		alert("destroyed")
+		find_targ()
+	end
+end
+
+function alert(s)
+	alert_m=s
+	alert_t=60
 end
 
 -->8
@@ -599,15 +745,11 @@ mssl_base={
 	}
 }
 __gfx__
-00000000333033303330300050505500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000333030003000300050555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700303000300030300005005050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000303033303330333055555050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000005055005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000005550505000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000050505050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000500505000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000003330303033000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000003000303030300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000003030303030300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000003330333030300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000050505500bb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000505555500bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0070070000000000000000000500505000bbbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000000000000000055555050000bbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000000000000000005055005000bbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0070070000000000000000000555050500bbbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000505050500bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000500505bb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
