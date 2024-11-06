@@ -26,11 +26,13 @@ lam=(zfar/zfar-znear)
 -- collections
 objs={}
 enmy={}
+e_mssl={}
 
 --player
 ppx,ppy,ppz=0,-30,150
 --yaw,pitch,roll
 pp_ya,pp_pi,pp_ro=0.0,0,0
+pp_hp=100
 pp_spd=2
 turnx=0
 turny=0
@@ -71,9 +73,10 @@ function _init()
 	add(objs,obj(obj_base,300,0,0))
 	add(objs,obj(obj_base,0,0,500))
 
-	//add_enemy(-50,-50,0)
+	add_enemy(-50,-50,0)
 	add_enemy(0,-50,0)
-	//add_enemy(50,-50,0)
+	add_enemy(50,-50,0)
+	pp_obj=obj(0,0,0,0,0,0,nil)
 end
 
 function _draw()
@@ -188,7 +191,8 @@ function draw_hud()
 	print("mssl 750",96,80,wpn==1 and 11 or 1)
 	print("gun  080",96,86,wpn==2 and 11 or 1)
 	//rect(94,72+wpn*7,127,80+wpn*7,11)
-
+	print("hp "..pp_hp,96,98,11)
+	
 	--spd/alt
 	print(flr(pp_spd*30),20,60,11)
 	print(flr(ppy*-1),100,60,11)
@@ -203,7 +207,8 @@ function draw_hud()
 	end
 	
 	--warning
-	if warn and uits() then
+	if #e_mssl>0 or 
+				(warn and uits()) then
 		print("warning",50,42,8)
 	end
 	
@@ -211,7 +216,15 @@ end
 
 function _update()
 	uit=(uit+0.5)%4
-	update_plane()
+	update_player()
+	
+	pp_obj.x=ppx
+	pp_obj.y=ppy
+	pp_obj.z=ppz
+	pp_obj.ya=pp_ya
+	pp_obj.pi=pp_pi
+	pp_obj.ro=pp_ro
+	
 	update_cam()
 	
 	for o in all(objs)do
@@ -249,6 +262,11 @@ function map_xz(x,z)
 	local mx=((x-ppx)/1000)*15+15
 	local mz=((z-ppz)/1000)*15+15
 	return mx,mz
+end
+
+function alert(s)
+	alert_m=s
+	alert_t=60
 end
 -->8
 -- pov
@@ -405,7 +423,7 @@ function update_cam()
 end
 
 l_pi=0
-function update_plane()
+function update_player()
 	if(btnp(🅾️))wpn=(wpn+1)%3
 	
 	if btn(⬆️) then
@@ -469,10 +487,20 @@ function update_plane()
 	
 	if btnp(❎) then
 		if(wpn==0)find_targ()
-		if(wpn==1)shoot_mssl()
+		if wpn==1 then
+			local targ=nil
+			if pp_targ and st_p[3]==1 then
+				targ=pp_targ
+			end
+			shoot_mssl(
+				ppx,ppy+2,ppz,
+				pp_ya,pp_pi,
+				targ)
+		end
 	end
 		
-	if pp_targ==nil or 
+	if wpn!=1 or 
+				pp_targ==nil or 
 				not onscr(pp_targ) then
 		st_p={64,64,-1}
 	else
@@ -511,46 +539,161 @@ function find_targ()
 		pp_targ=f_targs[pp_t_idx]
 	end
 end
+-->8
+-- ememies
 
-function shoot_mssl()
+function add_enemy(x,y,z)
+	local e=obj(
+		pp_base,
+		x,y,z,0,0,0,
+		update_enemy)
+	e.hp=100
+	e.mode="follow"
+	e.t=1 --mode timer
+	e.lt=30 --lock timer
+	e.spd=5
+	e.tx=0 --target x
+	e.ty=0 --target y
+	e.tz=0 --target z
+	//e.la=0.05 --turn lerp amt
+	add(objs,e)
+	add(enmy,e)
+end
+
+function update_enemy(e)
+	sx,sy,dz=proj(e.x,e.y,e.z)
+	e.scrx,e.scry=flr(sx),flr(sy)
+	e.scrdz=flr(dz)
+		
+	-- run mode
+	warn=false
+	if e.mode=="follow" then
+		e.tx=ppx
+		e.tz=ppz
+		e.ty=ppy
+		e.spd=2
+		e.la=0.05
+		
+		local dff=abs(
+			cos(e.ya)-cos(pp_ya)
+		)%1
+		
+		if dff<0.05 and e.scrdz<1 then
+			warn=true
+			e.lt-=1
+			if e.lt==0 then
+				printh("enemy fire")
+				e.lt=90
+				shoot_mssl(
+					e.x,e.y+2,e.z,
+					e.ya,e.pi,
+					pp_obj)
+			end
+		else
+			e.t-=1
+		end
+		
+		if e.t==0 then
+			if rnd(2)>1 then
+				e.mode="evade"
+				e.t=600
+				e.tx=flr(rnd(800))-400
+				e.tz=flr(rnd(800))-400
+				e.ty=(flr(rnd(300))+40)*-1
+			else
+				e.mode="follow"
+				e.t=100
+				e.lt=30
+			end
+		end
+	elseif e.mode=="evade" then
+		e.la=0.02
+		e.t-=1
+
+		local pd=dist(
+			e.x,e.y,e.z,ppx,ppy,ppz)
+		if pd<100 then
+			e.spd=4
+		else
+			e.spd=1
+		end
+		
+		local td=dist(
+			e.x,e.y,e.z,e.tx,e.ty,e.tz)
+		if td<20 then
+			e.t=0
+		end
+		
+		if e.t==0 then
+			e.mode="follow"
+			e.t=200
+		end
+	end
+		
+	--move to target
+	local aya,api=atan3d(
+		e.x,e.y,e.z,
+		e.tx,e.ty,e.tz,
+		e.ya)
+	
+	e.ya=ang_lerp(e.ya,aya,e.la)
+	e.pi=ang_lerp(e.pi,api,e.la)
+	
+	dx,dy,dz=rot3d(
+		0,0,e.spd,
+		e.pi,
+		e.ya,
+		0)
+	
+	e.x-=dx
+	e.y-=dy
+	e.z-=dz
+	
+	if e.hp<=0 then
+		del(objs,e)
+		del(enmy,e)
+		alert("destroyed")
+		find_targ()
+	end
+end
+-->8
+-- effects
+
+function shoot_mssl(x,y,z,ya,pi,targ)
 	local mssl=obj(
 		mssl_base,
-		ppx,ppy+2,ppz,
+		x,y,z,
+		ya,pi,0,
 		update_mssl)
-	mssl.pi=pp_pi
-	mssl.ya=pp_ya
 	mssl.t=200
 	mssl.d=30000
-	if pp_targ and 
-				st_p[3]==1 then
-		mssl.targ=pp_targ
-	end
+	mssl.targ=targ
+	mssl.p=targ!=pp_obj
+
 	printh("fire")
 	add(objs,mssl)
+	if targ==pp_obj then
+		add(e_mssl,mssl)
+	end
 end
 
 function update_mssl(m)
-	if m.targ then
-		local tya=(atan2(
-			m.targ.x-m.x,
-			-(m.targ.z-m.z)
-		)+0.25)%1
-				
-		local tpi=(atan2(
-			m.targ.y-m.y,
-			(m.targ.z-m.z)*cos(m.ya)+
-			(m.targ.x-m.x)*sin(m.ya)
-		)-0.25)%1
+	if m.targ then		
+		local tya,tpi=atan3d(
+			m.x,m.y,m.z,
+			m.targ.x,m.targ.y,m.targ.z,
+			m.ya)
 		
 		m.ya=ang_lerp(m.ya,tya,mssl_t)
 		m.pi=ang_lerp(m.pi,tpi,mssl_t)
 	
-		local d=dist3d(
+		local d=dist(
 			m.x,m.y,m.z,
 			m.targ.x,m.targ.y,m.targ.z)
 		if d>m.d then
 			printh("lost tracking")
 			m.targ=nil
+			del(e_mssl,m)
 		end
 		m.d=d
 	end
@@ -570,38 +713,63 @@ function update_mssl(m)
 	if m.t%2==0 then
 		local smoke=obj("smoke",
 			m.x,m.y,m.z,
+			0,0,0,
 			update_smoke)
 		smoke.t=20
 		add(objs,smoke)
 	end
 	
-	for e in all(enmy)do		
-		local d=dist3d(
+	if m.targ==pp_obj then
+		local d=dist(
 			m.x,m.y,m.z,
-			e.x,e.y,e.z)
-
+			ppx,ppy,ppz)
 		if d<4 then
 			m.t=0
-			e.hp-=50
+			pp_hp-=50
 			del(objs,m)
-			alert("hit")
+			del(e_mssl,m)
+			alert("ouch")
 			return
+		end
+	else
+		for e in all(enmy)do		
+			local d=dist(
+				m.x,m.y,m.z,
+				e.x,e.y,e.z)
+
+			if d<4 then
+				m.t=0
+				e.hp-=50
+				del(objs,m)
+				alert("hit")
+				return
+			end
 		end
 	end
 	
 	if m.t==0 or m.y>=0 then
 		del(objs,m)
-		alert("miss")
+		del(e_mssl,m)
+		if m.p then
+			alert("miss")
+		end
+	end
+end
+
+function update_smoke(s)
+	s.t-=1
+	if s.t==0 or s.y>=0 then
+		del(objs,s)
 	end
 end
 -->8
 -- helpers
 
-function obj(tris,x,y,z,up)
+function obj(tris,x,y,z,ya,pi,ro,up)
 	local o={
 		tris=tris,
 		x=x,y=y,z=z,
-		ya=0,pi=0,ro=0,
+		ya=ya,pi=pi,ro=ro,
 		scrx=-1,scry=-1,
 		update=up
 	}
@@ -614,14 +782,6 @@ function onscr(o)
 								o.scry>-1 and 
 								o.scry<128
 end
-
---[[
-function comb(a,b)
-	for k,v in pairs(b)do
-		a[k]=v
-	end
-end
-]]--
 
 function tan(a)
 	return sin(a)/cos(a)
@@ -653,12 +813,22 @@ function ang_lerp(a1,a2,t)
 	return ((1-t)*a1+t*a2)%1
 end
 
-function dist(x1,y1,x2,y2)
- local a0,b0=abs(x1-x2),abs(y1-y2)
- return max(a0,b0)*0.9609+min(a0,b0)*0.3984
+function atan3d(x1,y1,z1,x2,y2,z2,ya)	
+	local nya=(atan2(
+		x2-x1,
+		-(z2-z1)
+	)+0.25)%1
+				
+	local npi=(atan2(
+		y2-y1,
+		(z2-z1)*cos(ya)+
+		(x2-x1)*sin(ya)
+	)-0.25)%1
+	
+	return nya,npi
 end
 
-function dist3d(x1,y1,z1,x2,y2,z2)
+function dist(x1,y1,z1,x2,y2,z2)
 	local x=abs(x1-x2)
 	local y=abs(y1-y2)
 	local z=abs(z1-z2)
@@ -694,143 +864,6 @@ end
 function pria(arr,x,y,c)
 	print(a_to_s(arr),x,y,c)
 end
--->8
--- effects and ememies
-
-function update_smoke(s)
-	s.t-=1
-	if s.t==0 or s.y>=0 then
-		del(objs,s)
-	end
-end
-
-function add_enemy(x,y,z)
-	local e=obj(
-		pp_base,
-		x,y,z,
-		update_enemy)
-	e.hp=100
-	e.mode="follow"
-	e.t=1
-	e.spd=5
-	e.tx=0 --target x
-	e.ty=0 --target y
-	e.tz=0 --target z
-	//e.la=0.05 --turn lerp amt
-	add(objs,e)
-	add(enmy,e)
-end
-
-function update_enemy(e)
-	sx,sy,dz=proj(e.x,e.y,e.z)
-	e.scrx,e.scry=flr(sx),flr(sy)
-	e.scrdz=flr(dz)
-		
-	-- run mode
-	warn=false
-	if e.mode=="follow" then
-		e.t-=1
-		e.tx=ppx
-		e.tz=ppz
-		e.ty=ppy
-		e.spd=2
-		e.la=0.05
-		
-		local dff=abs(
-			cos(e.ya)-cos(pp_ya)
-		)%1
-		
-		if dff<0.05 and e.scrdz<1 then
-			warn=true
-			if e.t==0 then
-				printh("enemy fire")
-			end
-		end
-		
-		if e.t==0 then
-			if rnd(2)>1 then
-				e.mode="evade"
-				e.t=600
-				e.tx=flr(rnd(800))-400
-				e.tz=flr(rnd(800))-400
-				e.ty=(flr(rnd(300))+40)*-1
-			else
-				e.mode="follow"
-				e.t=100
-			end
-			//printh("new mode: "..e.mode)
-		end
-	elseif e.mode=="evade" then
-		local pdx=abs(e.x-ppx)
-		local pdy=abs(e.y-ppy)
-		local pdz=abs(e.z-ppz)
-		if pdx<100 and 
-					pdz<100 and 
-					pdy<100 then
-			e.spd=4
-		else
-			e.spd=1
-		end
-		
-		//e.spd=max(e.spd-0.01,2)
-		e.la=0.02
-		e.t-=1
-		
-		local tdx=abs(e.x-e.tx)
-		local tdy=abs(e.y-e.ty)
-		local tdz=abs(e.z-e.tz)
-		//loga({tdx,tdz})
-		if tdx<20 and tdz<20 then
-			e.t=0
-		end
-		
-		if e.t==0 then
-			e.mode="follow"
-			e.t=200
-			printh("new mode: "..e.mode)
-		end
-	end
-		
-	--move to target
-	local aya=(atan2(
-			e.tx-e.x,
-			-(e.tz-e.z)
-		)+0.25)%1
-	
-	local api=(atan2(
-			e.ty-e.y,
-			(e.tz-e.z)*cos(e.ya)+
-			(e.tx-e.x)*sin(e.ya)
-		)-0.25)%1
-	
-	e.ya=ang_lerp(e.ya,aya,e.la)
-	e.pi=ang_lerp(e.pi,api,e.la)
-	
-	dx,dy,dz=rot3d(
-		0,0,e.spd,
-		e.pi,
-		e.ya,
-		0)
-	
-	e.x-=dx
-	e.y-=dy
-	e.z-=dz
-	
-	if e.hp<=0 then
-		del(objs,e)
-		del(enmy,e)
-		alert("destroyed")
-		find_targ()
-	end
-end
-
-
-
-function alert(s)
-	alert_m=s
-	alert_t=60
-end
-
 -->8
 -- models
 
