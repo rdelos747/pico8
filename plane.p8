@@ -3,11 +3,19 @@ version 42
 __lua__
 -- plane
 
+--[[
+notes:
+ave fighter jet cruise spd:
+ - 621 mph = 227 m/s
+ - 30 fps: 227/30 = 7.5 m/frame
+]]--
+
 -- camera
 camx,camy,camz=0,0,0
 cam_ya,cam_pi=0,0
 cam_d=21
 cam_h=-8
+cam_flip=0
 
 -- pov
 fov=0.11
@@ -23,6 +31,7 @@ enmy={}
 ppx,ppy,ppz=0,-30,150
 --yaw,pitch,roll
 pp_ya,pp_pi,pp_ro=0.0,0,0
+pp_spd=2
 turnx=0
 turny=0
 wpn=0 --weapon index
@@ -40,13 +49,20 @@ st_p=nil --[[
 
 
 --constants
-mssl_t=0.05 --missle turn lerp
-alert_m=""
+mssl_t=0.08 --missle turn lerp
+alert_m="destroyed"
 alert_t=0
+warn=false
 uit=0
 
 function _init()
 	printh("====== start ======")
+	
+	menuitem(1,"flip cam",
+		function() 
+			cam_flip=(cam_flip+0.5)%1
+		end
+	)
 	
 	add(objs,obj(obj_base,0,0,0))
 	add(objs,obj(obj_base,-30,0,0))
@@ -75,6 +91,9 @@ function _draw()
 		circfill(
 			sx,sy,
 			7,9)
+		//fillp(▤)
+		//rectfill(0,gh,127,gh+4,3)
+		//fillp()
 		rectfill(0,gh,127,gh+127,3)
 	end
 
@@ -119,7 +138,7 @@ function draw_hud()
 		if onscr(e) then
 			if e!=pp_targ or 
 						st_p[3]==1 or
-						flr(uit)==1 then
+						uitf() then
 				rect(
 					e.scrx-2,e.scry-2,
 					e.scrx+2,e.scry+2,
@@ -128,6 +147,10 @@ function draw_hud()
 					"mig-29",
 					e.scrx+3,
 					e.scry-7)
+				//print( --debug
+				//	e.mode,
+				//	e.scrx+3,
+				//	e.scry-1)
 			end
 		elseif e==pp_targ then
 			local a=(atan2(
@@ -146,7 +169,7 @@ function draw_hud()
 	end
 	
 	--screen target box
-	if (st_p[3]==0 and flr(uit)==1) or
+	if (st_p[3]==0 and uitf()) or
 				st_p[3]==1 then
 		rect(
 			st_p[1]-2,st_p[2]-2,
@@ -166,6 +189,10 @@ function draw_hud()
 	print("gun  080",96,86,wpn==2 and 11 or 1)
 	//rect(94,72+wpn*7,127,80+wpn*7,11)
 
+	--spd/alt
+	print(flr(pp_spd*30),20,60,11)
+	print(flr(ppy*-1),100,60,11)
+	
 	--alert
 	if alert_t>0 then
 		rectfill(
@@ -174,10 +201,16 @@ function draw_hud()
 			10)
 		print(alert_m,50,50,0)
 	end
+	
+	--warning
+	if warn and uits() then
+		print("warning",50,42,8)
+	end
+	
 end
 
 function _update()
-	uit=(uit+0.5)%2
+	uit=(uit+0.5)%4
 	update_plane()
 	update_cam()
 	
@@ -199,10 +232,17 @@ function draw_map()
 		pset(
 			mx,mz,
 			pp_targ==e and 9 or 13)
+		pset(
+			mx+sin(e.ya),mz+cos(e.ya),
+			pp_targ==e and 9 or 13)
 	end
 	
 	//local mx,mz=map_xz(ppx,ppz)
 	pset(15,15,11)
+	pset(
+		15-sin(pp_ya)*2,
+		15-cos(pp_ya)*2,
+		11)
 end
 
 function map_xz(x,z)
@@ -351,7 +391,7 @@ end
 -- player 
 
 function update_cam()	
-	cam_ya=-pp_ya
+	cam_ya=-pp_ya+cam_flip --debug for rear view
 	cam_pi=-pp_pi-sin(pp_pi)*0.01
 
 	dcy,dcz=rot2d(
@@ -480,6 +520,7 @@ function shoot_mssl()
 	mssl.pi=pp_pi
 	mssl.ya=pp_ya
 	mssl.t=200
+	mssl.d=30000
 	if pp_targ and 
 				st_p[3]==1 then
 		mssl.targ=pp_targ
@@ -490,25 +531,32 @@ end
 
 function update_mssl(m)
 	if m.targ then
-		tya=(atan2(
+		local tya=(atan2(
 			m.targ.x-m.x,
 			-(m.targ.z-m.z)
 		)+0.25)%1
 				
-		tpi=(atan2(
+		local tpi=(atan2(
 			m.targ.y-m.y,
 			(m.targ.z-m.z)*cos(m.ya)+
 			(m.targ.x-m.x)*sin(m.ya)
 		)-0.25)%1
 		
-		//loga({pp_pi,m.pi,tpi})
-		
 		m.ya=ang_lerp(m.ya,tya,mssl_t)
 		m.pi=ang_lerp(m.pi,tpi,mssl_t)
+	
+		local d=dist3d(
+			m.x,m.y,m.z,
+			m.targ.x,m.targ.y,m.targ.z)
+		if d>m.d then
+			printh("lost tracking")
+			m.targ=nil
+		end
+		m.d=d
 	end
 	
 	dx,dy,dz=rot3d(
-		0,0,4,
+		0,0,6,
 		m.pi,
 		m.ya,
 		0)
@@ -516,7 +564,6 @@ function update_mssl(m)
 	m.x-=dx
 	m.y-=dy
 	m.z-=dz
-		
 	m.y=min(0,m.y)
 	
 	m.t-=1
@@ -528,16 +575,15 @@ function update_mssl(m)
 		add(objs,smoke)
 	end
 	
-	for e in all(enmy)do
-		local edx=abs(m.x-e.x)
-		local edy=abs(m.y-e.y)
-		local edz=abs(m.z-e.z)
-		
-		if edx<2 and edy<2 and edz<2 then
+	for e in all(enmy)do		
+		local d=dist3d(
+			m.x,m.y,m.z,
+			e.x,e.y,e.z)
+
+		if d<4 then
 			m.t=0
 			e.hp-=50
 			del(objs,m)
-			//printh("missle hit")
 			alert("hit")
 			return
 		end
@@ -545,7 +591,6 @@ function update_mssl(m)
 	
 	if m.t==0 or m.y>=0 then
 		del(objs,m)
-		//printh("missle missed")
 		alert("miss")
 	end
 end
@@ -608,6 +653,32 @@ function ang_lerp(a1,a2,t)
 	return ((1-t)*a1+t*a2)%1
 end
 
+function dist(x1,y1,x2,y2)
+ local a0,b0=abs(x1-x2),abs(y1-y2)
+ return max(a0,b0)*0.9609+min(a0,b0)*0.3984
+end
+
+function dist3d(x1,y1,z1,x2,y2,z2)
+	local x=abs(x1-x2)
+	local y=abs(y1-y2)
+	local z=abs(z1-z2)
+	local ax=atan2(x,y)
+	local d2=x*cos(ax)+y*sin(ax)
+	local az=atan2(d2,z)
+	return d2*cos(az)+z*sin(az)
+end
+
+function uits()
+	return flr(uit)>1
+end
+
+function uitf()
+	return flr(uit)%2==1
+end
+
+
+--debug functions
+--todo remove
 function a_to_s(arr)
 	local s=arr[1]
 	for i=2,#arr do
@@ -639,6 +710,13 @@ function add_enemy(x,y,z)
 		x,y,z,
 		update_enemy)
 	e.hp=100
+	e.mode="follow"
+	e.t=1
+	e.spd=5
+	e.tx=0 --target x
+	e.ty=0 --target y
+	e.tz=0 --target z
+	//e.la=0.05 --turn lerp amt
 	add(objs,e)
 	add(enmy,e)
 end
@@ -647,11 +725,89 @@ function update_enemy(e)
 	sx,sy,dz=proj(e.x,e.y,e.z)
 	e.scrx,e.scry=flr(sx),flr(sy)
 	e.scrdz=flr(dz)
+		
+	-- run mode
+	warn=false
+	if e.mode=="follow" then
+		e.t-=1
+		e.tx=ppx
+		e.tz=ppz
+		e.ty=ppy
+		e.spd=2
+		e.la=0.05
+		
+		local dff=abs(
+			cos(e.ya)-cos(pp_ya)
+		)%1
+		
+		if dff<0.05 and e.scrdz<1 then
+			warn=true
+			if e.t==0 then
+				printh("enemy fire")
+			end
+		end
+		
+		if e.t==0 then
+			if rnd(2)>1 then
+				e.mode="evade"
+				e.t=600
+				e.tx=flr(rnd(800))-400
+				e.tz=flr(rnd(800))-400
+				e.ty=(flr(rnd(300))+40)*-1
+			else
+				e.mode="follow"
+				e.t=100
+			end
+			//printh("new mode: "..e.mode)
+		end
+	elseif e.mode=="evade" then
+		local pdx=abs(e.x-ppx)
+		local pdy=abs(e.y-ppy)
+		local pdz=abs(e.z-ppz)
+		if pdx<100 and 
+					pdz<100 and 
+					pdy<100 then
+			e.spd=4
+		else
+			e.spd=1
+		end
+		
+		//e.spd=max(e.spd-0.01,2)
+		e.la=0.02
+		e.t-=1
+		
+		local tdx=abs(e.x-e.tx)
+		local tdy=abs(e.y-e.ty)
+		local tdz=abs(e.z-e.tz)
+		//loga({tdx,tdz})
+		if tdx<20 and tdz<20 then
+			e.t=0
+		end
+		
+		if e.t==0 then
+			e.mode="follow"
+			e.t=200
+			printh("new mode: "..e.mode)
+		end
+	end
+		
+	--move to target
+	local aya=(atan2(
+			e.tx-e.x,
+			-(e.tz-e.z)
+		)+0.25)%1
 	
-	//local pa=
+	local api=(atan2(
+			e.ty-e.y,
+			(e.tz-e.z)*cos(e.ya)+
+			(e.tx-e.x)*sin(e.ya)
+		)-0.25)%1
+	
+	e.ya=ang_lerp(e.ya,aya,e.la)
+	e.pi=ang_lerp(e.pi,api,e.la)
 	
 	dx,dy,dz=rot3d(
-		0,0,1,
+		0,0,e.spd,
 		e.pi,
 		e.ya,
 		0)
@@ -667,6 +823,8 @@ function update_enemy(e)
 		find_targ()
 	end
 end
+
+
 
 function alert(s)
 	alert_m=s
