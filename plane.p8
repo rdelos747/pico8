@@ -29,33 +29,45 @@ enmy={}
 e_mssl={}
 
 --player
-ppx,ppy,ppz=0,-30,150
+secx,secz=0,0
+ppx,ppy,ppz=0,-400,150
 --yaw,pitch,roll
-pp_ya,pp_pi,pp_ro=0.0,0,0
+pp_ya,pp_pi,pp_ro=0,0,0
 pp_hp=100
 pp_spd=2
 turnx=0
 turny=0
 wpn=0 --weapon index
+dam_t=0
 
 pp_targ=nil --target object
 pp_t_idx=0 --targ finding inx
-st_p=nil --[[
+st_p={} --[[
 									sp_p[1]=x
 									st_p[2]=y
 									st_p[3]=-1 no targ
 																	0 targ tracked
 																	1 targ locked
 									]]--
-								
-
+									
+--menus
+menu_t=0
+lvl_s_idx=0
+lvl_s_tot=1
+pln_s_idx=0
+pln_s_tot=2
 
 --constants
-mssl_t=0.08 --missle turn lerp
 alert_m="destroyed"
 alert_t=0
 warn=false
 uit=0
+
+g_mode="title"
+g_start_t=0
+lvl_t=0
+lvl_start_t=0
+cur_lvl=1
 
 function _init()
 	printh("====== start ======")
@@ -66,22 +78,151 @@ function _init()
 		end
 	)
 	
-	add(objs,obj(obj_base,0,0,0))
-	add(objs,obj(obj_base,-30,0,0))
-	add(objs,obj(obj_base,30,0,0))
-	add(objs,obj(obj_base,0,0,-300))
-	add(objs,obj(obj_base,300,0,0))
-	add(objs,obj(obj_base,0,0,500))
-
-	add_enemy(-50,-50,0)
-	add_enemy(0,-50,0)
-	add_enemy(50,-50,0)
 	pp_obj=obj(0,0,0,0,0,0,nil)
 end
 
 function _draw()
 	cls()
+	t_sorted={}
 	
+	if g_mode=="title" then
+		draw_title()
+	elseif g_mode=="lvl s" then
+		draw_lvl_s()
+	elseif g_mode=="plane s" then
+		draw_plane_s()
+	elseif g_mode=="game" then
+		draw_game()
+	end
+end
+
+function _update()
+	uit=(uit+0.5)%4
+	menu_t+=0.5
+	
+	if g_mode=="title" then
+		update_title()
+	elseif g_mode=="lvl s" then
+		update_lvl_s()
+	elseif g_mode=="plane s" then
+		update_plane_s()
+	elseif g_mode=="game" then
+		update_game()
+	end
+end
+
+function draw_title()
+	print("press ❎ to start",0,0,7)
+end
+
+function update_title()
+	if btnp(❎) then
+		g_mode="lvl s"
+		menu_t=0
+	end
+end
+
+function draw_lvl_s()
+	rectfill(0,0,127,127,1)
+	print("mission select",1,1,12)
+	
+	rect(20,20,108,108,7)
+	
+	local lvl=lvls[cur_lvl]
+	for e in all(lvl.enmy)do
+		local mx=(e[1]/1000)*40+64
+		local mz=(e[3]/1000)*40+64
+		//pset(mx,mz,9)
+		if e[4]=="sam" then
+			//pset(mx,mz,15)
+			spr(9,mx,mz)
+		else
+			line(mx+3,mz+4,mx+3,mz+9,6)
+			spr(8,mx,mz)
+		end
+		
+		//line
+	end
+	
+	for i=0,3 do
+		print(
+			i<lvl_s_tot and "lvl 1" or "??????",
+			i==lvl_s_idx and 8 or 5,
+			i*6+16,
+			i<lvl_s_tot and 12 or 5)
+	end
+end
+
+function update_lvl_s()
+	if btnp(❎) then
+		g_mode="plane s"
+		menu_t=0
+	end
+	if(btnp(⬆️))lvl_s_idx-=1
+	if(btnp(⬇️))lvl_s_idx+=1
+	lvl_s_idx=mid(
+		0,
+		lvl_s_idx,
+		lvl_s_tot-1)
+end
+
+function draw_plane_s()
+	print("plane slct",0,0,7)
+	
+	if menu_t>10 then
+	proj_obj({
+		tris=pp_base,
+		x=0,y=0,z=0,
+		ya=pp_ya,pi=0,ro=0
+	})
+	draw_sorted()
+	
+	print("mig-29",5,20,7)
+	
+	print("speed",5,35,7)
+	print("armor",5,41,7)
+	print("missile",5,47,7)
+	print("gun",5,53,7)
+	end
+	
+	rect(1,13,
+		50*min(menu_t/5,1),26,6)
+
+	rect(1,28,50*min(menu_t/5,1),70,6)
+		
+	if menu_t>5 then
+		sspr(0,8,32,4,3,15)
+		sspr(0,12,32,4,3,30)
+		for i=0,min(flr(menu_t)-5,5) do
+			spr(
+				i>pln_s_tot and 7 or
+				i==pln_s_idx and 5 or 6,
+				i*8+40,50)
+		end
+	end
+end
+
+function update_plane_s()
+	camz=20
+	camy=-10
+	camx=0
+	cam_ya=0.0
+	cam_pi=0.05
+	pp_ya+=0.005
+	
+	if(btnp(⬅️))pln_s_idx-=1
+	if(btnp(➡️))pln_s_idx+=1
+	pln_s_idx=mid(
+		0,
+		pln_s_idx,
+		pln_s_tot-1)
+	
+	if btnp(❎) then
+		init_lvl()
+	end
+end
+
+function draw_game()
 	local gh=64+pp_pi*512
 	gh-=sin(pp_pi)*((500-camy)/500)*12
 	gh=mid(0,gh,128)
@@ -100,9 +241,9 @@ function _draw()
 		rectfill(0,gh,127,gh+127,3)
 	end
 
-	t_sorted={}
+	//t_sorted={}
 	for o in all(objs)do
-		if type(o.tris)=="string" then
+		if type(o.tris)=="function" then
 			proj_sprite(o)
 		else
 			proj_obj(o)
@@ -114,40 +255,93 @@ function _draw()
 		x=ppx,y=ppy,z=ppz,
 		ya=pp_ya,pi=pp_pi,ro=pp_ro
 	})
-
-	for t in all(t_sorted)do
-		if type(t[3])=="number" then
-			draw_sprite(t)
-		else
-			draw_tri(t,t[2])
+	
+	local povx=round(secx-1*sin(pp_ya))
+	local povz=round(secz-1*cos(pp_ya))
+	for i=povx-1,povx+1 do
+	for j=povz-1,povz+1 do
+		srand((i<<8)+j)
+		for k=0,10 do
+			proj_sprite({
+				tris=draw_grnd,
+				x=i*100+rand(-100,100),
+				y=0,
+				z=j*100+rand(-100,100),
+				ya=0,pi=0,ro=0
+			})
 		end
+	end end
+	srand(time())
+
+	draw_sorted()
+	draw_map()
+	draw_hud()
+	
+	print(secx,110,40,7)
+	print(secz,110,46,7)
+end
+
+function update_game()
+	update_player()
+	
+	pp_obj.x=ppx
+	pp_obj.y=ppy
+	pp_obj.z=ppz
+	pp_obj.ya=pp_ya
+	pp_obj.pi=pp_pi
+	pp_obj.ro=pp_ro
+	
+	secx=flr(ppx/100)
+	secz=flr(ppz/100)
+	
+	update_cam()
+	
+	for o in all(objs)do
+		if(o.update)o.update(o)
 	end
 	
-	draw_map()
+	alert_t=max(alert_t-1,0)
 	
-	draw_hud()	
+	g_start_t-=1
+	if g_start_t==0 then
+		alert("mission start")
+		lvl_start_t=time()
+	elseif g_start_t<0 then
+		lvl_t=300-(time()-lvl_start_t)
+	end
+end
 
---[[
-	pria(
-		{flr(ppx),flr(ppy),flr(ppz)},
-		0,0,7)
-	pria({pp_ya,pp_pi,},0,6,7)
-	]]--
+function init_lvl()
+	g_mode="game"
+	pp_ya,pp_pi,pp_ro=0,0,0
+	g_start_t=0 --test, set back to 60
+	
+	local lvl=lvls[cur_lvl]
+	for e in all(lvl.enmy)do
+		add_enemy(e[1],e[2],e[3],e[4])
+	end
+	
+	for o in all(lvl.objs)do
+		add(objs,
+			obj(o[4],o[1],o[2],o[3])
+		)
+	end
 end
 
 function draw_hud()
 	-- boxes around enemies
 	for e in all(enmy)do
 		if onscr(e) then
-			if e!=pp_targ or 
+			if e.mode!="dead" and (
+						e!=pp_targ or 
 						st_p[3]==1 or
-						uitf() then
+						uitf()) then
 				rect(
 					e.scrx-2,e.scry-2,
 					e.scrx+2,e.scry+2,
 					e==pp_targ and 11 or 5)
 				print(
-					"mig-29",
+					e.typ,
 					e.scrx+3,
 					e.scry-7)
 				//print( --debug
@@ -156,9 +350,13 @@ function draw_hud()
 				//	e.scry-1)
 			end
 		elseif e==pp_targ then
-			local a=(atan2(
+			local a=atan2(
 				64-e.scrx,
-				64-e.scry)+0.5)%1
+				64-e.scry)
+			if e.scrdz<zfar then
+				a+=0.5
+			end
+			a=a%1
 			
 			pelogen_tri(
 				64+cos(a)*62,
@@ -180,6 +378,11 @@ function draw_hud()
 			11)
 	end
 	
+	local c=11
+	if dam_t>0 then
+		c=uitf() and 9 or 8
+	end
+	
 	--crosshairs
 	circ(
 		64+turnx*1000,
@@ -187,15 +390,19 @@ function draw_hud()
 		1,7)
 	
 	--weapons
-	print("targ",96,74,wpn==0 and 11 or 1)
-	print("mssl 750",96,80,wpn==1 and 11 or 1)
-	print("gun  080",96,86,wpn==2 and 11 or 1)
+	print("targ",96,74,wpn==0 and c or 1)
+	print("mssl 750",96,80,wpn==1 and c or 1)
+	print("gun  080",96,86,wpn==2 and c or 1)
 	//rect(94,72+wpn*7,127,80+wpn*7,11)
-	print("hp "..pp_hp,96,98,11)
+	print("hp "..pp_hp,96,98,c)
 	
 	--spd/alt
-	print(flr(pp_spd*30),20,60,11)
-	print(flr(ppy*-1),100,60,11)
+	print(flr(pp_spd*30),20,60,c)
+	print(flr(ppy*-1),100,60,c)
+	
+	--time/score
+	print(ftime(lvl_t),100,1,7)
+	print("scr:000",100,7,7)
 	
 	--alert
 	if alert_t>0 then
@@ -212,26 +419,10 @@ function draw_hud()
 		print("warning",50,42,8)
 	end
 	
-end
-
-function _update()
-	uit=(uit+0.5)%4
-	update_player()
-	
-	pp_obj.x=ppx
-	pp_obj.y=ppy
-	pp_obj.z=ppz
-	pp_obj.ya=pp_ya
-	pp_obj.pi=pp_pi
-	pp_obj.ro=pp_ro
-	
-	update_cam()
-	
-	for o in all(objs)do
-		if(o.update)o.update(o)
+	--altitude
+	if ppy>-40 and uits() then
+		print("to low",50,62,8)
 	end
-	
-	alert_t=max(alert_t-1,0)
 end
 
 function draw_map()
@@ -271,10 +462,25 @@ end
 -->8
 -- pov
 
+--[[
+	obj layout:
+	{
+		tris=table of triangles
+		.. other data
+	}
+	
+	sprite layout:
+	{
+		tris=some render function
+		..other data
+	}
+]]--
+
 function proj_sprite(s)
 	local px,py,dz=proj(
 		s.x,s.y,s.z)
-	sort_tri({3,{px,py}},5,dz)
+	sort_tri(
+		{s.tris,{px,py}},s,dz)
 end
 
 function proj_obj(o)
@@ -309,6 +515,12 @@ function proj_obj(o)
 	//pset(px,py,8)
 end
 
+--[[
+	inserts 2 infos:
+	1:z dist
+	2:color (or sprite obj if sprite)
+	3..: existing info shifted
+]]--
 function sort_tri(tt,col,dz)
 	if dz>1 and dz<zfar then
 		add(tt,dz,1)
@@ -337,11 +549,12 @@ function proj(x,y,z)
 			
 	local px=x*(1/tan(fov/2))
 	local py=y*(1/tan(fov/2))
+	
 	local dz=z*lam-lam*znear
 		
 	if abs(px)>zfar or 
 				abs(py)>zfar then
-		return 0,0,zfar
+		return px,py,zfar
 	end
 	
 	dz=max(dz,0.5)
@@ -352,6 +565,27 @@ function proj(x,y,z)
 		dz=0.5
 	end
 	return px,py,dz
+end
+
+--[[
+	hack for sprites:
+	when creating sprites, we set
+	the "tris" field to its 
+	render function. when the sort
+	function is called, the data
+	is shifted, and t[3] is either
+	the existing tris, or the 
+	render function
+]]--
+function draw_sorted()
+	for t in all(t_sorted)do
+		if type(t[3])=="function" then
+			//draw_sprite(t)
+			t[3](t)
+		else
+			draw_tri(t,t[2])
+		end
+	end
 end
 
 function rot2d(x,y,a)
@@ -397,14 +631,15 @@ function pelogen_tri(l,t,c,m,r,b,col,f)
 	end
 end
 
+--[[
 function draw_sprite(s)
 	local z=(zfar-s[1])/zfar
-	--[[
-	consider updating this to
-	sspr
-	]]--
+	
+	//consider updating this to
+	//sspr
 	spr(s[3],s[4][1],s[4][2],z,z)
 end
+]]--
 -->8
 -- player 
 
@@ -424,12 +659,16 @@ end
 
 l_pi=0
 function update_player()
+	if g_start_t>0 then
+		goto pp_move
+	end
+	
 	if(btnp(🅾️))wpn=(wpn+1)%3
 	
 	if btn(⬆️) then
-		pp_pi=max(pp_pi-0.01,-0.125)
+		pp_pi=max(pp_pi-0.01,-0.2)
 	elseif btn(⬇️) then
-		pp_pi=min(pp_pi+0.01,0.125)
+		pp_pi=min(pp_pi+0.01,0.2)
 	end
 	
 	if l_pi!=pp_pi then
@@ -470,6 +709,24 @@ function update_player()
 		end
 	end
 	
+	if btnp(❎) then
+		if(wpn==0)find_targ()
+		if wpn==1 then
+			local targ=nil
+			if pp_targ and st_p[3]==1 then
+				targ=pp_targ
+			end
+			shoot_mssl(
+				ppx,ppy+2,ppz,
+				pp_ya,pp_pi,
+				6,0.1,
+				targ)
+		end
+	end
+	
+	::pp_move::
+	dam_t-=1
+	
 	pp_ya-=turnx
 	pp_ya=pp_ya%1
 	
@@ -485,20 +742,6 @@ function update_player()
 	
 	ppy=min(0,ppy)
 	
-	if btnp(❎) then
-		if(wpn==0)find_targ()
-		if wpn==1 then
-			local targ=nil
-			if pp_targ and st_p[3]==1 then
-				targ=pp_targ
-			end
-			shoot_mssl(
-				ppx,ppy+2,ppz,
-				pp_ya,pp_pi,
-				targ)
-		end
-	end
-		
 	if wpn!=1 or 
 				pp_targ==nil or 
 				not onscr(pp_targ) then
@@ -520,16 +763,19 @@ function update_player()
 end
 
 function find_targ()
+	printh("finding targs")
 	local f_targs={}
 	for e in all(enmy)do
-		if onscr(e) then
+		if onscr(e) and e.mode!="dead" then
 			add(f_targs,e)
 		end
 	end
+	printh(#f_targs)
 	st_p={64,64,-1}
+	pp_targ=nil
 	if #f_targs==0 then
 		pp_t_idx=0
-		pp_targ=nil
+		//pp_targ=nil
 		return
 	else
 		pp_t_idx+=1
@@ -542,11 +788,19 @@ end
 -->8
 -- ememies
 
-function add_enemy(x,y,z)
+function add_enemy(x,y,z,typ)
+	local base=pp_base
+	local up=update_e_plane
+	if typ=="sam" then
+		base=sam_base
+		up=update_e_sam
+	end
+	
 	local e=obj(
-		pp_base,
+		base,
 		x,y,z,0,0,0,
-		update_enemy)
+		up)
+	e.typ=typ
 	e.hp=100
 	e.mode="follow"
 	e.t=1 --mode timer
@@ -555,15 +809,30 @@ function add_enemy(x,y,z)
 	e.tx=0 --target x
 	e.ty=0 --target y
 	e.tz=0 --target z
+	e.sx=x --start x
+	e.sz=z --start z
 	//e.la=0.05 --turn lerp amt
 	add(objs,e)
 	add(enmy,e)
 end
 
-function update_enemy(e)
-	sx,sy,dz=proj(e.x,e.y,e.z)
-	e.scrx,e.scry=flr(sx),flr(sy)
-	e.scrdz=flr(dz)
+function update_e_dead(e)
+	if e.hp<=0 and e.mode!="dead" then
+		alert("destroyed")
+		e.mode="dead"
+		e.t=30000
+		e.tx=e.x
+		e.tz=e.z
+		e.ty=0
+		find_targ()
+	elseif e.y>=0 and e.mode=="dead" then
+		del(objs,e)
+		del(enmy,e)
+	end
+end
+
+function update_e_plane(e)
+	get_onscr(e)
 		
 	-- run mode
 	warn=false
@@ -587,6 +856,7 @@ function update_enemy(e)
 				shoot_mssl(
 					e.x,e.y+2,e.z,
 					e.ya,e.pi,
+					6,0.08,
 					pp_obj)
 			end
 		else
@@ -599,7 +869,7 @@ function update_enemy(e)
 				e.t=600
 				e.tx=flr(rnd(800))-400
 				e.tz=flr(rnd(800))-400
-				e.ty=(flr(rnd(300))+40)*-1
+				e.ty=(flr(rnd(10000))+100)*-1
 			else
 				e.mode="follow"
 				e.t=100
@@ -621,6 +891,7 @@ function update_enemy(e)
 		local td=dist(
 			e.x,e.y,e.z,e.tx,e.ty,e.tz)
 		if td<20 then
+			printh("enemy found target")
 			e.t=0
 		end
 		
@@ -628,6 +899,24 @@ function update_enemy(e)
 			e.mode="follow"
 			e.t=200
 		end
+	elseif e.mode=="dead" then
+		e.la=0.02
+		e.t-=1
+		if e.t%2==0 then
+			add_smoke(e.x,e.y,e.z)
+		end
+	end
+	
+	if e.mode!="dead" and dist(
+			e.x,e.y,e.z,
+			e.sx,e.y,e.sz
+		)>800 then
+		printh("enemy returning")
+		e.mode="evade"
+		e.t=600
+		e.tx=e.sx
+		e.tz=e.sz
+		e.ty=(flr(rnd(10000))+100)*-1
 	end
 		
 	--move to target
@@ -649,17 +938,46 @@ function update_enemy(e)
 	e.y-=dy
 	e.z-=dz
 	
-	if e.hp<=0 then
-		del(objs,e)
-		del(enmy,e)
-		alert("destroyed")
-		find_targ()
+	if e.mode!="dead" then
+		//hack, whatever
+		e.y=min(e.y,-40) 
 	end
+	
+	update_e_dead(e)
+end
+
+function update_e_sam(e)
+	get_onscr(e)
+	
+	local pd=dist(
+		e.x,e.y,e.z,ppx,ppy,ppz)
+	if pd>300 then
+		e.lt=90
+	else
+		warn=true
+		e.lt-=1
+		if e.lt==0 then
+			printh("enemy fire")
+			local aya,api=atan3d(
+				e.x,e.y,e.z,
+				ppx,ppy,ppz,
+				0)
+			e.lt=90
+			shoot_mssl(
+				e.x,e.y-5,e.z,
+				aya,api,
+				5,0.1,
+				pp_obj)
+		end
+	end
+	
+	update_e_dead(e)
 end
 -->8
 -- effects
 
-function shoot_mssl(x,y,z,ya,pi,targ)
+function shoot_mssl(
+	x,y,z,ya,pi,spd,trn,targ)
 	local mssl=obj(
 		mssl_base,
 		x,y,z,
@@ -668,6 +986,8 @@ function shoot_mssl(x,y,z,ya,pi,targ)
 	mssl.t=200
 	mssl.d=30000
 	mssl.targ=targ
+	mssl.trn=trn
+	mssl.spd=spd
 	mssl.p=targ!=pp_obj
 
 	printh("fire")
@@ -684,8 +1004,8 @@ function update_mssl(m)
 			m.targ.x,m.targ.y,m.targ.z,
 			m.ya)
 		
-		m.ya=ang_lerp(m.ya,tya,mssl_t)
-		m.pi=ang_lerp(m.pi,tpi,mssl_t)
+		m.ya=ang_lerp(m.ya,tya,m.trn)
+		m.pi=ang_lerp(m.pi,tpi,m.trn)
 	
 		local d=dist(
 			m.x,m.y,m.z,
@@ -699,7 +1019,7 @@ function update_mssl(m)
 	end
 	
 	dx,dy,dz=rot3d(
-		0,0,6,
+		0,0,m.spd,
 		m.pi,
 		m.ya,
 		0)
@@ -711,12 +1031,9 @@ function update_mssl(m)
 	
 	m.t-=1
 	if m.t%2==0 then
-		local smoke=obj("smoke",
-			m.x,m.y,m.z,
-			0,0,0,
-			update_smoke)
-		smoke.t=20
-		add(objs,smoke)
+		// consider only showing
+		// smoke if close to player
+		add_smoke(m.x,m.y,m.z)
 	end
 	
 	if m.targ==pp_obj then
@@ -728,7 +1045,9 @@ function update_mssl(m)
 			pp_hp-=50
 			del(objs,m)
 			del(e_mssl,m)
-			alert("ouch")
+			//alert("ouch")
+			add_expl(m.x,m.y,m.z)
+			dam_t=30
 			return
 		end
 	else
@@ -742,6 +1061,7 @@ function update_mssl(m)
 				e.hp-=50
 				del(objs,m)
 				alert("hit")
+				add_expl(m.x,m.y,m.z)
 				return
 			end
 		end
@@ -756,11 +1076,72 @@ function update_mssl(m)
 	end
 end
 
+function add_smoke(x,y,z)
+	local smoke=obj(draw_smoke,
+		x,y,z,
+		0,0,0,
+		update_smoke)
+	smoke.t=20
+	add(objs,smoke)
+end
+
 function update_smoke(s)
 	s.t-=1
 	if s.t==0 or s.y>=0 then
 		del(objs,s)
 	end
+end
+
+function draw_smoke(s)
+	local z=(zfar-s[1])/zfar
+	spr(3,s[4][1],s[4][2],z,z)
+end
+
+function add_expl(x,y,z)
+	for i=0,5 do 
+		local expl=obj(draw_expl,
+			x+rand(-5,5),
+			y+rand(-5,5),
+			z+rand(-5,5),
+			0,0,0,
+			update_expl)
+		expl.t=20+rand(0,5)
+		expl.c=rnd({5,5,6,6,9})
+		add(objs,expl)
+	end
+end
+
+function update_expl(e)
+	e.t-=1
+	if e.t==0 then
+		del(objs,e)
+	end
+end
+
+function draw_expl(e)
+	if(e[2].t>20)return
+	local z=(zfar-e[1])/zfar
+	//spr(3,s[4][1],s[4][2],z,z)
+	circfill(
+		e[4][1],e[4][2],
+		(20-abs(e[2].t-15))*z,e[2].c)
+end
+
+function add_grnd(x,z)
+	local g=obj(draw_grnd,
+			x,
+			0,
+			z,
+			0,0,0,
+			nil)
+		//expl.t=20+rand(0,5)
+		//expl.c=rnd({5,5,6,6,9})
+		add(objs,g)
+end
+
+function draw_grnd(g)
+	local z=(zfar-g[1])/zfar
+	spr(11,g[4][1],g[4][2],z,z)
 end
 -->8
 -- helpers
@@ -776,6 +1157,12 @@ function obj(tris,x,y,z,ya,pi,ro,up)
 	return o
 end
 
+function get_onscr(o)
+	sx,sy,dz=proj(o.x,o.y,o.z)
+	o.scrx,o.scry=flr(sx),flr(sy)
+	o.scrdz=flr(dz)
+end
+
 function onscr(o)
 	return o.scrx>-1 and 
 								o.scrx<128 and
@@ -783,21 +1170,17 @@ function onscr(o)
 								o.scry<128
 end
 
+function rand(bot,top)
+	return flr(rnd((top+1)-bot))+bot
+end
+
+
 function tan(a)
 	return sin(a)/cos(a)
 end
 
 function lerp(a,b,t)
 	return a+(b-a)*t
-end
-
-function atan25(x,y)
-	local a=atan2(x,y)
-	if a>0.5 then
-		return (a+0.25)%1
-	else
-		return (a-0.25)%1
-	end
 end
 
 function ang_lerp(a1,a2,t)
@@ -844,6 +1227,26 @@ end
 
 function uitf()
 	return flr(uit)%2==1
+end
+
+function ftime(t)
+	if type(t)!="number" then
+		return t
+	end
+	local mins=flr(t/60)
+	local s=""
+	if mins>0 then
+		s=s..mins..":"
+	end
+	s=s..t%60
+	return sub(s,1,7)
+end
+
+function round(n)
+	if n-flr(n)>=0.5 then
+		return flr(n)+1
+	end
+	return flr(n)
 end
 
 
@@ -906,6 +1309,21 @@ pp_base={
 	},
 }
 
+sam_base={
+	{
+		{-10,0,10},
+		{0,-10,0},
+		{10,0,10},
+		8
+	},
+	{
+		{-10,0,-10},
+		{0,-10,0},
+		{10,0,-10},
+		8
+	}
+}
+
 obj_base={
 	{
 		{-30,0,30},
@@ -935,12 +1353,39 @@ mssl_base={
 		13
 	}
 }
+
+lvls={
+ { -- level 1
+ 	enmy={
+ 		{-1000,-400,0,"mig"},
+ 		//{0,-400,0,"mig"},
+ 		//{500,-400,0,"mig"},
+ 		//{0,0,100,"sam"},
+ 	},
+ 	objs={
+ 		{0,0,0,obj_base},
+ 		{-30,0,0,obj_base},
+ 		{30,0,0,obj_base},
+ 		{0,0,-300,obj_base},
+ 		{300,0,0,obj_base},
+ 		{0,0,500,obj_base},
+ 	}
+ }
+}
 __gfx__
-00000000000000000000000050505500bb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000505555500bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0070070000000000000000000500505000bbbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000055555050000bbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000005055005000bbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0070070000000000000000000555050500bbbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000505050500bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000500505bb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00b00000000000000000000000000000000
+000000000000000000000000505555500bbb00006700076061000160600000600090000000000000000000000b000b0000000000000000000000000000000000
+0070070000000000000000000500505000bbbb0060707060601010606000006000090000000fff0000000000b00b0bbb00000000000000000000000000000000
+00077000000000000000000055555050000bbbbb60070060600100606000006000009000000f0f00000000000bb0b0bb00000000000000000000000000000000
+00077000000000000000000005055005000bbbbb60707060601010606000006000090000000fff000000000000b0bb0b00000000000000000000000000000000
+0070070000000000000000000555050500bbbb00670007606100016060000060009000000000000000000000b00bb0b000000000000000000000000000000000
+000000000000000000000000505050500bbb00006666666066666660666666600000000000000000000000000b000b0000000000000000000000000000000000
+00000000000000000000000000500505bb000000000000000000000000000000000000000000000000000000b00b0b0b00000000000000000000000000000000
+66606066606660666066606660666000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60606060606000606060606000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+66606066006000660066606600060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60606060606660606060606000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+66606660666066606660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60000600606006006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00600600666006000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+66600600606006006660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
