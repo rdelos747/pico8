@@ -13,15 +13,17 @@ ave fighter jet cruise spd:
 -- camera
 camx,camy,camz=0,0,0
 cam_ya,cam_pi=0,0
-cam_d=21
+cam_d=-50
 cam_h=-8
-cam_flip=0
+cam_flip=0.5
 
 -- pov
 fov=0.11
+fov_c=-2.778 // 1/tan(fov/2)
 zfar=500
-znear=3
-lam=(zfar/zfar-znear)
+znear=10
+lam=zfar/(zfar-znear)
+//lam=zfar/zfar-znear
 
 -- collections
 objs={}
@@ -30,11 +32,11 @@ e_mssl={}
 
 --player
 secx,secz=0,0
-ppx,ppy,ppz=0,-400,150
+ppx,ppy,ppz=0,-50,600
 --yaw,pitch,roll
 pp_ya,pp_pi,pp_ro=0,0,0
 pp_hp=100
-pp_spd=2
+pp_spd=4
 turnx=0
 turny=0
 wpn=0 --weapon index
@@ -171,7 +173,7 @@ function draw_plane_s()
 	
 	if menu_t>10 then
 	proj_obj({
-		tris=pp_base,
+		tris=pp_tris,
 		x=0,y=0,z=0,
 		ya=pp_ya,pi=0,ro=0
 	})
@@ -203,11 +205,11 @@ function draw_plane_s()
 end
 
 function update_plane_s()
-	camz=20
-	camy=-10
+	camz=48
+	camy=-21
 	camx=0
-	cam_ya=0.0
-	cam_pi=0.05
+	cam_ya=0.5
+	cam_pi=-0.05
 	pp_ya+=0.005
 	
 	if(btnp(⬅️))pln_s_idx-=1
@@ -223,6 +225,8 @@ function update_plane_s()
 end
 
 function draw_game()
+	//printh("ug draw =====")
+	//printh(" ")
 	local gh=64+pp_pi*512
 	gh-=sin(pp_pi)*((500-camy)/500)*12
 	gh=mid(0,gh,128)
@@ -240,8 +244,7 @@ function draw_game()
 		//fillp()
 		rectfill(0,gh,127,gh+127,3)
 	end
-
-	//t_sorted={}
+		
 	for o in all(objs)do
 		if type(o.tris)=="function" then
 			proj_sprite(o)
@@ -251,13 +254,13 @@ function draw_game()
 	end
 	
 	proj_obj({
-		tris=pp_base,
+		tris=pp_tris,
 		x=ppx,y=ppy,z=ppz,
 		ya=pp_ya,pi=pp_pi,ro=pp_ro
 	})
-	
+
 	local povx=round(secx-1*sin(pp_ya))
-	local povz=round(secz-1*cos(pp_ya))
+	local povz=round(secz-1*cos(pp_ya))	
 	for i=povx-1,povx+1 do
 	for j=povz-1,povz+1 do
 		srand((i<<8)+j)
@@ -279,9 +282,11 @@ function draw_game()
 	
 	print(secx,110,40,7)
 	print(secz,110,46,7)
+	//printh(" ")
 end
 
 function update_game()
+	warn=false
 	update_player()
 	
 	pp_obj.x=ppx
@@ -314,7 +319,7 @@ end
 function init_lvl()
 	g_mode="game"
 	pp_ya,pp_pi,pp_ro=0,0,0
-	g_start_t=0 --test, set back to 60
+	g_start_t=60 --test, set back to 60
 	
 	local lvl=lvls[cur_lvl]
 	for e in all(lvl.enmy)do
@@ -332,10 +337,9 @@ function draw_hud()
 	-- boxes around enemies
 	for e in all(enmy)do
 		if onscr(e) then
-			if e.mode!="dead" and (
-						e!=pp_targ or 
+			if e!=pp_targ or 
 						st_p[3]==1 or
-						uitf()) then
+						uitf() then
 				rect(
 					e.scrx-2,e.scry-2,
 					e.scrx+2,e.scry+2,
@@ -344,19 +348,17 @@ function draw_hud()
 					e.typ,
 					e.scrx+3,
 					e.scry-7)
-				//print( --debug
-				//	e.mode,
-				//	e.scrx+3,
-				//	e.scry-1)
+				print( --debug
+				e.mode,
+					e.scrx+3,
+					e.scry-1)
 			end
 		elseif e==pp_targ then
 			local a=atan2(
 				64-e.scrx,
-				64-e.scry)
-			if e.scrdz<zfar then
-				a+=0.5
-			end
-			a=a%1
+				64-e.scry
+			)
+			a=(a+0.5)%1
 			
 			pelogen_tri(
 				64+cos(a)*62,
@@ -420,39 +422,33 @@ function draw_hud()
 	end
 	
 	--altitude
-	if ppy>-40 and uits() then
+	if ppy>-100 and uits() then
 		print("to low",50,62,8)
 	end
 end
 
 function draw_map()
-	rect(1,1,32,32,1)
 	//fillp(░)
 	//rectfill(1,1,32,32,1)
 	//fillp()
 	
 	for e in all(enmy)do
-		local mx,mz=map_xz(e.x,e.z)
+		local mx,mz=rot2d(
+			e.x-ppx,
+			e.z-ppz,
+			(pp_ya+0.5))
+		mx=mid(-16,mx/64,16)
+		mz=mid(-16,mz/64,16)
+		
 		pset(
-			mx,mz,
-			pp_targ==e and 9 or 13)
-		pset(
-			mx+sin(e.ya),mz+cos(e.ya),
+			16+mx,16-mz,
 			pp_targ==e and 9 or 13)
 	end
 	
-	//local mx,mz=map_xz(ppx,ppz)
-	pset(15,15,11)
-	pset(
-		15-sin(pp_ya)*2,
-		15-cos(pp_ya)*2,
-		11)
-end
-
-function map_xz(x,z)
-	local mx=((x-ppx)/1000)*15+15
-	local mz=((z-ppz)/1000)*15+15
-	return mx,mz
+	pset(16,16,3)
+	pset(16,15,11)
+	
+	rect(1,1,32,32,1)
 end
 
 function alert(s)
@@ -479,6 +475,10 @@ end
 function proj_sprite(s)
 	local px,py,dz=proj(
 		s.x,s.y,s.z)
+	if px<0 or px>127 or
+				py<0 or py>127 then
+		dz=0
+	end
 	sort_tri(
 		{s.tris,{px,py}},s,dz)
 end
@@ -503,7 +503,10 @@ function proj_obj(o)
 			
 			local px,py,dz=proj(
 				x+o.x,y+o.y,z+o.z)
-				
+			if px<0 or px>127 or
+						py<0 or py>127 then
+				dz=0
+			end
 			dz_max=max(dz_max,dz)			
 			add(tt,{px,py})
 		end
@@ -517,12 +520,13 @@ end
 
 --[[
 	inserts 2 infos:
-	1:z dist
+	1:z dist (highest of all pts in tri or sprite)
 	2:color (or sprite obj if sprite)
 	3..: existing info shifted
 ]]--
 function sort_tri(tt,col,dz)
-	if dz>1 and dz<zfar then
+	//if dz>1 and dz<zfar then
+	if dz>1 then
 		add(tt,dz,1)
 		add(tt,col,2)
 			
@@ -546,25 +550,26 @@ function proj(x,y,z)
 		0,
 		-cam_ya,
 		-cam_pi)
+						
+	local dz=max(1,z*lam-lam*znear)	
+	//local px=x*fov_c
+	//local py=y*fov_c
+	
+	local px=mid(
+		-500,
+		(x*fov_c)/dz,
+		500
+	)
+	local py=mid(
+		-500,
+		(y*fov_c)/dz,
+		500
+	)
 			
-	local px=x*(1/tan(fov/2))
-	local py=y*(1/tan(fov/2))
+	px=-64*px+64
+	py=-64*py+64
 	
-	local dz=z*lam-lam*znear
-		
-	if abs(px)>zfar or 
-				abs(py)>zfar then
-		return px,py,zfar
-	end
-	
-	dz=max(dz,0.5)
-	px=-64*px/dz+64
-	py=-64*py/dz+64
-	if px<0 or px>127 or
-				py<0 or py>127 then
-		dz=0.5
-	end
-	return px,py,dz
+	return px,py,dz//,pxz,pyz
 end
 
 --[[
@@ -645,7 +650,7 @@ end
 
 function update_cam()	
 	cam_ya=-pp_ya+cam_flip --debug for rear view
-	cam_pi=-pp_pi-sin(pp_pi)*0.01
+	cam_pi=pp_pi+sin(pp_pi)*0.05
 
 	dcy,dcz=rot2d(
 		cam_h,cam_d,-cam_pi)
@@ -666,9 +671,9 @@ function update_player()
 	if(btnp(🅾️))wpn=(wpn+1)%3
 	
 	if btn(⬆️) then
-		pp_pi=max(pp_pi-0.01,-0.2)
+		pp_pi=max(pp_pi-0.01,-0.24)
 	elseif btn(⬇️) then
-		pp_pi=min(pp_pi+0.01,0.2)
+		pp_pi=min(pp_pi+0.01,0.24)
 	end
 	
 	if l_pi!=pp_pi then
@@ -681,20 +686,13 @@ function update_player()
 		end
 	end
 	l_pi=pp_pi
-	--[[
-	elseif pp_pi<0 then
-		pp_pi=min(pp_pi+0.01,0)
-	elseif pp_pi>0 then
-		pp_pi=max(pp_pi-0.01,0)
-	end
-	]]--
 	
 	if btn(➡️) then
-		turnx=max(turnx-0.001,-0.01)
-		pp_ro=max(pp_ro-0.01,-0.125)
-	elseif btn(⬅️) then
-		turnx=min(turnx+0.001,0.01)
+		turnx=min(turnx+0.001,0.005)
 		pp_ro=min(pp_ro+0.01,0.125)
+	elseif btn(⬅️) then
+		turnx=max(turnx-0.001,-0.005)
+		pp_ro=max(pp_ro-0.01,-0.125)
 	else
 		if turnx<0 then
 			turnx=min(turnx+0.001,0)
@@ -731,7 +729,7 @@ function update_player()
 	pp_ya=pp_ya%1
 	
 	dx,dy,dz=rot3d(
-		0,0,2,
+		0,0,pp_spd,
 		pp_pi,
 		pp_ya,
 		0)
@@ -766,7 +764,7 @@ function find_targ()
 	printh("finding targs")
 	local f_targs={}
 	for e in all(enmy)do
-		if onscr(e) and e.mode!="dead" then
+		if onscr(e) then	
 			add(f_targs,e)
 		end
 	end
@@ -789,134 +787,53 @@ end
 -- ememies
 
 function add_enemy(x,y,z,typ)
-	local base=pp_base
+	local base=enmy_p_base[typ]
+	local tris=base.tris
 	local up=update_e_plane
 	if typ=="sam" then
-		base=sam_base
+		tris=sam_tris
 		up=update_e_sam
 	end
 	
 	local e=obj(
-		base,
+		tris,
 		x,y,z,0,0,0,
 		up)
 	e.typ=typ
 	e.hp=100
-	e.mode="follow"
+	e.mode="evade"
 	e.t=1 --mode timer
-	e.lt=30 --lock timer
+	e.lt=base.lt_max --lock timer
+	e.lt_max=base.lt_max
 	e.spd=5
 	e.tx=0 --target x
 	e.ty=0 --target y
 	e.tz=0 --target z
 	e.sx=x --start x
 	e.sz=z --start z
-	//e.la=0.05 --turn lerp amt
+	e.la=0.05 --turn lerp amt
+	e.f_ch=base.f_ch --follow chance
 	add(objs,e)
 	add(enmy,e)
 end
 
-function update_e_dead(e)
-	if e.hp<=0 and e.mode!="dead" then
-		alert("destroyed")
-		e.mode="dead"
-		e.t=30000
-		e.tx=e.x
-		e.tz=e.z
-		e.ty=0
-		find_targ()
-	elseif e.y>=0 and e.mode=="dead" then
-		del(objs,e)
-		del(enmy,e)
-	end
-end
-
 function update_e_plane(e)
 	get_onscr(e)
-		
+			
+	local pd=dist(
+		e.x,e.y,e.z,ppx,ppy,ppz)
+	
 	-- run mode
-	warn=false
 	if e.mode=="follow" then
-		e.tx=ppx
-		e.tz=ppz
-		e.ty=ppy
-		e.spd=2
-		e.la=0.05
-		
-		local dff=abs(
-			cos(e.ya)-cos(pp_ya)
-		)%1
-		
-		if dff<0.05 and e.scrdz<1 then
-			warn=true
-			e.lt-=1
-			if e.lt==0 then
-				printh("enemy fire")
-				e.lt=90
-				shoot_mssl(
-					e.x,e.y+2,e.z,
-					e.ya,e.pi,
-					6,0.08,
-					pp_obj)
-			end
-		else
-			e.t-=1
-		end
-		
-		if e.t==0 then
-			if rnd(2)>1 then
-				e.mode="evade"
-				e.t=600
-				e.tx=flr(rnd(800))-400
-				e.tz=flr(rnd(800))-400
-				e.ty=(flr(rnd(10000))+100)*-1
-			else
-				e.mode="follow"
-				e.t=100
-				e.lt=30
-			end
-		end
+		update_e_follow(e,pd)
 	elseif e.mode=="evade" then
-		e.la=0.02
-		e.t-=1
-
-		local pd=dist(
-			e.x,e.y,e.z,ppx,ppy,ppz)
-		if pd<100 then
-			e.spd=4
-		else
-			e.spd=1
-		end
-		
-		local td=dist(
-			e.x,e.y,e.z,e.tx,e.ty,e.tz)
-		if td<20 then
-			printh("enemy found target")
-			e.t=0
-		end
-		
-		if e.t==0 then
-			e.mode="follow"
-			e.t=200
-		end
+		update_e_evade(e,pd)
 	elseif e.mode=="dead" then
 		e.la=0.02
 		e.t-=1
 		if e.t%2==0 then
 			add_smoke(e.x,e.y,e.z)
 		end
-	end
-	
-	if e.mode!="dead" and dist(
-			e.x,e.y,e.z,
-			e.sx,e.y,e.sz
-		)>800 then
-		printh("enemy returning")
-		e.mode="evade"
-		e.t=600
-		e.tx=e.sx
-		e.tz=e.sz
-		e.ty=(flr(rnd(10000))+100)*-1
 	end
 		
 	--move to target
@@ -943,7 +860,83 @@ function update_e_plane(e)
 		e.y=min(e.y,-40) 
 	end
 	
-	update_e_dead(e)
+	check_e_dead(e)
+end
+
+function update_e_follow(e,pd)
+	if pd>1000 then
+		printh("s mode:follow -> evade (out of range)")
+		e.mode="evade"
+		e.t=120
+		return
+	end
+	
+	e.tx=ppx
+	e.tz=ppz
+	e.ty=ppy
+	
+	if pd>200 then
+		e.spd=pp_spd+2
+		e.la=0.05
+	else
+		e.spd=pp_spd
+		e.la=0.05
+	end
+	
+	local dff=abs(
+		cos(e.ya)-cos(pp_ya)
+	)%1
+		
+	if dff<0.20 and e.scrdz<2 then
+		warn=true
+		e.lt-=1
+		if e.lt==0 then
+			printh("enemy fire")
+			e.lt=e.lt_max
+			shoot_mssl(
+				e.x,e.y+2,e.z,
+				e.ya,e.pi,
+				6,0.08,
+				pp_obj)
+		end
+	else
+		e.lt=e.lt_max
+		e.t-=1
+	end
+		
+	if e.t==0 then
+		if rnd()<e.f_ch then
+			printh("s mode:follow -> follow")
+			e.mode="follow"
+			e.t=30*5
+			e.lt=30
+		else
+			printh("s mode:follow -> evade")
+			e.mode="evade"
+			e.t=30*15
+			e.tx=rand(-500,500)+e.sx
+			e.tz=rand(-500,500)+e.sz
+			e.ty=rand(150,10000)*-1
+			loga({"set",e.tx,e.ty,e.tz})
+		end
+	end
+end
+
+function update_e_evade(e,pd)
+	e.la=0.02
+	e.t-=1
+		
+	if pd<100 then
+		e.spd=pp_spd
+	else
+		e.spd=pp_spd-1
+	end
+			
+	if e.t==0 then
+		printh("s mode:evade -> follow")
+		e.mode="follow"
+		e.t=200
+	end
 end
 
 function update_e_sam(e)
@@ -951,7 +944,7 @@ function update_e_sam(e)
 	
 	local pd=dist(
 		e.x,e.y,e.z,ppx,ppy,ppz)
-	if pd>300 then
+	if pd>400 then
 		e.lt=90
 	else
 		warn=true
@@ -971,7 +964,22 @@ function update_e_sam(e)
 		end
 	end
 	
-	update_e_dead(e)
+	check_e_dead(e)
+end
+
+function check_e_dead(e)
+	if e.hp<=0 and e.mode!="dead" then
+		alert("destroyed")
+		e.mode="dead"
+		e.t=30000
+		e.tx=e.x
+		e.tz=e.z
+		e.ty=0
+		del(enmy,e)
+		find_targ()
+	elseif e.y>=0 and e.mode=="dead" then
+		del(objs,e)
+	end
 end
 -->8
 -- effects
@@ -979,7 +987,7 @@ end
 function shoot_mssl(
 	x,y,z,ya,pi,spd,trn,targ)
 	local mssl=obj(
-		mssl_base,
+		mssl_tris,
 		x,y,z,
 		ya,pi,0,
 		update_mssl)
@@ -1270,7 +1278,7 @@ end
 -->8
 -- models
 
-pp_base={
+pp_tris={
 	{
 		{0,0,-10},
 		{10,0,8},
@@ -1309,7 +1317,7 @@ pp_base={
 	},
 }
 
-sam_base={
+sam_tris={
 	{
 		{-10,0,10},
 		{0,-10,0},
@@ -1324,7 +1332,7 @@ sam_base={
 	}
 }
 
-obj_base={
+obj_tris={
 	{
 		{-30,0,30},
 		{0,-30,0},
@@ -1339,7 +1347,7 @@ obj_base={
 	},
 }
 
-mssl_base={
+mssl_tris={
 	{
 		{0,0,-2},
 		{-1,0,2},
@@ -1358,19 +1366,35 @@ lvls={
  { -- level 1
  	enmy={
  		{-1000,-400,0,"mig"},
- 		//{0,-400,0,"mig"},
- 		//{500,-400,0,"mig"},
+ 		{0,-400,0,"mig"},
+ 		{500,-400,0,"mig"},
  		//{0,0,100,"sam"},
  	},
  	objs={
- 		{0,0,0,obj_base},
- 		{-30,0,0,obj_base},
- 		{30,0,0,obj_base},
- 		{0,0,-300,obj_base},
- 		{300,0,0,obj_base},
- 		{0,0,500,obj_base},
+ 		{0,0,0,obj_tris},
+ 		{-30,0,0,obj_tris},
+ 		{30,0,0,obj_tris},
+ 		{0,0,-300,obj_tris},
+ 		{100,0,-500,obj_tris},
+ 		{-100,0,-1000,obj_tris},
+ 		
+ 		//{300,0,0,obj_base},
+ 		//{0,0,500,obj_base},
  	}
  }
+}
+
+enmy_p_base={
+	sam={
+		tris=sam_tris,
+		lt_max=90,
+		f_ch=nil
+	},
+	mig={
+		tris=pp_tris,
+		lt_max=90, --lock time max
+		f_ch=0.5, --follow chance
+	},
 }
 __gfx__
 00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00b00000000000000000000000000000000
