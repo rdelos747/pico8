@@ -280,9 +280,10 @@ function draw_game()
 	draw_map()
 	draw_hud()
 	
-	print(secx,110,40,7)
-	print(secz,110,46,7)
+	//print(secx,110,40,7)
+	//print(secz,110,46,7)
 	//printh(" ")
+	print(pp_pi,110,40,7)
 end
 
 function update_game()
@@ -319,6 +320,8 @@ end
 function init_lvl()
 	g_mode="game"
 	pp_ya,pp_pi,pp_ro=0,0,0
+	pp_bay=0
+	pp_bays={0,0}
 	g_start_t=60 --test, set back to 60
 	
 	local lvl=lvls[cur_lvl]
@@ -383,6 +386,8 @@ function draw_hud()
 	local c=11
 	if dam_t>0 then
 		c=uitf() and 9 or 8
+	elseif #e_mssl>0 then
+		c=8
 	end
 	
 	--crosshairs
@@ -445,8 +450,9 @@ function draw_map()
 			pp_targ==e and 9 or 13)
 	end
 	
-	pset(16,16,3)
-	pset(16,15,11)
+	pset(16,16,11)
+	pset(15,17,3)
+	pset(17,17,3)
 	
 	rect(1,1,32,32,1)
 end
@@ -551,18 +557,17 @@ function proj(x,y,z)
 		-cam_ya,
 		-cam_pi)
 						
-	local dz=max(1,z*lam-lam*znear)	
-	//local px=x*fov_c
-	//local py=y*fov_c
+	local dz=z*lam-lam*znear
+	local dz0=max(1,dz)	
 	
 	local px=mid(
 		-500,
-		(x*fov_c)/dz,
+		(x*fov_c)/dz0,
 		500
 	)
 	local py=mid(
 		-500,
-		(y*fov_c)/dz,
+		(y*fov_c)/dz0,
 		500
 	)
 			
@@ -648,10 +653,14 @@ end
 -->8
 -- player 
 
-function update_cam()	
-	cam_ya=-pp_ya+cam_flip --debug for rear view
-	cam_pi=pp_pi+sin(pp_pi)*0.05
-
+function update_cam()
+	if pp_hp<=0 then
+		cam_ya+=0.005
+	else
+		cam_ya=-pp_ya+cam_flip --debug for rear view
+		cam_pi=pp_pi+sin(pp_pi)*0.05
+	end
+	
 	dcy,dcz=rot2d(
 		cam_h,cam_d,-cam_pi)
 	dcz,dcx=rot2d(
@@ -664,16 +673,16 @@ end
 
 l_pi=0
 function update_player()
-	if g_start_t>0 then
-		goto pp_move
+	if g_start_t>0 or pp_hp<=0 then
+		goto pp_after_ctrl
 	end
 	
 	if(btnp(🅾️))wpn=(wpn+1)%3
 	
 	if btn(⬆️) then
-		pp_pi=max(pp_pi-0.01,-0.24)
+		pp_pi=max(pp_pi-0.005,-0.24)
 	elseif btn(⬇️) then
-		pp_pi=min(pp_pi+0.01,0.24)
+		pp_pi=min(pp_pi+0.005,0.24)
 	end
 	
 	if l_pi!=pp_pi then
@@ -688,10 +697,10 @@ function update_player()
 	l_pi=pp_pi
 	
 	if btn(➡️) then
-		turnx=min(turnx+0.001,0.005)
+		turnx=min(turnx+0.0005,0.005)
 		pp_ro=min(pp_ro+0.01,0.125)
 	elseif btn(⬅️) then
-		turnx=max(turnx-0.001,-0.005)
+		turnx=max(turnx-0.0005,-0.005)
 		pp_ro=max(pp_ro-0.01,-0.125)
 	else
 		if turnx<0 then
@@ -707,9 +716,20 @@ function update_player()
 		end
 	end
 	
+	can_shoot=#pp_bays
+	for i=1,#pp_bays do
+		local b=pp_bays[i]
+		if b>0 then
+			pp_bays[i]-=1 //not sure why b-=1 isnt working
+			can_shoot-=1
+		end
+	end
+	
 	if btnp(❎) then
-		if(wpn==0)find_targ()
-		if wpn==1 then
+		if(wpn==0)find_targ(true)
+		if wpn==1 and can_shoot>0 then
+			pp_bays[pp_bay+1]=90
+			pp_bay=(pp_bay+1)%2
 			local targ=nil
 			if pp_targ and st_p[3]==1 then
 				targ=pp_targ
@@ -717,16 +737,21 @@ function update_player()
 			shoot_mssl(
 				ppx,ppy+2,ppz,
 				pp_ya,pp_pi,
-				6,0.1,
+				6,0.06,
 				targ)
 		end
 	end
 	
-	::pp_move::
+	::pp_after_ctrl::
+	
 	dam_t-=1
 	
 	pp_ya-=turnx
 	pp_ya=pp_ya%1
+	
+	if pp_hp<=0 then
+		pp_pi=max(pp_pi-0.001,-0.24)
+	end
 	
 	dx,dy,dz=rot3d(
 		0,0,pp_spd,
@@ -760,11 +785,12 @@ function update_player()
 	end
 end
 
-function find_targ()
+function find_targ(from_p)
 	printh("finding targs")
 	local f_targs={}
 	for e in all(enmy)do
-		if onscr(e) then	
+		if not from_p or
+					onscr(e) then	
 			add(f_targs,e)
 		end
 	end
@@ -800,19 +826,20 @@ function add_enemy(x,y,z,typ)
 		x,y,z,0,0,0,
 		up)
 	e.typ=typ
+	e.base=base
 	e.hp=100
 	e.mode="evade"
 	e.t=1 --mode timer
 	e.lt=base.lt_max --lock timer
-	e.lt_max=base.lt_max
+
 	e.spd=5
 	e.tx=0 --target x
 	e.ty=0 --target y
 	e.tz=0 --target z
 	e.sx=x --start x
 	e.sz=z --start z
-	e.la=0.05 --turn lerp amt
-	e.f_ch=base.f_ch --follow chance
+	e.la=0 --turn lerp amt
+
 	add(objs,e)
 	add(enmy,e)
 end
@@ -829,7 +856,7 @@ function update_e_plane(e)
 	elseif e.mode=="evade" then
 		update_e_evade(e,pd)
 	elseif e.mode=="dead" then
-		e.la=0.02
+		e.la=0.05
 		e.t-=1
 		if e.t%2==0 then
 			add_smoke(e.x,e.y,e.z)
@@ -864,35 +891,30 @@ function update_e_plane(e)
 end
 
 function update_e_follow(e,pd)
-	if pd>1000 then
-		printh("s mode:follow -> evade (out of range)")
-		e.mode="evade"
-		e.t=120
-		return
-	end
-	
 	e.tx=ppx
 	e.tz=ppz
 	e.ty=ppy
 	
+	e.la=e.base.la_f
 	if pd>200 then
 		e.spd=pp_spd+2
-		e.la=0.05
+		//e.la=0.05
 	else
 		e.spd=pp_spd
-		e.la=0.05
+		//e.la=0.05
 	end
 	
 	local dff=abs(
 		cos(e.ya)-cos(pp_ya)
 	)%1
 		
-	if dff<0.20 and e.scrdz<2 then
+	//if dff<0.35 and e.scrdz<2 then
+	if dff<0.35 then
 		warn=true
 		e.lt-=1
 		if e.lt==0 then
 			printh("enemy fire")
-			e.lt=e.lt_max
+			e.lt=e.base.lt_max
 			shoot_mssl(
 				e.x,e.y+2,e.z,
 				e.ya,e.pi,
@@ -900,30 +922,33 @@ function update_e_follow(e,pd)
 				pp_obj)
 		end
 	else
-		e.lt=e.lt_max
+		e.lt=e.base.lt_max
 		e.t-=1
 	end
 		
 	if e.t==0 then
-		if rnd()<e.f_ch then
-			printh("s mode:follow -> follow")
-			e.mode="follow"
-			e.t=30*5
-			e.lt=30
-		else
+		local sd=dist(
+			e.x,0,e.z,e.sx,0,e.sz)
+		if sd>1000 or 
+					rnd()<e.base.f_ch then
 			printh("s mode:follow -> evade")
 			e.mode="evade"
 			e.t=30*15
 			e.tx=rand(-500,500)+e.sx
 			e.tz=rand(-500,500)+e.sz
 			e.ty=rand(150,10000)*-1
-			loga({"set",e.tx,e.ty,e.tz})
+			loga({"set evade targ",e.tx,e.ty,e.tz})
+		else
+			printh("s mode:follow -> follow")
+			e.mode="follow"
+			e.t=30*5
+			e.lt=30		
 		end
 	end
 end
 
 function update_e_evade(e,pd)
-	e.la=0.02
+	e.la=e.base.la_e
 	e.t-=1
 		
 	if pd<100 then
@@ -976,7 +1001,7 @@ function check_e_dead(e)
 		e.tz=e.z
 		e.ty=0
 		del(enmy,e)
-		find_targ()
+		find_targ(false)
 	elseif e.y>=0 and e.mode=="dead" then
 		del(objs,e)
 	end
@@ -1148,7 +1173,7 @@ function add_grnd(x,z)
 end
 
 function draw_grnd(g)
-	local z=(zfar-g[1])/zfar
+	local z=(zfar-g[1])/200
 	spr(11,g[4][1],g[4][2],z,z)
 end
 -->8
@@ -1392,24 +1417,26 @@ enmy_p_base={
 	},
 	mig={
 		tris=pp_tris,
-		lt_max=90, --lock time max
+		lt_max=60, --lock time max
 		f_ch=0.5, --follow chance
+		la_f=0.03, --turn spd follow
+		la_e=0.005  --turn spd evade
 	},
 }
 __gfx__
-00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00b00000000000000000000000000000000
-000000000000000000000000505555500bbb00006700076061000160600000600090000000000000000000000b000b0000000000000000000000000000000000
-0070070000000000000000000500505000bbbb0060707060601010606000006000090000000fff0000000000b00b0bbb00000000000000000000000000000000
-00077000000000000000000055555050000bbbbb60070060600100606000006000009000000f0f00000000000bb0b0bb00000000000000000000000000000000
-00077000000000000000000005055005000bbbbb60707060601010606000006000090000000fff000000000000b0bb0b00000000000000000000000000000000
-0070070000000000000000000555050500bbbb00670007606100016060000060009000000000000000000000b00bb0b000000000000000000000000000000000
-000000000000000000000000505050500bbb00006666666066666660666666600000000000000000000000000b000b0000000000000000000000000000000000
-00000000000000000000000000500505bb000000000000000000000000000000000000000000000000000000b00b0b0b00000000000000000000000000000000
-66606066606660666066606660666000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-60606060606000606060606000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-66606066006000660066606600060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-60606060606660606060606000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-66606660666066606660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-60000600606006006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00600600666006000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-66600600606006006660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00bb0b0b00b000000000000000000000000
+000000000000000000000000505555500bbb00006700076061000160600000600090000000000000000000000b000b000b000b00000000000000000000000000
+0070070000000000000000000500505000bbbb0060707060601010606000006000090000000fff0000000000b00b01b3b00b01b3000000000000000000000000
+00077000000000000000000055555050000bbbbb60070060600100606000006000009000000f0f00000000000b10b0bb0b10b0bb000000000000000000000000
+00077000000000000000000005055005000bbbbb60707060601010606000006000090000000fff000000000000b01b0b00b01b0b000000000000000000000000
+0070070000000000000000000555050500bbbb00670007606100016060000060009000000000000000000000b0b1b010b0b1b010000000000000000000000000
+000000000000000000000000505050500bbb00006666666066666660666666600000000000000000000000000b0b010b0b0b010b000000000000000000000000
+00000000000000000000000000500505bb0000000000000000000000000000000000000000000000000000001013010110130101000000000000000000000000
+66606066606660666066606660666000000000000000000000000000000000000000000000000000000000000000004004000000000000000000000000000000
+60606060606000606060606000060000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000
+66606066006000660066606600060000000000000000000000000000000000000000000000000000000000000000005004000000000000000000000000000000
+60606060606660606060606000060000000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000
+66606660666066606660000000000000000000000000000000000000000000000000000000000000000000000000000505000000000000000000000000000000
+60000600606006006000000000000000000000000000000000000000000000000000000000000000000000000000005050000000000000000000000000000000
+00600600666006000060000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000
+66600600606006006660000000000000000000000000000000000000000000000000000000000000000000000000005505000000000000000000000000000000

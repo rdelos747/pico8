@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- jumper 2
--- 2024-09-02
+-- 2024-11-27
 ver="0.1.6"
 
 --constants and globals
