@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 32
+version 42
 __lua__
 function _init()
 poke(0x5f5d, 2)
