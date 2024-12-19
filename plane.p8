@@ -13,8 +13,8 @@ ave fighter jet cruise spd:
 -- camera
 camx,camy,camz=0,0,0
 cam_ya,cam_pi=0,0
-cam_d=-50
-cam_h=-8
+//cam_d_s=-50 --cam dist start
+//cam_h=-8
 cam_flip=0.5
 
 -- pov
@@ -64,6 +64,8 @@ alert_m="destroyed"
 alert_t=0
 warn=false
 uit=0
+secs=300 --sec size
+sech=150 	--sec size half
 
 g_mode="title"
 g_start_t=0
@@ -259,23 +261,8 @@ function draw_game()
 		ya=pp_ya,pi=pp_pi,ro=pp_ro
 	})
 
-	local povx=round(secx-1*sin(pp_ya))
-	local povz=round(secz-1*cos(pp_ya))	
-	for i=povx-1,povx+1 do
-	for j=povz-1,povz+1 do
-		srand((i<<8)+j)
-		for k=0,10 do
-			proj_sprite({
-				tris=draw_grnd,
-				x=i*100+rand(-100,100),
-				y=0,
-				z=j*100+rand(-100,100),
-				ya=0,pi=0,ro=0
-			})
-		end
-	end end
-	srand(time())
-
+	draw_spr_layer(0,200,draw_grnd)
+	draw_spr_layer(-500,500,draw_cld)
 	draw_sorted()
 	draw_map()
 	draw_hud()
@@ -283,7 +270,7 @@ function draw_game()
 	//print(secx,110,40,7)
 	//print(secz,110,46,7)
 	//printh(" ")
-	print(pp_pi,110,40,7)
+	//print(pp_pi,110,40,7)
 end
 
 function update_game()
@@ -297,8 +284,8 @@ function update_game()
 	pp_obj.pi=pp_pi
 	pp_obj.ro=pp_ro
 	
-	secx=flr(ppx/100)
-	secz=flr(ppz/100)
+	//secx=flr(ppx/secs)
+	//secz=flr(ppz/secs)
 	
 	update_cam()
 	
@@ -306,7 +293,12 @@ function update_game()
 		if(o.update)o.update(o)
 	end
 	
-	alert_t=max(alert_t-1,0)
+	//alert_t=max(alert_t-1,0)
+	if alert_t>0 then
+		alert_t-=1
+	else
+		alert_m=""
+	end
 	
 	g_start_t-=1
 	if g_start_t==0 then
@@ -320,6 +312,8 @@ end
 function init_lvl()
 	g_mode="game"
 	pp_ya,pp_pi,pp_ro=0,0,0
+	cam_d=-50
+	cam_h=-8
 	pp_bay=0
 	pp_bays={0,0}
 	g_start_t=60 --test, set back to 60
@@ -347,14 +341,21 @@ function draw_hud()
 					e.scrx-2,e.scry-2,
 					e.scrx+2,e.scry+2,
 					e==pp_targ and 11 or 5)
+				--[[
 				print(
 					e.typ,
 					e.scrx+3,
 					e.scry-7)
-				print( --debug
-				e.mode,
+				]]--
+				print2(
+					e.typ,
 					e.scrx+3,
-					e.scry-1)
+					e.scry-7,
+					e==pp_targ and 11 or 5)
+				//print( --debug
+				//	e.mode,
+				//	e.scrx+3,
+				//	e.scry-1)
 			end
 		elseif e==pp_targ then
 			local a=atan2(
@@ -397,14 +398,34 @@ function draw_hud()
 		1,7)
 	
 	--weapons
-	print("targ",96,74,wpn==0 and c or 1)
-	print("mssl 750",96,80,wpn==1 and c or 1)
-	print("gun  080",96,86,wpn==2 and c or 1)
+	if pp_s_wpn then
+		pal(6,c)
+		spr(20,95,74)
+		spr(20,118,74,1,1,true)
+		spr(21,87,82)
+		spr(21,87,87,1,1,false,true)
+		pal()
+	end
+	print("targ",103,74,pp_s_wpn and c or 1)
+	print(
+		"mssl 750",95,82,
+		(wpn==0 or c!=11) and c or 1)
+	print(
+		"gun  080",95,90,
+		(wpn==1 or c!=11) and c or 1)
 	//rect(94,72+wpn*7,127,80+wpn*7,11)
-	print("hp "..pp_hp,96,98,c)
+	//print("hp "..pp_hp,96,98,c)
+	rect(93,80+8*wpn,127,88+8*wpn,c)
 	
-	--spd/alt
-	print(flr(pp_spd*30),20,60,c)
+	--dmg/alt
+	//print(flr(pp_spd*30),20,60,c)
+	pal(6,c)
+	sspr(0,16,12,4,16,53,12,4)
+	sspr(0,20,12,4,100,53,12,4)
+	pal()
+	rect(14,51,28,58,c)
+	rect(98,51,112,58,c)
+	print(flr(100-pp_hp),20,60,c)
 	print(flr(ppy*-1),100,60,c)
 	
 	--time/score
@@ -414,10 +435,10 @@ function draw_hud()
 	--alert
 	if alert_t>0 then
 		rectfill(
-			49,49,
-			49+#alert_m*4,55,
+			39,49,
+			39+#alert_m*4,55,
 			10)
-		print(alert_m,50,50,0)
+		print(alert_m,40,50,0)
 	end
 	
 	--warning
@@ -428,7 +449,7 @@ function draw_hud()
 	
 	--altitude
 	if ppy>-100 and uits() then
-		print("to low",50,62,8)
+		print("pull up",50,62,8)
 	end
 end
 
@@ -436,18 +457,22 @@ function draw_map()
 	//fillp(░)
 	//rectfill(1,1,32,32,1)
 	//fillp()
+	rectfill(1,1,32,32,0)
 	
 	for e in all(enmy)do
-		local mx,mz=rot2d(
-			e.x-ppx,
-			e.z-ppz,
-			(pp_ya+0.5))
-		mx=mid(-16,mx/64,16)
-		mz=mid(-16,mz/64,16)
+		local mx,mz=get_map_xz(e)
 		
 		pset(
 			16+mx,16-mz,
 			pp_targ==e and 9 or 13)
+	end
+	
+	for e in all(e_mssl)do
+		local mx,mz=get_map_xz(e)
+		
+		pset(
+			16+mx,16-mz,
+			uits() and 7 or 5)
 	end
 	
 	pset(16,16,11)
@@ -455,6 +480,16 @@ function draw_map()
 	pset(17,17,3)
 	
 	rect(1,1,32,32,1)
+end
+
+function get_map_xz(o)
+	local mx,mz=rot2d(
+			o.x-ppx,
+			o.z-ppz,
+			(pp_ya+0.5))
+		mx=mid(-16,mx/64,16)
+		mz=mid(-16,mz/64,16)
+	return mx,mz
 end
 
 function alert(s)
@@ -483,7 +518,8 @@ function proj_sprite(s)
 		s.x,s.y,s.z)
 	if px<0 or px>127 or
 				py<0 or py>127 then
-		dz=0
+		//dz=0
+		return
 	end
 	sort_tri(
 		{s.tris,{px,py}},s,dz)
@@ -641,21 +677,40 @@ function pelogen_tri(l,t,c,m,r,b,col,f)
 	end
 end
 
---[[
-function draw_sprite(s)
-	local z=(zfar-s[1])/zfar
+function draw_spr_layer(y,sz,f)
+	local secx=flr(ppx/sz)
+	local secz=flr(ppz/sz)
+	local sz2=flr(sz/2)
+	//printh(cos(pp_pi))
+	local hf=flr(
+		(abs(ppy-y)/100)*cos(pp_pi)
+	)+1
+	//printh(hf)
 	
-	//consider updating this to
-	//sspr
-	spr(s[3],s[4][1],s[4][2],z,z)
+	local povx=round(secx-hf*sin(pp_ya))
+	local povz=round(secz-hf*cos(pp_ya))	
+	for i=povx-1,povx+1 do
+	for j=povz-1,povz+1 do
+		srand((i<<8)+j)
+		for k=0,max(1,10-hf) do
+			proj_sprite({
+				tris=f,
+				x=i*sz+rand(-sz2,sz2)+sz2,
+				y=y,
+				z=j*sz+rand(-sz2,sz2)+sz2,
+				ya=0,pi=0,ro=0
+			})
+		end
+	end end
+	srand(time())
 end
-]]--
 -->8
 -- player 
 
 function update_cam()
 	if pp_hp<=0 then
 		cam_ya+=0.005
+		cam_d-=0.5
 	else
 		cam_ya=-pp_ya+cam_flip --debug for rear view
 		cam_pi=pp_pi+sin(pp_pi)*0.05
@@ -677,7 +732,19 @@ function update_player()
 		goto pp_after_ctrl
 	end
 	
-	if(btnp(🅾️))wpn=(wpn+1)%3
+	//if(btnp(🅾️))wpn=(wpn+1)%3
+	pp_s_wpn=false
+	if btn(🅾️) then
+		pp_s_wpn=true
+		if btnp(⬅️) or btnp(➡️) then
+			find_targ(true)
+		elseif btnp(⬆️) then
+			wpn=(wpn-1)%2
+		elseif btnp(⬇️) then
+			wpn=(wpn+1)%2
+		end
+		goto pp_after_ctrl
+	end
 	
 	if btn(⬆️) then
 		pp_pi=max(pp_pi-0.005,-0.24)
@@ -726,8 +793,8 @@ function update_player()
 	end
 	
 	if btnp(❎) then
-		if(wpn==0)find_targ(true)
-		if wpn==1 and can_shoot>0 then
+		//if(wpn==0)find_targ(true)
+		if wpn==0 and can_shoot>0 then
 			pp_bays[pp_bay+1]=90
 			pp_bay=(pp_bay+1)%2
 			local targ=nil
@@ -740,6 +807,11 @@ function update_player()
 				6,0.06,
 				targ)
 		end
+		if wpn==1 then
+			shoot_gun(
+				ppx,ppy,ppz,
+				pp_ya,pp_pi)
+		end
 	end
 	
 	::pp_after_ctrl::
@@ -751,6 +823,7 @@ function update_player()
 	
 	if pp_hp<=0 then
 		pp_pi=max(pp_pi-0.001,-0.24)
+		pp_ya+=0.01
 	end
 	
 	dx,dy,dz=rot3d(
@@ -765,7 +838,7 @@ function update_player()
 	
 	ppy=min(0,ppy)
 	
-	if wpn!=1 or 
+	if wpn!=0 or 
 				pp_targ==nil or 
 				not onscr(pp_targ) then
 		st_p={64,64,-1}
@@ -808,6 +881,50 @@ function find_targ(from_p)
 		end
 		pp_targ=f_targs[pp_t_idx]
 	end
+end
+
+function shoot_gun(x,y,z,ya,pi)
+	local blt=obj(
+		draw_blt,
+		x,y,z,
+		ya,pi,0,
+		update_blt)
+	dx,dy,dz=rot3d(
+		0,0,10,
+		pi,
+		ya,
+		0)
+	blt.dx=dx
+	blt.dy=dy
+	blt.dz=dz
+	add(objs,blt)
+end
+
+local acc=0.05
+function update_blt(b)
+	if b.dx<0 then
+		b.dx=min(b.dx+acc*cos(b.ya),0)
+	else
+		b.dx=max(b.dx-acc*cos(b.ya),0)
+	end
+	
+	if b.dz<0 then
+		b.dz=min(b.dz+acc*sin(b.ya),0)
+	else
+		b.dz=max(b.dz-acc*sin(b.ya),0)
+	end
+	
+	if b.dy<-2 then
+		b.dy=min(b.dy+acc,-2)
+	else
+		b.dy=max(b.dy-acc,-2)
+	end
+	
+	//loga({b.dx,b.dy,b.dz})
+	
+	b.x-=b.dx
+	b.y-=b.dy
+	b.z-=b.dz
 end
 -->8
 -- ememies
@@ -969,23 +1086,25 @@ function update_e_sam(e)
 	
 	local pd=dist(
 		e.x,e.y,e.z,ppx,ppy,ppz)
-	if pd>400 then
+	if pd>1000 then
 		e.lt=90
 	else
 		warn=true
 		e.lt-=1
 		if e.lt==0 then
-			printh("enemy fire")
-			local aya,api=atan3d(
-				e.x,e.y,e.z,
-				ppx,ppy,ppz,
-				0)
+			if rnd()<0.5 then
+				printh("enemy fire")
+				local aya,api=atan3d(
+					e.x,e.y,e.z,
+					ppx,ppy,ppz,
+					0)
+				shoot_mssl(
+					e.x,e.y-5,e.z,
+					aya,api,
+					5,0.06,
+					pp_obj)
+			end
 			e.lt=90
-			shoot_mssl(
-				e.x,e.y-5,e.z,
-				aya,api,
-				5,0.1,
-				pp_obj)
 		end
 	end
 	
@@ -1103,7 +1222,7 @@ function update_mssl(m)
 	if m.t==0 or m.y>=0 then
 		del(objs,m)
 		del(e_mssl,m)
-		if m.p then
+		if m.p and alert_m=="" then
 			alert("miss")
 		end
 	end
@@ -1160,21 +1279,26 @@ function draw_expl(e)
 		(20-abs(e[2].t-15))*z,e[2].c)
 end
 
-function add_grnd(x,z)
-	local g=obj(draw_grnd,
-			x,
-			0,
-			z,
-			0,0,0,
-			nil)
-		//expl.t=20+rand(0,5)
-		//expl.c=rnd({5,5,6,6,9})
-		add(objs,g)
+function draw_blt(b)
+	pset(b[4][1],b[4][2],10)
 end
 
 function draw_grnd(g)
-	local z=(zfar-g[1])/200
-	spr(11,g[4][1],g[4][2],z,z)
+	local z=max(0,(1000-g[1])/1000)
+	//spr(11,g[4][1],g[4][2],z,z)
+	//printh(z)
+	sspr(
+		88,0,16,16*z,
+		g[4][1],g[4][2],
+		z*16,z*16)
+end
+
+function draw_cld(c)
+	local z=max(0,(2000-c[1])/2000)
+	sspr(
+		88,16,24,16,
+		c[4][1],c[4][2],
+		z*24,z*16)
 end
 -->8
 -- helpers
@@ -1280,6 +1404,14 @@ function round(n)
 		return flr(n)+1
 	end
 	return flr(n)
+end
+
+function print2(s,x,y,c1,c2)
+	if(c2==nil)c2=0
+	if(c2==0)palt(0,false)
+	print(s,x+1,y+1,c2)
+	print(s,x,y,c1)
+	pal()
 end
 
 
@@ -1393,7 +1525,7 @@ lvls={
  		{-1000,-400,0,"mig"},
  		{0,-400,0,"mig"},
  		{500,-400,0,"mig"},
- 		//{0,0,100,"sam"},
+ 		{0,0,100,"sam"},
  	},
  	objs={
  		{0,0,0,obj_tris},
@@ -1413,7 +1545,7 @@ enmy_p_base={
 	sam={
 		tris=sam_tris,
 		lt_max=90,
-		f_ch=nil
+		//f_ch=nil
 	},
 	mig={
 		tris=pp_tris,
@@ -1424,19 +1556,33 @@ enmy_p_base={
 	},
 }
 __gfx__
-00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00bb0b0b00b000000000000000000000000
-000000000000000000000000505555500bbb00006700076061000160600000600090000000000000000000000b000b000b000b00000000000000000000000000
-0070070000000000000000000500505000bbbb0060707060601010606000006000090000000fff0000000000b00b01b3b00b01b3000000000000000000000000
-00077000000000000000000055555050000bbbbb60070060600100606000006000009000000f0f00000000000b10b0bb0b10b0bb000000000000000000000000
-00077000000000000000000005055005000bbbbb60707060601010606000006000090000000fff000000000000b01b0b00b01b0b000000000000000000000000
-0070070000000000000000000555050500bbbb00670007606100016060000060009000000000000000000000b0b1b010b0b1b010000000000000000000000000
-000000000000000000000000505050500bbb00006666666066666660666666600000000000000000000000000b0b010b0b0b010b000000000000000000000000
-00000000000000000000000000500505bb0000000000000000000000000000000000000000000000000000001013010110130101000000000000000000000000
-66606066606660666066606660666000000000000000000000000000000000000000000000000000000000000000004004000000000000000000000000000000
-60606060606000606060606000060000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000
-66606066006000660066606600060000000000000000000000000000000000000000000000000000000000000000005004000000000000000000000000000000
-60606060606660606060606000060000000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000
-66606660666066606660000000000000000000000000000000000000000000000000000000000000000000000000000505000000000000000000000000000000
-60000600606006006000000000000000000000000000000000000000000000000000000000000000000000000000005050000000000000000000000000000000
-00600600666006000060000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000
-66600600606006006660000000000000000000000000000000000000000000000000000000000000000000000000005505000000000000000000000000000000
+00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00bb0b0b00be0e0e00ee0e0e00e00000000
+000000000000000000000000505555500bbb00006700076061000160600000600090000000000000000000000b000b000b000b000e000e000e000e0000000000
+0070070000000000000000000500505000bbbb0060707060601010606000006000090000000fff0000000000b00b01b3b00b01b3e00e01e3e00e01e300000000
+00077000000000000000000055555050000bbbbb60070060600100606000006000009000000f0f00000000000b10b0bb0b10b0bb0e10e0ee0e10e0ee00000000
+00077000000000000000000005055005000bbbbb60707060601010606000006000090000000fff000000000000b01b0b00b01b0b00e01e0e00e01e0e00000000
+0070070000000000000000000555050500bbbb00670007606100016060000060009000000000000000000000b0b1b010b0b1b010e0e1e010e0e1e01000000000
+000000000000000000000000505050500bbb00006666666066666660666666600000000000000000000000000b0b010b0b0b010b0e0e010e0e0e010e00000000
+00000000000000000000000000500505bb0000000000000000000000000000000000000000000000000000001013010110130101101301011013010100000000
+66606066606660666066606660666000006060000060000000000000000000000000000000000000000000000000004004000000000000400400000000000000
+60606060606000606060606000060000060600000606000000000000000000000000000000000000000000000000000400000000000000040000000000000000
+66606066006000660066606600060000606000006060600000000000000000000000000000000000000000000000005004000000000000500400000000000000
+60606060606660606060606000060000060600000606000000000000000000000000000000000000000000000000004400000000000000440000000000000000
+66606660666066606660000000000000006060006000600000000000000000000000000000000000000000000000000505000000000000050500000000000000
+60000600606006006000000000000000000000000000000000000000000000000000000000000000000000000000005050000000000000505000000000000000
+00600600666006000060000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000400000000000000
+66600600606006006660000000000000000000000000000000000000000000000000000000000000000000000000005505000000000000550500000000000000
+66006660666000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+60606660600000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000060000000000000000000000000
+60606060606000000000000000000000000000000000000000000000000000000000000000000000000000000006666660000666600000000000000000000000
+66006060666000000000000000000000000000000000000000000000000000000000000000000000000000000066666666006666660060000000000000000000
+66606000666000000000000000000000000000000000000000000000000000000000000000000000000000000666666666606666666666000000000000000000
+60606000060000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666666600000000000000000
+66606000060000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666666660000000000000000
+60606660060000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666666660000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000666666666666666666666660000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000666666666666666666666600000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000066666666666666666666600000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000666666666660066660000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006666000000000000000000000000000
