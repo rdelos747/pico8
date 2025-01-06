@@ -7,11 +7,36 @@ end
 
 function _draw()
 	cls()
-	
+	color(7)
 	print("y "..y.." ("..yy..") "..dtb2(yy))
 	print("x "..x.." ("..xx..") "..dtb2(xx))
 	print("c "..c.." "..dtb2(c))
+	
+	--new testing of decimal
+	--and overflow
+	print("")
+	//print("d "..d.." "..dtb2(d))
+	print(d)
+	p_dtb32(d)
+	
+	rect(64,64,127,127,1)
+	srand(1)
+	for i=0,10 do
+		pset(
+			flr(rnd()*62)+65,
+			flr(rnd()*62)+65,
+			11)
+	end
+	srand(1.1)
+	for i=0,10 do
+		pset(
+			flr(rnd()*62)+65,
+			flr(rnd()*62)+65,
+			12)
+	end
 end
+
+d=1.123
 
 
 x=0
@@ -49,6 +74,24 @@ function dtb2(num)
 	end
  
  return bin
+end
+
+-- this doesnt work
+function p_dtb32(num)
+ local bin=""
+ for i=1,32 do
+  bin=num %2\1 ..bin
+  num>>>=1
+  if i%4==0 and i<32 then
+   bin=" "..bin
+  end
+  if i%16==0 then
+  	print(bin)
+  	bin=" "
+  end
+	end
+ 
+ //return bin
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
