@@ -78,7 +78,8 @@ function _draw()
 	nnn=0
 	
 	num_o=0
-	t_sorted={}
+	//n_t_sort=0
+	t_sorted_ll=nil
 	
 	proj_spr(
 		obj(
@@ -342,7 +343,7 @@ function proj_obj(o,f,flat)
 		]]--
 		//loga({" ",dz_max})
 		if flat then
-			printh("hereggg")
+			//printh("hereggg")
 			add(ts,{pts,t[4]})
 			flat_max=max(flat_max,dz_max)
 		else
@@ -402,21 +403,59 @@ function sort_tri(tt,col,dz,flat)
 	//if dz>1 and dz<zfar then
 	if dz>1 then
 		//
-		add(
-			tt,
-			flat and "flat" or col
-		)
-		add(tt,dz)
-			
-		local i=1
-		while i<=#t_sorted+1 do
-			if i>#t_sorted or 
-						dz>t_sorted[i][#t_sorted[i]] then
-				add(t_sorted,tt,i)
-				i=#t_sorted+100
-			end
-			i+=1
+		//add(
+		//	tt,
+		//	flat and "flat" or col
+		//)
+		//add(tt,dz)
+		//tt.nxt=nil
+		local newn={
+			tri=tt,
+			col=flat and "flat" or col,
+			dz=dz,
+			nxt=nil,
+			prv=nil
+		}
+		
+		//n_t_sort+=1
+		if t_sorted_ll==nil then
+			t_sorted_ll=newn
+			return
 		end
+		
+		local node=t_sorted_ll
+		while node!=nil do
+			//i+=1
+			if dz>node.dz then
+				if node.prv then
+					node.prv.nxt=newn
+				end
+				newn.prv=node.prv
+				newn.nxt=node
+				node.prv=newn
+				return
+			end
+			if node.nxt==nil then
+				node.nxt=newn
+				newn.prv=node
+				return
+			end
+			node=node.nxt
+		end
+		
+		//if node==nil then
+		//	
+		//end
+
+		//local i=1
+		//while i<=#t_sorted+1 do
+		//	if i>#t_sorted or 
+		//				dz>t_sorted[i][#t_sorted[i]] then
+		//		add(t_sorted,tt,i)
+		//		i=#t_sorted+100
+		//	end
+		//	i+=1
+		//end
 	end
 end
 
@@ -461,6 +500,41 @@ end
 ]]--
 
 function draw_sorted()
+	tsa=0
+	local node=t_sorted_ll
+	while node!=nil do
+		
+		if type(node.tri[1])=="function" then
+			//draw_sprite(t)
+			node.tri[1](node.tri)
+		elseif node.col=="flat" then
+			//loga({"xxx",#t})
+			for i=1,#node.tri do
+				//loga({"here",type(tf)})
+				//
+				local tf=node.tri[i]
+				//loga({#tf[1],type(tf[2])})
+				draw_tri(tf[1],tf[2][1],nil)
+			end
+		else
+			tsa+=1
+			draw_tri(
+				node.tri,
+				node.col[1],
+				node.col[2]
+			)
+			//print(
+			//	t[1],
+			//	t[3][1],
+			//	t[3][2],
+			//	tsa%2==0 and 8 or 11)
+		end
+		node=node.nxt
+	end
+end
+
+--[[
+function draw_sorted()
 	//sortdz(t_sorted)
 	tsa=0
 	for t in all(t_sorted)do
@@ -487,6 +561,7 @@ function draw_sorted()
 		end
 	end
 end
+]]--
 
 function rot2d(x,y,a)
 	local rx=x*cos(a)-y*sin(a)
@@ -888,7 +963,7 @@ function term(x,z)
 end
 
 function draw_sun(s)
-	circfill(s[4][1],s[4][2],10,9)
+	circfill(s[2][1],s[2][2],10,9)
 end
 
 function symb(x,y,z,n)
