@@ -14,7 +14,7 @@ works:
 		- 
 ]]--
 
-ppx,ppy,ppz=0,-8,0
+ppx,ppy,ppz=0,-8,-270
 pp_pi,pp_ya=0,0
 pp_rp=0 --rad poisoning temp
 pp_rp2=0 --rad poisoning perm
@@ -47,8 +47,9 @@ function _init()
 	srand(2)
 
 	areas={}
-	add_me_area(0,0,1)
-	add_me_area(-111,-700,1)
+	//add_me_area(0,500,2)
+	add_st_area(0,0)
+	//add_me_area(-111,-700,2)
 	
 	srand(time())
 end
@@ -90,6 +91,7 @@ function _draw()
 	
 	proj_secs(secr,"sp")
 	proj_secs(1,"sh")
+	proj_secs(1,"sy",true)
 	
 	draw_sorted()
 	l_num_o=num_o
@@ -115,7 +117,7 @@ function _draw()
 	//pria({"rp2",pp_rp2},0,30,3)
 end
 
-function proj_secs(r,k)
+function proj_secs(r,k,fl)
 	//local povx=round(sex+1*sin(pp_ya))
 	//local povz=round(sez+1*cos(pp_ya))
 	
@@ -126,13 +128,19 @@ function proj_secs(r,k)
 		(sex-asx)+1*sin(pp_ya))
 	local povz=round(
 		(sez-asz)+1*cos(pp_ya))
+		
+	//local jmin=max(0,
+	//loga({povx,povz})
+	if k!="sp" and 
+				(abs(povx)>2 or 
+				abs(povz)>2) then
+		return
+	end
 			
-	//local asx=flr(a.x/secsz)
-	//local asz=flr(a.z/secsz)
-	local jmin=max(0,povz-r)
-	local jmax=mid(1,povz+r,a.ws)
-	local imin=max(0,povx-r)
-	local imax=mid(1,povx+r,a.ws)
+	local jmin=max(0,povz-2)
+	local jmax=min(max(0,povz+2),a.ws)
+	local imin=max(0,povx-2)
+	local imax=min(max(0,povx+2),a.ws)
 	
 	for j=jmin,jmax do
 	for i=imin,imax do
@@ -145,7 +153,9 @@ function proj_secs(r,k)
 				o,
 				k=="sp" and 
 					i!=sex and 
-					j!=sez)
+					j!=sez,
+				fl
+			)
 		end
 	end end end end
 end
@@ -166,11 +176,17 @@ function draw_top_down()
 			(sex-asx)+1*sin(pp_ya))
 		local povz=round(
 			(sez-asz)+1*cos(pp_ya))
+			--[[
 		local jmin=max(0,povz-secr)
 		local jmax=mid(1,povz+secr,a.ws)
 		local imin=max(0,povx-secr)
 		local imax=mid(1,povx+secr,a.ws)
-		
+		]]--
+		local jmin=max(0,povz-2)
+		local jmax=min(max(0,povz+2),a.ws)
+		local imin=max(0,povx-2)
+		local imax=min(max(0,povx+2),a.ws)
+		//loga({jmin,jmax,imin,imax})
 		for j=jmin,jmax do
 		for i=imin,imax do
 			rect(
@@ -272,9 +288,17 @@ function proj_spr(s)
 	//)
 end
 
-function proj_obj(o,f)
+--[[
+sorting all of the symbol tris
+is causing a huge slow down.
+it should be possible to project
+the symbol tris all at once
+]]--
+
+function proj_obj(o,f,flat)
 	local ts={}
 	//local dz_max_all=-1
+	local flat_max=-1
 	for t in all(o.tris)do
 		local pts={} --projected pts
 		local dz_max=-1
@@ -302,6 +326,7 @@ function proj_obj(o,f)
 			]]--
 			if(not on_scr_y(py))dz=0
 			//loga({px,py,dz})
+			//if 
 			dz_max=max(dz_max,dz)
 			add(pts,{px,py})
 		end
@@ -316,15 +341,21 @@ function proj_obj(o,f)
 		end
 		]]--
 		//loga({" ",dz_max})
-		local i=1
-		while i<=#ts+1 do
-			//loga({i,#ts})
-			if i>#ts or
-						dz_max>ts[i][3] then
-				add(ts,{pts,t[4],dz_max},i)
-				i=#ts+2
+		if flat then
+			printh("hereggg")
+			add(ts,{pts,t[4]})
+			flat_max=max(flat_max,dz_max)
+		else
+			local i=1
+			while i<=#ts+1 do
+				//loga({i,#ts})
+				if i>#ts or
+							dz_max>ts[i][3] then
+					add(ts,{pts,t[4],dz_max},i)
+					i=#ts+2
+				end
+				i+=1
 			end
-			i+=1
 		end
 		
 		//sort_tri(pts,t[4],dz_max)
@@ -338,6 +369,10 @@ function proj_obj(o,f)
 	faces to render. at farther
 	distances render less faces
 	]]--
+	if flat then
+		sort_tri(ts,nil,flat_max,true)
+		return
+	end
 	local imin=1
 	if(f)imin=#ts-1
 	for i=max(1,imin),#ts do
@@ -363,16 +398,20 @@ end
 	2:color (or sprite obj if sprite)
 	3..: existing info shifted
 ]]--
-function sort_tri(tt,col,dz)
+function sort_tri(tt,col,dz,flat)
 	//if dz>1 and dz<zfar then
 	if dz>1 then
-		add(tt,dz,1)
-		add(tt,col,2)
+		//
+		add(
+			tt,
+			flat and "flat" or col
+		)
+		add(tt,dz)
 			
 		local i=1
 		while i<=#t_sorted+1 do
 			if i>#t_sorted or 
-						dz>t_sorted[i][1] then
+						dz>t_sorted[i][#t_sorted[i]] then
 				add(t_sorted,tt,i)
 				i=#t_sorted+100
 			end
@@ -425,17 +464,26 @@ function draw_sorted()
 	//sortdz(t_sorted)
 	tsa=0
 	for t in all(t_sorted)do
-		if type(t[3])=="function" then
+		if type(t[1])=="function" then
 			//draw_sprite(t)
-			t[3](t)
+			t[1](t)
+		elseif t[#t-1]=="flat" then
+			loga({"xxx",#t})
+			for i=1,#t-2 do
+				//loga({"here",type(tf)})
+				//
+				local tf=t[i]
+				loga({#tf[1],type(tf[2])})
+				draw_tri(tf[1],tf[2][1],nil)
+			end
 		else
 			tsa+=1
-			draw_tri(t,t[2][1],t[2][2])
-			print(
-				t[1],
-				t[3][1],
-				t[3][2],
-				8)
+			draw_tri(t,t[4][1],t[4][2])
+			//print(
+			//	t[1],
+			//	t[3][1],
+			//	t[3][2],
+			//	tsa%2==0 and 8 or 11)
 		end
 	end
 end
@@ -460,9 +508,9 @@ end
 function draw_tri(t,c,f)
 	nnn+=1
 	pelogen_tri(
+	 t[1][1],t[1][2],
+	 t[2][1],t[2][2],
 	 t[3][1],t[3][2],
-	 t[4][1],t[4][2],
-	 t[5][1],t[5][2],
 	 c,f)
 	//p01_335(
 	//	t[3][1],t[3][2],
@@ -695,20 +743,20 @@ function pria(arr,x,y,c)
 end
 -->8
 -- models
-function spike(x,z,s_num)
+function spike(x,z,s_num,dr)
 	rx,rz=rand(-40,40),rand(-40,40)
 	
 	local s=nil
 	if s_num>-1 then
-		local st=rand(1,4)
+		if(dr==nil)dr=rand(1,4)
 		local sya=0
-		if(st==1)rx,rz,sya=-10,0,-0.25
-		if(st==2)rx,rz,sya=10,0,0.25
-		if(st==3)rx,rz=0,-10
-		if(st==4)rx,rz,sya=0,10,0.5
+		if(dr==1)rx,rz,sya=-10,0,-0.25
+		if(dr==2)rx,rz,sya=10,0,0.25
+		if(dr==3)rx,rz=0,-10
+		if(dr==4)rx,rz,sya=0,10,0.5
 		
 		local sxo,szo=0,0
-		if st<3 then
+		if dr<3 then
 			sxo=2*sgn(rx)
 		else
 			szo=2*sgn(rz)
@@ -727,14 +775,14 @@ function spike(x,z,s_num)
 			{1,}
 		},
 		{ -- east face
-			{10,0,-10},
 			{10,0,10},
+			{10,0,-10},
 			{rx,-100,rz},
 			{0,nil}
 		},
 		{ -- north face
-			{-10,0,-10},
 			{10,0,-10},
+			{-10,0,-10},
 			{rx,-100,rz},
 			{0,nil}
 		},
@@ -771,6 +819,74 @@ function spike(x,z,s_num)
 	return o_sp,o_sh,s
 end
 
+function term(x,z)
+	local t_tris={
+		{--scr 1
+			{-2,-4,-5},{2,-4,-5},{2,-8,-5},
+			{2,nil}
+		},
+		{--scr 2
+			{-2,-4,-5},{-2,-8,-5},{2,-8,-5},
+			{2,nil}
+		},
+		{--front 1
+			{-4,0,-4},{4,0,-4},{4,-10,-4},
+			{1,nil}
+		},
+		{--front 2
+			{-4,0,-4},{-4,-10,-4},{4,-10,-4},
+			{1,nil}
+		},
+		{--back 1
+			{-4,0,4},{4,0,4},{4,-10,4},
+			{13,nil}
+		},
+		{--back 2
+			{-4,0,4},{-4,-10,4},{4,-10,4},
+			{13,nil}
+		},
+		{--left 1
+			{-4,0,-4},{-4,0,4},{-4,-10,-4},
+			{13,nil}
+		},
+		{--left 2
+			{-4,0,4},{-4,-10,4},{-4,-10,-4},
+			{13,nil}
+		},
+		{--right 1
+			{4,0,-4},{4,0,4},{4,-10,-4},
+			{1,nil}
+		},
+		{--right 2
+			{4,0,4},{4,-10,4},{4,-10,-4},
+			{1,nil}
+		},
+	}
+	local sh_tris={
+		{
+			{-10,0,-4},
+			{-10,0,4},
+			{10,0,0},
+			{5,nil}
+		}
+	}
+	local o_term=obj(
+		t_tris,
+		x,0,z,
+		0,0,0,
+		5,5,
+		nil
+	)
+	local o_sh=obj(
+		sh_tris,
+		x+14,0,z,
+		0,0,0,
+		0,0,
+		nil
+	)
+	return o_term,o_sh
+end
+
 function draw_sun(s)
 	circfill(s[4][1],s[4][2],10,9)
 end
@@ -791,7 +907,13 @@ function symb(x,y,z,n)
 	
 	if n>4 then
 	for c=1,4 do
-		add(tris,symb_tri(-0.25*c+0.125))
+		add(
+			tris,
+			symb_tri(
+				-0.25*c+0.125,
+				n>=c+5
+			)
+		)
 	end end
 	
 	local o=obj(
@@ -804,11 +926,11 @@ function symb(x,y,z,n)
 	return o
 end
 
-function symb_tri(a)
+function symb_tri(a,l)
 	local tri={
-		{-1,-3,0},
-		{1,-3,0},
-		{0,-2,0},
+		{-1,-4,0},
+		{1,-4,0},
+		{0,l==true and 0 or -2,0},
 		{9,nil}
 	}
 	for i=1,3 do
@@ -820,8 +942,37 @@ function symb_tri(a)
 	return tri
 end
 
-function create_start_area(x,z)
-	return {x=x,z=z}
+function add_st_area(x,z)
+	local secs={}
+	secs[0]={}
+	secs[0][0]={
+		sp={},sh={},rs={},sy={}
+	}
+	local sps={
+		{-30,0,5,3},
+		{0,20,9,3},
+		{30,0,9,3},
+		{60,0,9,3},
+	}
+	for pt in all(sps)do
+		local rx=pt[1]+x
+		local rz=pt[2]+z
+		//local symb_n=pt[3]
+		local sp,sh,sy=spike(
+			rx,rz,pt[3],pt[4])
+		add(secs[0][0].sp,sp)
+		add(secs[0][0].sh,sh)
+		add(secs[0][0].sy,sy)
+		local term,t_sh=term(0,0)
+		add(secs[0][0].sh,term)
+		add(secs[0][0].sh,t_sh)
+	end
+	
+	add(areas,{
+		x=x,z=z,
+		ws=0, --width of area in sectors
+		secs=secs
+	})
 end
 
 function add_me_area(x,z,ws)
@@ -845,7 +996,7 @@ function add_me_area(x,z,ws)
 		secs[j]={}
 		for i=0,ws do
 			secs[j][i]={
-				sp={},sh={},rs={}
+				sp={},sh={},rs={},sy={}
 			}
 			for k=1,1 do
 				local symb_n=-1
@@ -861,7 +1012,7 @@ function add_me_area(x,z,ws)
 				add(secs[j][i].sp,sp)
 				add(secs[j][i].sh,sh)
 				//local symb=symb(rx-10,-10,rz,1)
-				add(secs[j][i].sh,sy)
+				add(secs[j][i].sy,sy)
 			end
 			local nrs=rand(1,3)
 			for k=1,nrs do
