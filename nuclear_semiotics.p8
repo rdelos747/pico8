@@ -54,7 +54,6 @@ function _init()
 	srand(time())
 end
 
-l_num_o=0
 function _draw()
 	secr=2
 	//if l_num_o>25 then
@@ -77,9 +76,9 @@ function _draw()
 	rectfill(0,gh,127,gh+127,15)
 	nnn=0
 	
-	num_o=0
 	//n_t_sort=0
 	t_sorted_ll=nil
+	nos=0
 	
 	proj_spr(
 		obj(
@@ -95,7 +94,6 @@ function _draw()
 	proj_secs(1,"sy",true)
 	
 	draw_sorted()
-	l_num_o=num_o
 	
 	for i=1,pp_rp do
 		pset(
@@ -111,6 +109,7 @@ function _draw()
 	end
 	
 	pria({tsa},0,0,5)
+	pria({nos},0,6,5)
 	//pria({sex,sez},0,6,5)
 	//print(pp_ya,0,12,5)
 	//print(num_o,0,18,8)
@@ -149,7 +148,6 @@ function proj_secs(r,k,fl)
 		sx,sy,dz=proj(o.x,o.y,o.z)
 
 		if on_scr_x(sx) then
-			num_o+=1
 			proj_obj(
 				o,
 				k=="sp" and 
@@ -402,6 +400,7 @@ end
 function sort_tri(tt,col,dz,flat)
 	//if dz>1 and dz<zfar then
 	if dz>1 then
+		nos+=1
 		//
 		//add(
 		//	tt,
@@ -429,6 +428,8 @@ function sort_tri(tt,col,dz,flat)
 			if dz>node.dz then
 				if node.prv then
 					node.prv.nxt=newn
+				else
+					t_sorted_ll=newn
 				end
 				newn.prv=node.prv
 				newn.nxt=node
@@ -443,19 +444,7 @@ function sort_tri(tt,col,dz,flat)
 			node=node.nxt
 		end
 		
-		//if node==nil then
-		//	
-		//end
-
-		//local i=1
-		//while i<=#t_sorted+1 do
-		//	if i>#t_sorted or 
-		//				dz>t_sorted[i][#t_sorted[i]] then
-		//		add(t_sorted,tt,i)
-		//		i=#t_sorted+100
-		//	end
-		//	i+=1
-		//end
+		printh("node not added")
 	end
 end
 
@@ -515,6 +504,7 @@ function draw_sorted()
 				local tf=node.tri[i]
 				//loga({#tf[1],type(tf[2])})
 				draw_tri(tf[1],tf[2][1],nil)
+				tsa+=1
 			end
 		else
 			tsa+=1
@@ -937,7 +927,7 @@ function term(x,z)
 			{1,nil}
 		},
 	}
-	local sh_tris={
+	local sh_tri={
 		{
 			{-10,0,-4},
 			{-10,0,4},
@@ -953,7 +943,7 @@ function term(x,z)
 		nil
 	)
 	local o_sh=obj(
-		sh_tris,
+		sh_tri,
 		x+14,0,z,
 		0,0,0,
 		0,0,
@@ -1038,10 +1028,11 @@ function add_st_area(x,z)
 		add(secs[0][0].sp,sp)
 		add(secs[0][0].sh,sh)
 		add(secs[0][0].sy,sy)
-		local term,t_sh=term(0,0)
-		add(secs[0][0].sh,term)
-		add(secs[0][0].sh,t_sh)
 	end
+	
+	local term,t_sh=term(0,0)
+	add(secs[0][0].sh,term)
+	add(secs[0][0].sh,t_sh)
 	
 	add(areas,{
 		x=x,z=z,
