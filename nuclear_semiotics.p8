@@ -14,7 +14,7 @@ works:
 		- 
 ]]--
 
-ppx,ppy,ppz=0,-8,-270
+ppx,ppy,ppz=0,-8,-12
 pp_pi,pp_ya=0,0
 pp_rp=0 --rad poisoning temp
 pp_rp2=0 --rad poisoning perm
@@ -40,6 +40,10 @@ sex,sez=0,0
 secm=9 --map width in sectors
 
 d_mode=0
+mode=0
+cur_term=nil
+
+alert=nil
 
 function _init()
 	printh("====== init ======")
@@ -68,6 +72,14 @@ function _draw()
 		return
 	end
 	
+	if mode==0 then
+		draw_pov()
+	elseif mode==1 then
+		draw_term()
+	end
+end
+
+function draw_pov()
 	cls(7)
 	camera(0,0)
 	
@@ -91,7 +103,8 @@ function _draw()
 	
 	proj_secs(secr,"sp")
 	proj_secs(1,"sh")
-	proj_secs(1,"sy",true)
+	proj_secs(1,"sy")
+	proj_secs(1,"tr")
 	
 	draw_sorted()
 	
@@ -108,9 +121,17 @@ function _draw()
 			0)
 	end
 	
+	if alert then
+		print(
+			alert,
+			64-#alert*2.5,
+			80,
+			11)
+	end
+	
 	pria({tsa},0,0,5)
 	pria({nos},0,6,5)
-	//pria({sex,sez},0,6,5)
+	pria({ppx,ppz},0,12,5)
 	//print(pp_ya,0,12,5)
 	//print(num_o,0,18,8)
 	//pria({"rp",pp_rp},0,24,3)
@@ -253,8 +274,35 @@ function draw_full_map()
 	end
 end
 
+function draw_term()
+	cls(13)
+	camera(0,0)
+	//spr(41,60,60,2,2)
+	
+	t_sorted_ll=nil
+	nos=0
+	
+	for i=-1,1 do
+		local s=cur_term.inpt[i+2]
+		local o=symb(10*i,0,40,5)
+		proj_obj(
+				o,
+				false,
+				false
+			)
+	end
+	
+	draw_sorted()
+end
+
 function _update()
-	if(btnp(🅾️))d_mode=(d_mode+1)%3
+ alert=nil
+ if mode==1 then
+ 	update_term()
+ 	return
+ end
+ 
+	//if(btnp(❎))d_mode=(d_mode+1)%3
 	
 	update_player()
 	update_cam()
@@ -372,6 +420,7 @@ function proj_obj(o,f,flat)
 		sort_tri(ts,nil,flat_max,true)
 		return
 	end
+	f=false
 	local imin=1
 	if(f)imin=#ts-1
 	for i=max(1,imin),#ts do
@@ -702,20 +751,46 @@ function update_player()
 	local touch_r=false
 	local po={x=ppx,z=ppz,w=8,d=8}
 	local can_x,can_z=true,true
+	
 	for a in all(areas)do
-	for j=max(1,sez-1),min(sez+1,a.ws) do
-	for i=max(1,sex-1),min(sex+1,a.ws) do
+	local asx=flr(a.x/secsz)
+	local asz=flr(a.z/secsz)
+	local povx=sex-asx
+	local povz=sez-asz
+		
+	local jmin=max(0,povz-2)
+	local jmax=min(max(0,povz+2),a.ws)
+	local imin=max(0,povx-2)
+	local imax=min(max(0,povx+2),a.ws)
+	
+	for j=jmin,jmax do
+	for i=imin,imax do
+		local sec=a.secs[j][i]
+		
 		-- check spike collision
-		for o in all(a.secs[j][i].sp)do
+		for o in all(sec.sp)do
 			if(col_bb(po,o,-dx,0))can_x=false
 			if(col_bb(po,o,0,-dz))can_z=false
 		end
+		
 		-- check radiation
-		for r in all(a.secs[j][i].rs)do
+		for r in all(sec.rs)do
 			local d=dist(ppx,ppz,r.x,r.z)
 			if d<=r.r then
 				touch_r=true
 				pp_rp+=((r.r-d)/r.r)*2
+			end
+		end
+		
+		-- check term
+		for t in all(sec.tr)do
+			local d=dist(ppx,ppz,t.x,t.z)
+			if d<15 do
+				alert="❎ interact"
+				if btnp(❎) then
+					mode=1
+					cur_term=t
+				end
 			end
 		end
 	end end end
@@ -730,6 +805,20 @@ function update_player()
 	if(can_x)ppx-=dx
 	if(can_z)ppz-=dz
 	//ppy-=dy
+end
+
+function update_term()
+	cam_ya=0
+	cam_pi=0
+	
+	//dcy,dcz=rot2d(
+	//	cam_h,cam_d,-cam_pi)
+	//dcz,dcx=rot2d(
+	//	dcz,0,-cam_ya)
+	
+	camz=0
+	camx=0
+	camy=0
 end
 -->8
 -- helpers
@@ -935,13 +1024,6 @@ function term(x,z)
 			{5,nil}
 		}
 	}
-	local o_term=obj(
-		t_tris,
-		x,0,z,
-		0,0,0,
-		5,5,
-		nil
-	)
 	local o_sh=obj(
 		sh_tri,
 		x+14,0,z,
@@ -949,6 +1031,16 @@ function term(x,z)
 		0,0,
 		nil
 	)
+	local o_term=obj(
+		t_tris,
+		x,0,z,
+		0,0,0,
+		5,5,
+		nil
+	)
+	o_term.inpt={
+		3,3,3
+	}
 	return o_term,o_sh
 end
 
@@ -1011,7 +1103,7 @@ function add_st_area(x,z)
 	local secs={}
 	secs[0]={}
 	secs[0][0]={
-		sp={},sh={},rs={},sy={}
+		sp={},sh={},rs={},sy={},tr={}
 	}
 	local sps={
 		{-30,0,5,3},
@@ -1031,7 +1123,7 @@ function add_st_area(x,z)
 	end
 	
 	local term,t_sh=term(0,0)
-	add(secs[0][0].sh,term)
+	add(secs[0][0].tr,term)
 	add(secs[0][0].sh,t_sh)
 	
 	add(areas,{
