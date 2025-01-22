@@ -70,8 +70,9 @@ function _init()
 	srand(2)
 
 	areas={}
-	add_me_area(500,500,2)
-	add_st_area(0,0)
+	//add_me_area(500,500,2)
+	add_st_area(0,500)
+	add_cn_area(0,0)
 	
 	//add_me_area(-111,-700,2)
 	
@@ -99,7 +100,11 @@ function _draw()
 	if mode==0 then
 		draw_pov()
 	elseif mode==1 then
-		draw_term()
+		draw_term1()
+	elseif mode==2 then
+		draw_term2()
+	elseif mode==3 then
+		draw_term3()
 	end
 end
 
@@ -326,7 +331,7 @@ function draw_full_map()
 	end
 end
 
-function draw_term()
+function draw_term1()
 	cls(1)
 	camera(0,0)
 	//spr(41,60,60,2,2)
@@ -334,7 +339,7 @@ function draw_term()
 	//fillp(0b0011001111001100)
 	  //fillp(0b1111000000000000)
 	rectfill(10,10,117,50,0)
-	fillp()
+	//fillp()
 	
 	for j=0,4 do
 	for i=0,1 do
@@ -495,10 +500,61 @@ function draw_term()
 	srand(time())
 end
 
+function draw_term2()
+	cls(1)
+	camera(0,0)
+	//spr(41,60,60,2,2)
+	srand(cur_term.seed)
+	
+	circ(64,64,5,7)
+	
+	spr(99,64,5)
+	spr(114,72,5)
+	line(64,15,64,57,5)
+	
+	
+	srand(time())
+end
+
+function draw_term3()
+	cls(1)
+	camera(0,0)
+	//spr(41,60,60,2,2)
+	srand(cur_term.seed)
+	
+	for i=0,3 do
+		spr(101,5,20+i*10)
+		rect(
+			5,20+i*10,12,28+i*10,7)
+		spr(101,5,20+i*10)
+	end
+	
+	--[[
+	these represent tries.
+	if the player guesses
+	incorrect, a light goes out.
+	if all go out game over.
+	]]--
+	spr(98,120,20)
+	for i=1,2 do
+		spr(101,120,20+i*10)
+		spr(114,120,20+(i+2)*10)
+	end
+	
+	
+	srand(time())
+end
+
 function _update()
  alert=nil
  if mode==1 then
- 	update_term()
+ 	update_term1()
+ 	return
+ elseif mode==2 then
+ 	update_term2()
+ 	return
+ elseif mode==3 then
+ 	update_term3()
  	return
  end
  
@@ -883,6 +939,9 @@ end
 -- player
 
 function update_cam()
+	if mode!=0 then
+		return
+	end
 	cam_ya=-pp_ya
 	cam_pi=pp_pi
 	
@@ -963,8 +1022,8 @@ function update_player()
 			if d<15 do
 				alert="❎ interact"
 				if btnp(❎) then
-					mode=1
 					cur_term=t
+					mode=cur_term.mode
 					init_term()
 				end
 			end
@@ -986,9 +1045,7 @@ end
 function init_term()
 	t_crt_t=0
 	t_crt_l={}
-end
-
-function update_term()
+	
 	cam_ya=0
 	cam_pi=0
 	
@@ -1004,6 +1061,26 @@ function update_term()
 	hand.ro=0.1
 	hand.ya=0.05
 	hand.pi=0.05
+end
+
+function update_term1()
+	--[[
+	cam_ya=0
+	cam_pi=0
+	
+	//dcy,dcz=rot2d(
+	//	cam_h,cam_d,-cam_pi)
+	//dcz,dcx=rot2d(
+	//	dcz,0,-cam_ya)
+	
+	camz=0
+	camx=0
+	camy=0
+	
+	hand.ro=0.1
+	hand.ya=0.05
+	hand.pi=0.05
+	]]--
 	
 	if(btnp(🅾️))mode=0
 	if btnp(⬅️) then
@@ -1053,6 +1130,14 @@ function update_term()
 			del(t_crt_l,l)
 		end
 	end
+end
+
+function update_term2()
+	if(btnp(🅾️))mode=0
+end
+
+function update_term3()
+	if(btnp(🅾️))mode=0
 end
 -->8
 -- helpers
@@ -1341,7 +1426,7 @@ function term(x,z)
 		x+14,0,z,
 		0,0,0,
 		0,0,
-		nil
+		nilx
 	)
 	local o_term=obj(
 		t_tris,
@@ -1350,9 +1435,6 @@ function term(x,z)
 		5,5,
 		nil
 	)
-	o_term.inpt={
-		3,3,3
-	}
 	o_term.seed=rand(1,30000)
 	return o_term,o_sh
 end
@@ -1440,10 +1522,35 @@ function add_st_area(x,z)
 		add(secs[0][0].sy,sy)
 	end
 	
-	local term,t_sh=term(0,0)
+	local term,t_sh=term(x,z)
 	term.ansrs=ansrs
+	term.inpt={3,3,3}
+	term.mode=1
 	add(secs[0][0].tr,term)
 	add(secs[0][0].sh,t_sh)
+	
+	add(areas,{
+		x=x,z=z,
+		ws=0, --width of area in sectors
+		secs=secs
+	})
+end
+
+function add_cn_area(x,z)
+	local secs={}
+	secs[0]={}
+	secs[0][0]={
+		sp={},sh={},rs={},sy={},tr={}
+	}
+	local term2,t_sh2=term(x-20,z)
+	term2.mode=2
+	add(secs[0][0].tr,term2)
+	add(secs[0][0].sh,t_sh2)
+	
+	local term3,t_sh3=term(x,z)
+	term3.mode=3
+	add(secs[0][0].tr,term3)
+	add(secs[0][0].sh,t_sh3)
 	
 	add(areas,{
 		x=x,z=z,
@@ -1561,13 +1668,13 @@ __gfx__
 000dddd1d11d10000000000000000000000000000000000000055555000555550005555400055554000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000055555000555550005555500055544000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000055555000005550005554400055555000000000000000000000000000000000000000000000000
-000000000000000000ddd00000ddd000005555500000000000000000000000000000000000000000000000000000000002222222222222200000000000000000
-00022222222220000dbbbd000d333d0005555555000000000000000000000000000000000000000000000000000000000d222222222222d00000000000000000
-0022222222222200dbbbbbd0d33333d055555555500000000000000000000000000000000000000000000000000000005dd2222222222dd50000000000000000
-0222222222222220dbbb7bd0d33353d055555555500000000000000000000000000000000000000000000000000000005ddd22222222ddd50000000000000000
-0222eeeeeeee2220dbb77bd0d33553d0555555555000000000000000000000000000000000000000000000000000000055ddd222222ddd550000000000000000
-0222e222222e22200dbbbd000d333d000000000000000000000000000000000000000000000000000000000000000000555ddd2222ddd5550000000000000000
-02222e2222e2222000ddd00000ddd00000000000000000000000000000000000000000000000000000000000000000005555ddd22ddd55550000000000000000
+000000000000000000ddd00000ddd0000055555000ddd00000ddd000000000000000000000000000000000000000000002222222222222200000000000000000
+00022222222220000dbbbd000d333d00055555550dcccd000d666d0000000000000000000000000000000000000000000d222222222222d00000000000000000
+0022222222222200dbbbbbd0d33333d055555555dcccccd0d66666d000000000000000000000000000000000000000005dd2222222222dd50000000000000000
+0222222222222220dbbb7bd0d33353d055555555dccc7cd0d66656d000000000000000000000000000000000000000005ddd22222222ddd50000000000000000
+0222eeeeeeee2220dbb77bd0d33553d055555555dcc77cd0d66556d0000000000000000000000000000000000000000055ddd222222ddd550000000000000000
+0222e222222e22200dbbbd000d333d00000000000dcccd000d666d000000000000000000000000000000000000000000555ddd2222ddd5550000000000000000
+02222e2222e2222000ddd00000ddd0000000000000ddd00000ddd00000000000000000000000000000000000000000005555ddd22ddd55550000000000000000
 022222e22e2222200000000000000000000000000000000000000000000000000000000000000000000000000000000055555dddddd555550000000000000000
 0222222ee222222000ddd00000ddd0000000000000000000000000000000000000000000000000000000000000000000555555dddd5555550000000000000000
 02222222222222200d888d000d222d0000000000000000000000000000000000000000000000000000000000000000000555555dd55555500000000000000000
