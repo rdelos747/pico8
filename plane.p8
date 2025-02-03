@@ -10,6 +10,26 @@ ave fighter jet cruise spd:
  - 30 fps: 227/30 = 7.5 m/frame
 ]]--
 
+--[[
+idea
+add col_box(x1,x1,y1,y1,z1,12)
+
+use this to collide with
+objects
+
+also, consider adding a landing
+strip. if the player flies
+through it, they refill their
+ammo
+]]--
+
+--constants
+secs=300 --sec size
+sech=150 --sec size half
+spd_min=2
+spd_mid=4
+spd_max=7
+
 -- camera
 camx,camy,camz=0,0,0
 cam_ya,cam_pi=0,0
@@ -36,11 +56,13 @@ ppx,ppy,ppz=0,-50,600
 --yaw,pitch,roll
 pp_ya,pp_pi,pp_ro=0,0,0
 pp_hp=100
-pp_spd=4
+pp_spd=spd_mid
+spd_m=0 --speed mode
 turnx=0
 turny=0
 wpn=0 --weapon index
 dam_t=0
+trg_t=0
 
 pp_targ=nil --target object
 pp_t_idx=0 --targ finding inx
@@ -59,19 +81,17 @@ lvl_s_tot=1
 pln_s_idx=0
 pln_s_tot=2
 
---constants
+-- other globals
 alert_m="destroyed"
 alert_t=0
 warn=false
 uit=0
-secs=300 --sec size
-sech=150 	--sec size half
-
 g_mode="title"
 g_start_t=0
 lvl_t=0
 lvl_start_t=0
 cur_lvl=1
+
 
 function _init()
 	printh("====== start ======")
@@ -174,19 +194,21 @@ function draw_plane_s()
 	print("plane slct",0,0,7)
 	
 	if menu_t>10 then
-	proj_obj({
-		tris=pp_tris,
-		x=0,y=0,z=0,
-		ya=pp_ya,pi=0,ro=0
-	})
-	draw_sorted()
+		local tris=plane_tris_all(
+			plane)
+		proj_obj({
+			tris=tris,
+			x=0,y=0,z=0,
+			ya=pp_ya,pi=0,ro=0
+		})
+		draw_sorted()
 	
-	print("mig-29",5,20,7)
+		print("mig-29",5,20,7)
 	
-	print("speed",5,35,7)
-	print("armor",5,41,7)
-	print("missile",5,47,7)
-	print("gun",5,53,7)
+		print("speed",5,35,7)
+		print("armor",5,41,7)
+		print("missile",5,47,7)
+		print("gun",5,53,7)
 	end
 	
 	rect(1,13,
@@ -229,6 +251,21 @@ end
 function draw_game()
 	//printh("ug draw =====")
 	//printh(" ")
+	
+	if pp_int_d>=0 then
+		draw_hud()
+		
+		if uits() then
+		rectfill(
+			53,78+pp_int_d*8,
+			75,86+pp_int_d*8,3)
+		end
+		print("retry",55,80,11)
+		print("exit",55,88,11) 
+		
+		return
+	end
+	
 	local gh=64+pp_pi*512
 	gh-=sin(pp_pi)*((500-camy)/500)*12
 	gh=mid(0,gh,128)
@@ -255,11 +292,7 @@ function draw_game()
 		end
 	end
 	
-	proj_obj({
-		tris=pp_tris,
-		x=ppx,y=ppy,z=ppz,
-		ya=pp_ya,pi=pp_pi,ro=pp_ro
-	})
+	draw_pp_plane()
 
 	draw_spr_layer(0,200,draw_grnd)
 	draw_spr_layer(-500,500,draw_cld)
@@ -274,6 +307,29 @@ function draw_game()
 end
 
 function update_game()
+	if pp_hp==0 then
+		alert("mission failed")
+		if pp_int_d==-1 and 
+					btnp(❎) then
+			pp_int_d=0
+			return
+		end
+		if pp_int_d>=0 then
+			if(btnp(⬆️))pp_int_d=0
+			if(btnp(⬇️))pp_int_d=1
+			
+			if btnp(❎) then
+				if pp_int_d==0 then
+					init_lvl()
+				elseif pp_int_d==1 then
+					g_mode="lvl s"
+					menu_t=0
+				end
+			end
+			return
+		end
+	end 
+	
 	warn=false
 	update_player()
 	
@@ -310,15 +366,20 @@ function update_game()
 end
 
 function init_lvl()
+	local lvl=lvls[cur_lvl]
 	g_mode="game"
 	pp_ya,pp_pi,pp_ro=0,0,0
+	ppx=lvl.ppx
+	ppy=lvl.ppy
+	ppz=lvl.ppz
+	pp_hp=100
 	cam_d=-50
 	cam_h=-8
 	pp_bay=0
 	pp_bays={0,0}
 	g_start_t=60 --test, set back to 60
+	pp_int_d=-1 --interact after death
 	
-	local lvl=lvls[cur_lvl]
 	for e in all(lvl.enmy)do
 		add_enemy(e[1],e[2],e[3],e[4])
 	end
@@ -393,20 +454,20 @@ function draw_hud()
 	
 	--crosshairs
 	circ(
-		64+turnx*1000,
+		64-turnx*1000,
 		64+turny*1000,
 		1,7)
 	
 	--weapons
-	if pp_s_wpn then
+	if pp_s_wpn>10 then
 		pal(6,c)
-		spr(20,95,74)
-		spr(20,118,74,1,1,true)
+		spr(20,3,74)
+		spr(20,24,74,1,1,true)
 		spr(21,87,82)
 		spr(21,87,87,1,1,false,true)
 		pal()
 	end
-	print("targ",103,74,pp_s_wpn and c or 1)
+	
 	print(
 		"mssl 750",95,82,
 		(wpn==0 or c!=11) and c or 1)
@@ -416,18 +477,38 @@ function draw_hud()
 	//rect(94,72+wpn*7,127,80+wpn*7,11)
 	//print("hp "..pp_hp,96,98,c)
 	rect(93,80+8*wpn,127,88+8*wpn,c)
+
+	--speed mode
+	print("mode",10,74,pp_s_wpn and c or 1)
+	print(
+		"hold",10,82,
+		(spd_m==0 or c!=11) and c or 1)
+	print(
+		"burn",10,90,
+		(spd_m==1 or c!=11) and c or 1)
+	rect(8,80+8*spd_m,30,88+8*spd_m,c)
 	
-	--dmg/alt
+	--spd/alt/hp
 	//print(flr(pp_spd*30),20,60,c)
 	pal(6,c)
-	sspr(0,16,12,4,16,53,12,4)
+	sspr(0,16,12,4,95,70,12,4)
+	sspr(0,24,12,4,16,53,12,4)
 	sspr(0,20,12,4,100,53,12,4)
 	pal()
+	
+	rect(93,68,107,75,c)
 	rect(14,51,28,58,c)
 	rect(98,51,112,58,c)
-	print(flr(100-pp_hp),20,60,c)
+	print(flr(100-pp_hp),111,70,c)
+	print(flr(pp_spd*30),20,60,c)
 	print(flr(ppy*-1),100,60,c)
 	
+	--targ
+	if trg_t>0 and not uits() then
+		print("targ",60,74,c)
+	end
+	
+
 	--time/score
 	print(ftime(lvl_t),100,1,7)
 	print("scr:000",100,7,7)
@@ -707,6 +788,83 @@ end
 -->8
 -- player 
 
+function draw_pp_plane()
+
+	local bod={}
+	for t in all(plane.bod)do
+	for f in all({-1,1})do
+		add(
+			bod,
+			part_tris(t,f)
+		)
+	end end
+	proj_obj({
+		tris=bod,
+		x=ppx,y=ppy,z=ppz,
+		ya=pp_ya,pi=pp_pi,ro=pp_ro
+	})
+	
+	draw_pp_part(
+		plane.hrz[1],
+		1,
+		{ya=0,
+		pi=turnx!=0 and turnx*5 or -turny*2,
+		ro=0}
+	)
+	draw_pp_part(
+		plane.hrz[1],
+		-1,
+		{ya=0,
+		pi=turnx!=0 and -turnx*5 or -turny*2,
+		ro=0}
+	)
+	
+	draw_pp_part(
+		plane.ver[1],
+		1,
+		{ya=turnx*1,
+		pi=0,
+		ro=0}
+	)
+	draw_pp_part(
+		plane.ver[1],
+		-1,
+		{ya=turnx*1,
+		pi=0,
+		ro=0}
+	)
+end
+
+function draw_pp_part(t,f,vs)
+	px,py,pz=rot3d(
+		t[5][1]*f,
+		t[5][2],
+		t[5][3],
+		pp_pi,
+		pp_ya,
+		0)
+		
+	local tt={}
+	for i=1,3 do
+		local pts={}
+		pts[1]=t[i][1]*f
+		pts[2]=t[i][2]
+		pts[3]=t[i][3]
+		add(tt,pts)
+	end
+	tt[4]=t[4]
+	
+	proj_obj({
+		tris={tt},
+		x=px+ppx,
+		y=py+ppy,
+		z=pz+ppz,
+		ya=pp_ya+vs.ya,
+		pi=pp_pi+vs.pi,
+		ro=pp_ro+vs.ro
+	})
+end
+
 function update_cam()
 	if pp_hp<=0 then
 		cam_ya+=0.005
@@ -727,23 +885,32 @@ function update_cam()
 end
 
 l_pi=0
+pp_s_wpn=0
 function update_player()
 	if g_start_t>0 or pp_hp<=0 then
 		goto pp_after_ctrl
 	end
 	
-	//if(btnp(🅾️))wpn=(wpn+1)%3
-	pp_s_wpn=false
 	if btn(🅾️) then
-		pp_s_wpn=true
-		if btnp(⬅️) or btnp(➡️) then
-			find_targ(true)
-		elseif btnp(⬆️) then
-			wpn=(wpn-1)%2
-		elseif btnp(⬇️) then
-			wpn=(wpn+1)%2
+		pp_s_wpn+=1
+		if pp_s_wpn>10 then
+			if btnp(⬅️) then
+				spd_m=0
+			elseif btnp(➡️) then
+				spd_m=1
+			elseif btnp(⬆️) then
+				wpn=(wpn-1)%2
+			elseif btnp(⬇️) then
+				wpn=(wpn+1)%2
+			end
+			goto pp_after_ctrl
 		end
-		goto pp_after_ctrl
+	elseif pp_s_wpn>0 then
+		if pp_s_wpn<10 then
+			find_targ(true)
+			trg_t=20
+		end
+		pp_s_wpn=0
 	end
 	
 	if btn(⬆️) then
@@ -817,9 +984,17 @@ function update_player()
 	::pp_after_ctrl::
 	
 	dam_t-=1
+	trg_t-=1
 	
 	pp_ya-=turnx
 	pp_ya=pp_ya%1
+	
+	if spd_m==0 then
+		//if pp_spd>spd_
+		pp_spd=max(spd_mid,pp_spd-0.1)
+	elseif spd_m==1 then
+		pp_spd=min(spd_max,pp_spd+0.1)
+	end
 	
 	if pp_hp<=0 then
 		pp_pi=max(pp_pi-0.001,-0.24)
@@ -835,6 +1010,10 @@ function update_player()
 	ppx-=dx
 	ppy-=dy
 	ppz-=dz
+	
+	if ppy>=0 then
+		pp_hp=0
+	end
 	
 	ppy=min(0,ppy)
 	
@@ -897,45 +1076,42 @@ function shoot_gun(x,y,z,ya,pi)
 	blt.dx=dx
 	blt.dy=dy
 	blt.dz=dz
+	blt.t=100
 	add(objs,blt)
 end
 
 local acc=0.05
 function update_blt(b)
-	if b.dx<0 then
-		b.dx=min(b.dx+acc*cos(b.ya),0)
+	if b.dy>-2 then
+		b.dy-=acc
 	else
-		b.dx=max(b.dx-acc*cos(b.ya),0)
+		b.dy+=acc
 	end
 	
-	if b.dz<0 then
-		b.dz=min(b.dz+acc*sin(b.ya),0)
-	else
-		b.dz=max(b.dz-acc*sin(b.ya),0)
-	end
-	
-	if b.dy<-2 then
-		b.dy=min(b.dy+acc,-2)
-	else
-		b.dy=max(b.dy-acc,-2)
-	end
-	
-	//loga({b.dx,b.dy,b.dz})
+	b.dx-=acc*sin(b.ya)
+	b.dz-=acc*cos(b.ya)
 	
 	b.x-=b.dx
 	b.y-=b.dy
 	b.z-=b.dz
+	
+	b.t-=1
+	if(b.t<=0)del(objs,b)
 end
 -->8
 -- ememies
 
 function add_enemy(x,y,z,typ)
 	local base=enmy_p_base[typ]
-	local tris=base.tris
+	local plane=base.plane
 	local up=update_e_plane
+	
+	local tris={}
 	if typ=="sam" then
-		tris=sam_tris
+		tris=base.plane
 		up=update_e_sam
+	else
+		tris=plane_tris_all(base.plane)
 	end
 	
 	local e=obj(
@@ -1044,23 +1220,17 @@ function update_e_follow(e,pd)
 	end
 		
 	if e.t==0 then
+		e_set_evade(e)
+		--[[
 		local sd=dist(
 			e.x,0,e.z,e.sx,0,e.sz)
 		if sd>1000 or 
-					rnd()<e.base.f_ch then
-			printh("s mode:follow -> evade")
-			e.mode="evade"
-			e.t=30*15
-			e.tx=rand(-500,500)+e.sx
-			e.tz=rand(-500,500)+e.sz
-			e.ty=rand(150,10000)*-1
-			loga({"set evade targ",e.tx,e.ty,e.tz})
+					rnd()>e.base.f_ch then
+			e_set_evade(e)
 		else
-			printh("s mode:follow -> follow")
-			e.mode="follow"
-			e.t=30*5
-			e.lt=30		
+			e_set_follow(e)		
 		end
+		]]--
 	end
 end
 
@@ -1073,12 +1243,38 @@ function update_e_evade(e,pd)
 	else
 		e.spd=pp_spd-1
 	end
-			
+		
 	if e.t==0 then
-		printh("s mode:evade -> follow")
-		e.mode="follow"
-		e.t=200
+		local sd=dist(
+			e.x,0,e.z,e.sx,0,e.sz)
+		if sd>1000 or 
+					rnd()>e.base.f_ch then
+			e_set_evade(e)
+		else
+			e_set_follow(e)
+		end
 	end
+end
+
+function e_set_evade(e)
+	loga({"s mode:",e.mode,"-> evade"})
+	e.mode="evade"
+	e.t=30*15
+	e.tx=rand(-500,500)+e.sx
+	e.tz=rand(-500,500)+e.sz
+	//e.ty=rand(150,10000)*-1
+	e.ty=min(
+		rand(-1000,1000)+e.y,
+		-150
+	)
+	loga({"set evade targ",e.tx,e.ty,e.tz})
+end
+
+function e_set_follow(e)
+	loga({"s mode:",e.mode,"-> follow"})
+	e.mode="follow"
+	e.t=30*5
+	e.lt=30
 end
 
 function update_e_sam(e)
@@ -1415,6 +1611,50 @@ function print2(s,x,y,c1,c2)
 end
 
 
+--[[
+return all plane parts in a
+single tris obj
+]]--
+function plane_tris_all(pl)
+	local tris={}
+	for k in all(
+		{"bod","flp","hrz","ver","can"}
+	)do
+	for t in all(pl[k])do
+		for f in all({-1,1})do
+			local tt=part_tris(t,f)
+			--[[
+			local tt={}
+			for i=1,3 do
+				local pts={}
+				pts[1]=t[i][1]*f+t[5][1]*f
+				pts[2]=t[i][2]+t[5][2]
+				pts[3]=t[i][3]+t[5][3]
+				add(tt,pts)
+			end
+			tt[4]=t[4]
+			]]--
+			add(tris,tt)
+		end
+	end end
+	return tris
+end
+
+function part_tris(p,f)
+	local tt={}
+	for i=1,3 do
+		local pts={}
+		pts[1]=p[i][1]*f+p[5][1]*f
+		pts[2]=p[i][2]+p[5][2]
+		pts[3]=p[i][3]+p[5][3]
+		add(tt,pts)
+	end
+	tt[4]=p[4]
+	tt[5]=p[5]
+	return tt
+end
+
+
 --debug functions
 --todo remove
 function a_to_s(arr)
@@ -1435,31 +1675,36 @@ end
 -->8
 -- models
 
-pp_tris={
+
+pp_tris_old={
 	{
 		{0,0,-10},
 		{10,0,8},
 		{0,0,0},
 		7
 	},
+	--[[
 	{
 		{0,0,0},
 		{8,0,10},
 		{0,0,8},
-		13
+		15
 	},
+	]]--
 	{
 		{0,0,-10},
 		{-10,0,8},
 		{0,0,0},
 		13
 	},
+	--[[
 	{
 		{0,0,0},
 		{-8,0,10},
 		{0,0,8},
-		7
+		15
 	},
+	]]--
 	{
 		{3,0,0},
 		{3,0,10},
@@ -1473,6 +1718,42 @@ pp_tris={
 		13
 	},
 }
+
+plane={
+	bod={ //body+wing (non adjust)
+		{
+			{0,0,-10},
+			{10,0,8},
+			{0,0,0},
+			7,
+			{0,0,0} //bod offset should always be 0
+		},
+	},
+	flp={ //flaps
+	},
+	hrz={ //horz stab
+		{
+			{0,0,-5},
+			{8,0,5},
+			{0,0,3},
+			15,
+			{0,0,5} //offset
+		}
+	},
+	ver={ //ver stab
+		{
+		{3,0,-5},
+		{3,0,5},
+		{3,-5,7},
+		7,
+		{0,0,5} //offset
+	},
+	},
+	can={ //canard
+	}
+}
+
+
 
 sam_tris={
 	{
@@ -1521,6 +1802,9 @@ mssl_tris={
 
 lvls={
  { -- level 1
+ 	ppx=0,
+ 	ppy=-50,
+ 	ppz=600,
  	enmy={
  		{-1000,-400,0,"mig"},
  		{0,-400,0,"mig"},
@@ -1543,12 +1827,12 @@ lvls={
 
 enmy_p_base={
 	sam={
-		tris=sam_tris,
+		plane=sam_tris,
 		lt_max=90,
 		//f_ch=nil
 	},
 	mig={
-		tris=pp_tris,
+		plane=plane,
 		lt_max=60, --lock time max
 		f_ch=0.5, --follow chance
 		la_f=0.03, --turn spd follow
@@ -1580,9 +1864,9 @@ __gfx__
 60606000060000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666666600000000000000000
 66606000060000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666666660000000000000000
 60606660060000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666666660000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000666666666666666666666660000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000666666666666666666666600000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000066666666666666666666600000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666000000000000000000
+66606660660000000000000000000000000000000000000000000000000000000000000000000000000000000666666666666666666666660000000000000000
+60006060606000000000000000000000000000000000000000000000000000000000000000000000000000000666666666666666666666600000000000000000
+00606660606000000000000000000000000000000000000000000000000000000000000000000000000000000066666666666666666666600000000000000000
+66606000660000000000000000000000000000000000000000000000000000000000000000000000000000000006666666666666666666000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000666666666660066660000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006666000000000000000000000000000
