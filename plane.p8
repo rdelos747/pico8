@@ -107,7 +107,10 @@ end
 
 function _draw()
 	cls()
-	t_sorted={}
+	//t_sorted={}
+	t_sorted_ll=nil
+	n_t_sorted=0
+	n_o_proj=0
 	
 	if g_mode=="title" then
 		draw_title()
@@ -366,6 +369,7 @@ function update_game()
 end
 
 function init_lvl()
+	reset_lvl()
 	local lvl=lvls[cur_lvl]
 	g_mode="game"
 	pp_ya,pp_pi,pp_ro=0,0,0
@@ -388,6 +392,15 @@ function init_lvl()
 		add(objs,
 			obj(o[4],o[1],o[2],o[3])
 		)
+	end
+end
+
+function reset_lvl()
+	for e in all(enmy)do
+		del(enmy,e)
+	end
+	for o in all(objs)do
+		del(objs,o)
 	end
 end
 
@@ -607,6 +620,7 @@ function proj_sprite(s)
 end
 
 function proj_obj(o)
+	n_o_proj+=1
 	for t in all(o.tris)do
 		local tt={}
 		local dz_max=-1
@@ -647,6 +661,7 @@ end
 	2:color (or sprite obj if sprite)
 	3..: existing info shifted
 ]]--
+--[[
 function sort_tri(tt,col,dz)
 	//if dz>1 and dz<zfar then
 	if dz>1 then
@@ -662,6 +677,52 @@ function sort_tri(tt,col,dz)
 			end
 			i+=1
 		end
+	end
+end
+]]--
+function sort_tri(tt,col,dz)
+	//if dz>1 and dz<zfar then
+	if dz>1 then
+		n_t_sorted+=1
+		
+		local newn={
+			tri=tt,
+			col={col,nil},//temp, later add flip thing if needed
+			dz=dz,
+			nxt=nil,
+			prv=nil
+		}
+		
+		//n_t_sort+=1
+		if t_sorted_ll==nil then
+			t_sorted_ll=newn
+			return
+		end
+		
+		local node=t_sorted_ll
+		while node!=nil do
+			//i+=1
+			if dz>node.dz then
+				if node.prv then
+					node.prv.nxt=newn
+				else
+					t_sorted_ll=newn
+				end
+				newn.prv=node.prv
+				newn.nxt=node
+				node.prv=newn
+				return
+			end
+			if node.nxt==nil then
+				node.nxt=newn
+				newn.prv=node
+				return
+			end
+			node=node.nxt
+		end
+		
+		printh("node not added")
+		alert="oops"
 	end
 end
 
@@ -704,6 +765,7 @@ end
 	the existing tris, or the 
 	render function
 ]]--
+--[[
 function draw_sorted()
 	for t in all(t_sorted)do
 		if type(t[3])=="function" then
@@ -714,6 +776,27 @@ function draw_sorted()
 		end
 	end
 end
+]]--
+function draw_sorted()
+	n_t_sorted_d=0
+	local node=t_sorted_ll
+	while node!=nil do
+		
+		if type(node.tri[1])=="function" then
+			//draw_sprite(t)
+			node.tri[1](node)
+		else
+			n_t_sorted_d+=1
+			draw_tri(
+				node.tri,
+				node.col[1],
+				node.col[2]
+			)
+		end
+		node=node.nxt
+	end
+end
+
 
 function rot2d(x,y,a)
 	local rx=x*cos(a)-y*sin(a)
@@ -734,11 +817,18 @@ end
 
 
 function draw_tri(t,c)
+	--[[
 	pelogen_tri(
 		t[3][1],t[3][2],
 		t[4][1],t[4][2],
 		t[5][1],t[5][2],
 		c)
+		]]--
+	pelogen_tri(
+	 t[1][1],t[1][2],
+	 t[2][1],t[2][2],
+	 t[3][1],t[3][2],
+	 c,f)
 end
 
 function pelogen_tri(l,t,c,m,r,b,col,f)
@@ -1441,8 +1531,8 @@ function update_smoke(s)
 end
 
 function draw_smoke(s)
-	local z=(zfar-s[1])/zfar
-	spr(3,s[4][1],s[4][2],z,z)
+	local z=(zfar-s.dz)/zfar
+	spr(3,s.tri[2][1],s.tri[2][2],z,z)
 end
 
 function add_expl(x,y,z)
@@ -1467,33 +1557,36 @@ function update_expl(e)
 end
 
 function draw_expl(e)
-	if(e[2].t>20)return
-	local z=(zfar-e[1])/zfar
+	if(e.col[1].t>20)return
+	local z=(zfar-e.dz)/zfar
 	//spr(3,s[4][1],s[4][2],z,z)
 	circfill(
-		e[4][1],e[4][2],
-		(20-abs(e[2].t-15))*z,e[2].c)
+		e.tri[2][1],
+		e.tri[2][2],
+		(20-abs(e.col[1].t-15))*z,
+		e.col[1].c)
 end
 
 function draw_blt(b)
-	pset(b[4][1],b[4][2],10)
+	pset(b.tri[2][1],b.tri[2][2],10)
 end
 
 function draw_grnd(g)
-	local z=max(0,(1000-g[1])/1000)
+	local z=max(0,(1000-g.dz)/1000)
 	//spr(11,g[4][1],g[4][2],z,z)
 	//printh(z)
 	sspr(
 		88,0,16,16*z,
-		g[4][1],g[4][2],
+		g.tri[2][1],g.tri[2][2],
 		z*16,z*16)
 end
 
 function draw_cld(c)
-	local z=max(0,(2000-c[1])/2000)
+	//printh(c)
+	local z=max(0,(2000-c.dz)/2000)
 	sspr(
 		88,16,24,16,
-		c[4][1],c[4][2],
+		c.tri[2][1],c.tri[2][2],
 		z*24,z*16)
 end
 -->8
