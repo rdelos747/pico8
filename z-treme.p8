@@ -18,33 +18,10 @@ lam=zfar/(zfar-znear)
 
 txw=16 //tex width
 
-lvl={
-	{
-		{1,1,1,1,1},
-		{1,1,1,1,1},
-		{1,0,0,1,1},
-		{1,1,1,1,1},
-		{1,1,1,1,1},
-	}
-}
-
 function _init()
 	printh("=== start z-treme ===")
 
-	--[[
-	objs={}
-	for k=0,#lvl-1 do
-		local x=(k%5)-2
-		local z=flr(k/5)-2
-		//loga({k,x,z})
-		add(objs,test_obj(
-		//0,0,0
-			x*10,
-			-50,
-			z*10
-			))
-	end
-	]]--
+	lvl=process_lvl(lvl_data)
 end
 
 function _draw()
@@ -65,95 +42,99 @@ function draw_pov()
 	//cls(7)
 	camera(0,0)
 	
-	//local gh=64+pp_pi*1024
-	//gh=mid(0,gh,128)
-	//rectfill(0,gh,127,gh+127,15)
-	
-	//n_t_sort=0
-	
-	--[[
-	proj_spr(
-		obj(
-			draw_sun,
-			sunx,suny,sunz,
-			0,0,0,0,0,
-			nil
-		)
-	)
-	]]--
-	
-	
-	--[[
-	for o in all(objs)do
-		proj_obj_polys(o)
-	end
-	]]--
-	
-	--[[
-	for k=0,#lvl-1 do
-		local x=(k%5)
-		local z=flr(k/5)*5
-		//local imin=
-		local drs={
-			{0,0,1}, 			//check front
-			{0,0,-1}, 		//check back
-			{-1,0,0}, 		//check left
-			{1,0,0}, 			//check right
-			//{0,-1,0}, //check up
-			//{0,1,0}, 	//check down
-		}
-		
-		if lvl[i+j+1]
-	end
-	]]--
-	
-	local drs={
-		{0,0,-1}, 		//check front
-		//{0,0,-1}, 		//check back
-		{-1,0,0}, 		//check left
-		{1,0,0}, 			//check right
-		{0,-1,0}, 		//check up
-		//{0,1,0}, 	//check down
-	}
-	
-	for y=1,#lvl do
-		for z=1,#lvl[y] do
-			for x=1,#lvl[y][z] do
-				for i=1,#drs do
-					local d=drs[i]
-					local yy=y+d[2]
-					local zz=z+d[3]
-					local xx=x+d[1]
-				//loga({i,x,z,xx,zz,lvl[zz][xx]})
+	for k=1,#lvl do
+		for j=1,#lvl[k] do
+			for i=1,#lvl[k][j] do
+				local v=lvl[k][j][i]
 				
-					if (
-									yy<1 or yy>#lvl or
-									zz<1 or zz>#lvl[y] or
-									xx<1 or xx>#lvl[y][z]
-								) or
-								(zz!=z or xx!=x) and
-								lvl[yy][zz][xx]==0 then
+				if v==0 then
+					goto continue2
+				end
+				
+				local x=(i-3)*10
+				local y=k*10-50
+				local z=(2-j)*10
+				
+				local px,py=proj(x,y,z)
+				if not on_scr(px,py) then
+					goto continue2
+				end
+				
+				for di=1,#drs do
+					local d=drs[di]
+					local mode=0 //vert
+					if(d[2]!=0)mode=1 //horz
+					if(d[3]==1)mode=2 //front
+					if v & (0b1<<7+di)!=0 then
 						proj_poly(
-							faces[i],
-							{h=yy!=0,mx=1,my=0},
-							(x-3)*10,
-							-50,
-							(z-2)*10,
+							faces[di],
+							{mode=mode,mx=1,my=0},
+							x,y,z,
 							0,0,0)
 					end
 				end
+				
+				--[[
+				if v & (0b1<<8)!=0 then
+					printh("top")
+					proj_poly(
+						faces[1],
+						{mode=2,mx=1,my=0},
+						x,y,z,
+						0,0,0)
+				else
+					printh("aa")
+				end
+				]]--
+				--[[
+				if lvl[k][j][i]==0 then
+					goto continue
+				end
+				
+				local x=(i-3)*10
+				local y=k*10-50
+				local z=(2-j)*10
+				
+				local px,py=proj(x,y,z)
+				if not on_scr(px,py) then
+					goto continue
+				end
+				
+				for di=1,#drs do
+					local d=drs[di]
+					local ii=i+d[1]
+					local kk=k+d[2]
+					local jj=j+d[3]
+					local mode=0 //vert
+					if(d[2]!=0)mode=1 //horz
+					if(d[3]==1)mode=2 //front
+					
+					if (
+									kk<1 or kk>#lvl or
+									jj<1 or jj>#lvl[k] or
+									ii<1 or ii>#lvl[k][j]
+								) or
+								(
+									jj!=j or ii!=i or kk!=k
+								) and
+								lvl[kk][jj][ii]==0 then
+						proj_poly(
+							faces[di],
+							{mode=mode,mx=1,my=0},
+							x,y,z,
+							0,0,0)
+					end
+				end
+
+				::continue::
+				]]--
+				
+				::continue2::
 			end
 		end
 	end
-	
-	
-	
-	//proj_secs(secr,"sp")
-	//proj_secs(1,"sh")
-	//proj_secs(1,"sy")
-	//proj_secs(1,"tr")
-	
-	//proj_obj_q()
+
+
 	alert=nil
 	
 	draw_sorted()
@@ -172,63 +153,6 @@ function draw_pov()
 	
 	pria({ppx,ppy,ppz},0,18,5)
 end
-
---[[
-function test_obj(x,y,z)
-	local obj={
-		x=x,y=y,z=z,
-		ya=0,pi=0,ro=0,
-		polys={
-		
-			{ //front
-				{x=-5,y=-5,z=-5},//top left
-				{x=5,y=-5,z=-5},//top right
-				{x=-5,y=5,z=-5},//bot left
-				{x=5,y=5,z=-5},//bot right
-				8
-			},
-
-			{ //back
-				{x=-5,y=-5,z=5},
-				{x=5,y=-5,z=5},
-				{x=-5,y=5,z=5},
-				{x=5,y=5,z=5},
-				8
-			}
-
-			{ //left
-				{x=-5,y=-5,z=5},//top right
-				{x=-5,y=-5,z=-5},//top left
-				{x=-5,y=5,z=-5},//bot right
-				{x=-5,y=5,z=5},//bot left
-				
-				8
-			},
-
-			{ //right
-				{x=5,y=-5,z=-5},//top left
-				{x=5,y=-5,z=5},//top right
-				{x=5,y=5,z=-5},//bot left
-				{x=5,y=5,z=5},//bot right
-				8
-			},
-		
-			
-			
-			{ //top
-				{x=-5,y=-5,z=-5},
-				{x=5,y=-5,z=-5},
-				{x=-5,y=-5,z=5},
-				{x=5,y=-5,z=5},
-				{3,0}
-			}
-			
-		
-		}
-	}
-	return obj
-end
-]]--
 -->8
 -- pov
 
@@ -278,6 +202,8 @@ function proj_poly(poly,col,ox,oy,oz,ya,pi,ro)
 	local dz_max=-1
 	for i=1,#poly do
 		local p=poly[i]
+		x,y,z=p.x,p.y,p.z
+		--[[
 		x,y,z=rot3d(
 			p.x,
 			p.y,
@@ -290,6 +216,7 @@ function proj_poly(poly,col,ox,oy,oz,ya,pi,ro)
 			pi,
 			ya,
 			0)
+			]]--
 			
 		local px,py,dz=proj(
 			x+ox,y+oy,z+oz)
@@ -310,19 +237,9 @@ function sort_poly(p)
 	if p.dz>1 then
 		n_p_sorted+=1
 
-		--[[
-		local newn={
-			=tt,
-			col=col,
-			dz=dz,
-			nxt=nil,
-			prv=nil
-		}
-		]]--
 		p.nxt=nil
 		p.prv=nil
 		
-		//n_t_sort+=1
 		if p_sorted_ll==nil then
 			p_sorted_ll=p
 			return
@@ -330,7 +247,6 @@ function sort_poly(p)
 		
 		local node=p_sorted_ll
 		while node!=nil do
-			//i+=1
 			if p.dz>node.dz then
 				if node.prv then
 					node.prv.nxt=p
@@ -380,20 +296,10 @@ function proj(x,y,z)
 			
 	px=-64*px+64
 	py=-64*py+64
+	py-=50
 
 	return px,py,dz//,pxz,pyz
 end
-
---[[
-	hack for sprites:
-	when creating sprites, we set
-	the "tris" field to its 
-	render function. when the sort
-	function is called, the data
-	is shifted, and t[3] is either
-	the existing tris, or the 
-	render function
-]]--
 
 function draw_sorted()
 	n_p_sorted_d=0
@@ -405,21 +311,15 @@ function draw_sorted()
 			//node.tri[1](node.tri)
 		elseif #node.pts==3 then
 			n_p_sorted_d+=1
-			--[[
-			draw_tri(
-				node.tri,
-				node.col[1],
-				node.col[2]
-			)
-			]]--
 			draw_tri(node.pts,node.col)
 		else
 			n_p_sorted_d+=1
-			//draw_quad(node.pts,node.col)
-			if node.col.h then
+			if node.col.mode==0 then
 				draw_tex_v(node.pts,node.col)
-			else
+			elseif node.col.mode==1 then
 				draw_tex_h(node.pts,node.col)
+			else
+				draw_tex_f(node.pts,node.col)
 			end
 		end
 		node=node.nxt
@@ -444,13 +344,6 @@ function rot3d(x,y,z,pi,ya,ro)
 end
 
 function draw_tri(t,col)
-	--[[
-	pelogen_tri(
-	 t[1][1],t[1][2],
-	 t[2][1],t[2][2],
-	 t[3][1],t[3][2],
-	 c,f)
-	]]--
 	pelogen_tri(
 		t[1].x,t[1].y,
 		t[2].x,t[2].y,
@@ -478,32 +371,6 @@ function pelogen_tri(l,t,c,m,r,b,col,f)
 	end
 end
 
-function draw_quad(pts,col)
-	//loga({flr(pts[1].x),flr(pts[3].x)})
-	//if flr(pts[1].x)==flr(pts[3].x) then
-	draw_tex_v(pts,col)
-	//else
-	//else
-		//draw_tex_h(pts,col)
-	//end
-	
-	
-	// printh(tr.y-tl.y)
-	
-	
-	
-	//for p in all(pts) do
-	--[[
-		pset(pts[1].x,pts[1].y,8)
-		pset(pts[3].x,pts[3].y,9)
-		line(
-		pts[1].x,pts[1].y,
-		pts[3].x,pts[3].y,
-		7)
-	]]--
-	//end
-end
-
 function draw_tex_v(pts,col)
 	local tl=pts[1]
 	local tr=pts[2]
@@ -512,11 +379,11 @@ function draw_tex_v(pts,col)
 	local qw=tr.x-tl.x
 	local qh=bl.y-tl.y
 	
-	for i=0,qw-1 do
+	if(qw<1)return
+	
+	for i=0,qw do
 		local per=i/flr(qw)
-		local mx=per/(8/txw)
-		//local top=tl.y
-		//local bot=bl.y
+		local mx=min(1.9,per/(8/txw))
 		
 		local top=tl.y+(tr.y-tl.y)*per
 		local bot=bl.y+(br.y-bl.y)*per
@@ -528,9 +395,14 @@ function draw_tex_v(pts,col)
 			0,1/(ht/2)
 		)
 	end
+	
+	//line(
+	//	pts[1].x,pts[1].y,
+	//	pts[3].x,pts[3].y,
+	//	7)
 end
 
-function draw_tex_h(pts,col)
+function draw_tex_h(pts,col)	
 	local tl=pts[1]
 	local tr=pts[2]
 	local bl=pts[3]
@@ -538,23 +410,55 @@ function draw_tex_h(pts,col)
 	local qw=tr.x-tl.x
 	local qh=tl.y-bl.y
 	
-	//printh(qh)
+	if(qh<1)return
 	
-	for i=0,qh+1 do
+	--[[
+	sspr(
+		40,0,
+		16,16,
+		tl.x,tl.y,
+		qw+1,qh+1)
+		]]--
+	
+	for i=0,qh do
 		local per=i/flr(qh)
 		local my=min(1.9,per/(8/txw))
 		
-		local lft=tl.x-(bl.x-tl.x)*per
-		local rht=tr.x-(br.x-tr.x)*per
+		local lft=bl.x-(bl.x-tl.x)*per
+		local rht=br.x-(br.x-tr.x)*per
 		local ht=rht-lft
 		
 		
 		tline(
-			lft,tl.y+i,rht,tl.y+i,
+			lft,bl.y+i,rht,bl.y+i,
 			3,0+my,
 			1/(ht/2),0
 		)
 	end
+	
+	//line(
+	//	pts[1].x,pts[1].y,
+	//	pts[3].x,pts[3].y,
+	//	7)
+end
+
+function draw_tex_f(pts,col)
+	//if(true)return
+
+	local tl=pts[1]
+	local tr=pts[2]
+	local bl=pts[3]
+	local br=pts[4]
+	local qw=tr.x-tl.x
+	local qh=bl.y-tl.y
+	
+	
+	sspr(
+		24,0,
+		16,16,
+		tl.x,tl.y,
+		qw+1,qh+1)
+		
 end
 -->8
 -- player
@@ -644,13 +548,26 @@ end
 -->8
 -- models
 
+drs={
+		{0,0,1}, 		//check front
+		//{0,0,-1}, //check back
+		{-1,0,0}, 		//check left
+		{1,0,0}, 			//check right
+		{0,-1,0}, 		//check up
+		//{0,1,0}, 	//check down
+	}
+
 faces={
+
 	{ //front
 		{x=-5,y=-5,z=-5},//top left
 		{x=5,y=-5,z=-5},//top right
 		{x=-5,y=5,z=-5},//bot left
 		{x=5,y=5,z=-5},//bot right
 	},
+	
+	
+	
 	//{ //back
 	//	{x=-5,y=-5,z=5},
 	//	{x=5,y=-5,z=5},
@@ -661,8 +578,8 @@ faces={
 	{ //left
 		{x=-5,y=-5,z=5},//top right
 		{x=-5,y=-5,z=-5},//top left
-		{x=-5,y=5,z=-5},//bot right
-		{x=-5,y=5,z=5},//bot left
+		{x=-5,y=5,z=5},//bot right
+		{x=-5,y=5,z=-5},//bot left
 	},
 	{ //right
 		{x=5,y=-5,z=-5},//top left
@@ -678,24 +595,122 @@ faces={
 	}
 }
 
+lvl_data={
+	--[[
+	{
+		{1,0,0,0,0,0},
+		{1,0,0,0,0,0},
+		{1,0,0,0,0,0},
+		{1,0,0,0,0,0},
+		{1,0,0,0,0,0},
+		{1,0,1,0,0,0},
+		{1,0,0,0,0,0},
+		{1,1,0,0,0,0},
+		{1,1,0,1,1,0},
+		{1,1,1,1,1,1},
+	},
+	{
+		{0,1,1,1,1,1},
+		{0,1,0,0,1,1},
+		{0,1,0,0,1,1},
+		{0,1,0,1,1,1},
+		{0,1,1,1,1,1},
+		{1,1,1,1,1,1},
+		{1,1,0,0,1,1},
+		{1,1,0,0,1,1},
+		{1,1,0,1,1,1},
+		{1,1,1,1,1,1},
+	},
+	]]--
+	{
+	{1,1,1,1,1,1,1},
+	{1,1,1,1,1,1,1},
+	{1,1,1,1,1,1,1},
+	{1,1,1,1,1,1,1},
+	{1,1,1,1,1,1,1},
+	{1,1,1,1,1,1,1},
+	{1,1,1,1,1,1,1},
+	{1,1,1,0,1,1,1},
+	{1,1,1,0,1,1,1},
+	{1,1,1,0,1,1,1},
+	{1,1,1,0,1,1,1},
+	{1,1,1,0,1,1,1},
+	}
+}
+
+function process_lvl(l)
+	local floors={}
+	for k=1,#l do
+		local cols={}
+		
+		for j=1,#l[k] do
+			local row={}
+			
+			for i=1,#l[k][j] do
+				//printh(l[k][j][i])
+				local v=l[k][j][i]
+				
+				if v==0 then
+					goto continue
+				end
+				
+				for di=1,#drs do
+					local d=drs[di]
+					local ii=i+d[1]
+					local kk=k+d[2]
+					local jj=j+d[3]
+					
+					if(
+								kk<1 or kk>#l or
+								jj<1 or jj>#l[k] or
+								ii<1 or ii>#l[k][j]
+							) or
+							(
+								jj!=j or ii!=i or kk!=k
+							) and
+							l[kk][jj][ii]==0 then
+						v=v|(0b1<<(7+di))
+					end
+					
+				end
+				
+				::continue::
+				
+				add(row,v)
+				--[[
+				if l[k][j][i]==0 then
+					goto continue
+				end
+				]]--
+			end
+			
+			add(cols,row)
+		end
+		
+		add(floors,cols)
+	end
+	
+	return floors
+end
+
 
 __gfx__
-0000000089abcdef80000008ffffffff333333333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000089abcdef08000080ffffffff3bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-0070070089abcdef00800800333333333bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-0007700089abcdef00080000333333333bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770000123456700008000444444443bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-007007000123456700800800444444443bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000123456708000080444444443bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000123456780000008444444443bbbbbb99bbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000444444443bbbbbb99bbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000444444443bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000444444443bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000555555553bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000555555553bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000555555553bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000555555553bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000555555553bbbbbbbbbbbbbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000089abcdef8000000833333333333333333b3b3b3b3b3b3b3b999999990000000000000000000000000000000000000000000000000000000000000000
+0000000089abcdef080000803333333333333333bbbbbbbbbbbbbbbb9ddddddd0000000000000000000000000000000000000000000000000000000000000000
+0070070089abcdef008008003333333333333333bbbbbbbbbbbbbbbb9ddddddd0000000000000000000000000000000000000000000000000000000000000000
+0007700089abcdef000800003333333333333333bbbbbbbbbbbbbbbb9ddddddd0000000000000000000000000000000000000000000000000000000000000000
+0007700001234567000080004444444444444444bbbbbbbbbbbbbbbb9ddddddd0000000000000000000000000000000000000000000000000000000000000000
+0070070001234567008008004444444444444444bbbbbbbbbbbbbbbb9ddddddd0000000000000000000000000000000000000000000000000000000000000000
+0000000001234567080000804444444444444444bbbbbbbbbbbbbbbb9ddddddd0000000000000000000000000000000000000000000000000000000000000000
+0000000001234567800000084444444444444444bbbbbbbbbbbbbbbb9ddddddd0000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000044444444444444443bbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000004444444444444444bbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000044444444444444443bbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000005555555555555555bbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000055555555555555553bbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000005555555555555555bbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000055555555555555553bbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000005555555555555555bbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 88888eeeeee888777777888eeeeee888eeeeee888eeeeee888eeeeee888888888888888888888888888ff8ff8888228822888222822888888822888888228888
@@ -827,6 +842,6 @@ __label__
 88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 __map__
-0003030405000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0013131415000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0003030506070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0013131616000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

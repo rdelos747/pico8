@@ -1,7 +1,18 @@
 pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
--- plane
+-- plane (flaps)
+
+--[[
+2025-03-28
+this version includes attempts
+to animate flaps and other
+surfaces by rendering them as
+separate objects. this took up
+a lot of tokens and was hard to
+work with, so it was cut from
+plane.p8.  
+]]--
 
 --[[
 notes:
@@ -22,8 +33,6 @@ strip. if the player flies
 through it, they refill their
 ammo
 ]]--
-
-ver="0.0.1"
 
 --constants
 secs=300 --sec size
@@ -75,11 +84,11 @@ st_p={} --[[
 																	0 targ tracked
 																	1 targ locked
 									]]--
-										
+									
+--menus
 menu_t=0
-tit_idx=1
 lvl_s_idx=1
-lvl_s_tot=3
+lvl_s_tot=2
 pln_s_idx=1
 pln_s_tot=2
 
@@ -143,42 +152,14 @@ end
 
 function draw_title()
 	cls()
-	local prog=0 //track progress
-	print(
-		"start ("..prog.."%)",
-		45,92,7)
-	print(
-		"config",
-		53,100,7)
-	print(
-		"clear save",
-		45,108,7)
-	
-	if uits() then
-		rect(
-			34,82+tit_idx*8,
-			94,90+tit_idx*8,
-			3)
-	end
-	//line(64,0,64,128,1)
-	//line(44,0,44,128,1)
-	//line(84,0,84,128,1)
-	print(ver,100,120,1)
+	print("press ❎ to start",0,0,7)
 end
 
 function update_title()
 	if btnp(❎) then
-		if tit_idx==1 then
-			g_mode="lvl s"
-		elseif tit_idx==2 then
-		elseif tit_idx==3 then
-		end
+		g_mode="lvl s"
 		menu_t=0
 	end
-	
-	if(btnp(⬆️))tit_idx-=1
-	if(btnp(⬇️))tit_idx+=1
-	tit_idx=mid(1,tit_idx,3)
 end
 
 function draw_lvl_s()
@@ -218,9 +199,6 @@ function update_lvl_s()
 		g_mode="plane s"
 		menu_t=0
 		cur_lvl=lvls[lvl_s_idx]
-	elseif btnp(🅾️) then
-		g_mode="title"
-		menu_t=0
 	end
 	if(btnp(⬆️))lvl_s_idx-=1
 	if(btnp(⬇️))lvl_s_idx+=1
@@ -235,10 +213,10 @@ function draw_plane_s()
 	print("plane slct",0,0,7)
 	
 	if menu_t>10 then
+		local tris=plane_tris_all(
+			planes[pln_s_idx])
 		proj_obj({
-			tris=plane_tris(
-				planes[pln_s_idx].tris
-			),
+			tris=tris,
 			x=0,y=0,z=0,
 			ya=pp_ya,pi=0,ro=0
 		})
@@ -285,21 +263,15 @@ function update_plane_s()
 		pln_s_tot)
 	
 	if btnp(❎) then
-		//pp_plane=planes[pln_s_idx]
-		local pl=planes[pln_s_idx]
-		pp_plane=plane_tris(pl.tris)
-		pp_plane_d=pl.data
+		pp_plane=planes[pln_s_idx]
 		init_lvl()
-	elseif btnp(🅾️) then
-		g_mode="lvl s"
-		menu_t=0
 	end
 end
 
 function draw_game()
 	//printh("ug draw =====")
 	//printh(" ")
-	cls(cur_lvl.ter[1])
+	cls(cur_lvl.day and 12 or 0)
 	
 	if pp_int_d>=0 then
 		draw_hud()
@@ -331,10 +303,7 @@ function draw_game()
 		//fillp(▤)
 		//rectfill(0,gh,127,gh+4,3)
 		//fillp()
-		rectfill(
-			0,gh,
-			127,gh+127,
-			cur_lvl.ter[2])
+		rectfill(0,gh,127,gh+127,3)
 	end
 	
 	proj_sprite(
@@ -350,13 +319,13 @@ function draw_game()
 	for o in all(objs)do
 		if type(o.tris)=="function" then
 			proj_sprite(o)
-		elseif onscr(o) then
+		else
 			proj_obj(o)
 		end
 	end
 	
 	for b in all(cur_lvl.blds)do
-		pbx,pby=proj(b[1],-100,b[2])
+		pbx,pby=proj(b[1],b[2]-100,b[3])
 		if pbx<-1 or pbx>128 or
 					pby<-1 or pby>128 then
 			goto bd_cnt
@@ -375,7 +344,7 @@ function draw_game()
 			px,py,dz=proj(
 					b[1]+d[1]*22,
 					-100,
-					b[2]+d[2]*22
+					b[3]+d[2]*22
 				)
 			if dz<mdz then
 				mdz=dz
@@ -388,8 +357,8 @@ function draw_game()
 			x,z=d[1],d[2]
 			local x1=(x-abs(z))*15+b[1]
 			local x2=(x+abs(z))*15+b[1]
-			local z1=(z-abs(x))*15+b[2]
-			local z2=(z+abs(x))*15+b[2]
+			local z1=(z-abs(x))*15+b[3]
+			local z2=(z+abs(x))*15+b[3]
 			
 			local lines={}
 			for i=0,9 do
@@ -402,13 +371,15 @@ function draw_game()
 					tris=draw_bld_line,
 					x=b[1]+d[1]*22,
 					y=-100,
-					z=b[2]+d[2]*22,
+					z=b[3]+d[2]*22,
 					ya=0,pi=0,ro=0,
 					lines=lines
 				})
+			
 		end
 		::bd_cnt::
 	end
+
 	
 	draw_pp_plane()
 
@@ -469,11 +440,6 @@ function update_game()
 	
 	update_cam()
 	
-	if pp_s_wpn>10 then
-		return
-	end
-	
-	
 	for o in all(objs)do
 		if(o.update)o.update(o)
 	end
@@ -495,11 +461,9 @@ function update_game()
 end
 
 function init_lvl()
-	reset_objs()
+	reset_lvl()
 	//local lvl=lvls[cur_lvl]
 	g_mode="game"
-	cam_d=-50
-	cam_h=-8
 	pp_ya,pp_pi,pp_ro=0,0,0
 	turny,turnx=0,0
 	sh_delay=0
@@ -507,15 +471,15 @@ function init_lvl()
 	ppy=cur_lvl.ppy
 	ppz=cur_lvl.ppz
 	pp_hp=100
+	cam_d=-50
+	cam_h=-8
 	pp_bay=0
 	pp_bays={0,0}
-	pp_ammo1=pp_plane_d.ammo1
-	pp_ammo2=pp_plane_d.ammo2
 	g_start_t=60
 	pp_int_d=-1 --interact after death
 	
 	for e in all(cur_lvl.enmy)do
-		add_enemy(e[1],e[2],e[3],e[4])
+		//add_enemy(e[1],e[2],e[3],e[4])
 	end
 	
 	for o in all(cur_lvl.objs)do
@@ -526,27 +490,17 @@ function init_lvl()
 	
 	for b in all(cur_lvl.blds)do
 		add(objs,
-			obj(
-				bld_tris,
-				b[1],0,b[2],
-				0,0,0,
-				function(o)
-					o.y-=100
-					get_onscr(o)
-					o.y=0
-				end
-			)
+			obj(bld_tris,b[1],b[2],b[3])
 		)
 	end
 end
 
-function reset_objs()
-	for a in all(
-		{enmy,objs,e_mssl}
-	)do
-		for o in all(a)do	
-			del(a,o)
-		end 
+function reset_lvl()
+	for e in all(enmy)do
+		del(enmy,e)
+	end
+	for o in all(objs)do
+		del(objs,o)
 	end
 end
 
@@ -628,11 +582,11 @@ function draw_hud()
 	end
 	
 	print(
-		"mssl "..pp_ammo1,95,82,
-		(wpn==0 or c!=11) and c or 5)
+		"mssl 750",95,82,
+		(wpn==0 or c!=11) and c or 1)
 	print(
-		"gun "..pp_ammo2,95,90,
-		(wpn==1 or c!=11) and c or 5)
+		"gun  080",95,90,
+		(wpn==1 or c!=11) and c or 1)
 	//rect(94,72+wpn*7,127,80+wpn*7,11)
 	//print("hp "..pp_hp,96,98,c)
 	rect(93,80+8*wpn,127,88+8*wpn,c)
@@ -641,10 +595,10 @@ function draw_hud()
 	print("mode",10,74,pp_s_wpn and c or 1)
 	print(
 		"hold",10,82,
-		(spd_m==0 or c!=11) and c or 5)
+		(spd_m==0 or c!=11) and c or 1)
 	print(
 		"burn",10,90,
-		(spd_m==1 or c!=11) and c or 5)
+		(spd_m==1 or c!=11) and c or 1)
 	rect(8,80+8*spd_m,30,88+8*spd_m,c)
 	
 	--spd/alt/hp
@@ -1025,10 +979,117 @@ end
 -- player 
 
 function draw_pp_plane()
+
+	local bod={}
+	for t in all(pp_plane.bod)do
+	for f in all({-1,1})do
+		add(
+			bod,
+			part_tris(t,f)
+		)
+	end end
 	proj_obj({
-		tris=pp_plane,
+		tris=bod,
 		x=ppx,y=ppy,z=ppz,
 		ya=pp_ya,pi=pp_pi,ro=pp_ro
+	})
+	
+	for d in all({-1,1}) do
+		--[[
+		draw_pp_part(
+			pp_plane.hrz[1],
+			d,
+			{
+				ya=0,
+				pi=turnx!=0 and turnx*5*d or -turny*2,
+				ro=0
+			}
+		)
+		]]--
+		
+		draw_pp_part(
+			pp_plane.ver[1],
+			d,
+			{ya=turnx*1,
+			pi=0,
+			ro=0}
+		)
+		
+		if #pp_plane.dwg>0 then
+		draw_pp_part(
+			pp_plane.dwg[1],
+			d,
+			{ya=0.08*d,
+			pi=0,
+			ro=0}
+		)
+		end
+	end
+end
+
+function draw_pp_part(t,f,vs)
+	--commenting this out
+	--doesnt change anything
+	px,py,pz=rot3d(
+		t[5][1]*f,
+		t[5][2],
+		t[5][3],
+		pp_pi,
+		pp_ya,
+		0)
+
+	
+	--[[
+	px,py,pz=rot3d(
+		px,
+		py,
+		pz,
+		//pp_pi,
+		vs.pi,
+		pp_ya,
+		0)
+		]]--
+	
+	--[[
+	px=t[5][1]*f
+	py=t[5][2]
+	pz=t[5][3]
+	]]--
+	//px,py,pz=0,0,0
+	
+		
+	local tt={}
+	for i=1,3 do
+		local pts={}
+		pts[1]=t[i][1]*f
+		pts[2]=t[i][2]
+		pts[3]=t[i][3]
+		add(tt,pts)
+	end
+	tt[4]=t[4]
+	
+	proj_obj({
+		tris={tt},
+		x=px+ppx,
+		y=py+ppy,
+		z=pz+ppz,
+		//ya=pp_ya+vs.ya,
+		//pi=pp_pi+vs.pi,
+		//ro=pp_ro+vs.ro
+		
+		ya=pp_ya+vs.ya,
+		pi=pp_pi-vs.pi,
+		ro=pp_ro+vs.ro
+		
+		//ya=pp_ro+vs.ro,
+		//pi=pp_pi+vs.pi,
+		//ro=pp_ya+vs.ya
+		
+		//ya=pp_ro+vs.ro,
+		//pi=pp_ya+vs.ya,
+		//ro=pp_pi+vs.pi
+		
+		
 	})
 end
 
@@ -1058,7 +1119,7 @@ function update_player()
 		goto pp_after_ctrl
 	end
 	
-	if btn(❎) then
+	if btn(🅾️) then
 		pp_s_wpn+=1
 		if pp_s_wpn>10 then
 			if btnp(⬅️) then
@@ -1070,8 +1131,7 @@ function update_player()
 			elseif btnp(⬇️) then
 				wpn=(wpn+1)%2
 			end
-			//goto pp_after_ctrl
-			return
+			goto pp_after_ctrl
 		end
 	elseif pp_s_wpn>0 then
 		if pp_s_wpn<10 then
@@ -1131,15 +1191,12 @@ function update_player()
 		sh_delay-=1
 	end
 	
-	if btn(🅾️) and sh_delay==0 then
+	if btn(❎) and sh_delay==0 then
 		//if(wpn==0)find_targ(true)
-		if wpn==0 and 
-					can_mssl>0 and 
-					pp_ammo1>0 then
-			sh_delay=15
+		if wpn==0 and can_mssl>0 then
+			sh_delay=60
 			pp_bays[pp_bay+1]=90
 			pp_bay=(pp_bay+1)%2
-			pp_ammo1-=1
 			local targ=nil
 			if pp_targ and st_p[3]==1 then
 				targ=pp_targ
@@ -1149,9 +1206,9 @@ function update_player()
 				pp_ya,pp_pi,
 				6,0.06,
 				targ)
-		elseif pp_ammo2>0 then
+		end
+		if wpn==1 then
 			sh_delay=2
-			pp_ammo2-=1
 			shoot_gun(
 				ppx,ppy,ppz,
 				pp_ya,pp_pi)
@@ -1195,8 +1252,8 @@ function update_player()
 	for b in all(cur_lvl.blds)do
 		if ppx>b[1]-10 and 
 					ppx<b[1]+10 and
-					ppz>b[2]-10 and 
-					ppz<b[2]+10 and
+					ppz>b[3]-10 and 
+					ppz<b[3]+10 and
 					ppy>-100 then
 			pp_hp=0
 		end
@@ -1256,7 +1313,7 @@ function shoot_gun(x,y,z,ya,pi)
 		ya,pi,0,
 		update_blt)
 	dx,dy,dz=rot3d(
-		0,0,30,
+		0,0,10,
 		pi,
 		ya,
 		0)
@@ -1284,8 +1341,6 @@ function update_blt(b)
 	
 	b.t-=1
 	if(b.t<=0)del(objs,b)
-	
-	check_hit_e(b,10,10)
 end
 -->8
 -- ememies
@@ -1300,7 +1355,7 @@ function add_enemy(x,y,z,typ)
 		tris=base.plane
 		up=update_e_sam
 	else
-		tris=plane_tris(base.plane)
+		tris=plane_tris_all(base.plane)
 	end
 	
 	local e=obj(
@@ -1588,7 +1643,20 @@ function update_mssl(m)
 			return
 		end
 	else
-		check_hit_e(m,4,50)
+		for e in all(enmy)do		
+			local d=dist(
+				m.x,m.y,m.z,
+				e.x,e.y,e.z)
+
+			if d<4 then
+				m.t=0
+				e.hp-=50
+				del(objs,m)
+				alert("hit")
+				add_expl(m.x,m.y,m.z)
+				return
+			end
+		end
 	end
 	
 	if m.t==0 or m.y>=0 then
@@ -1596,23 +1664,6 @@ function update_mssl(m)
 		del(e_mssl,m)
 		if m.p and alert_m=="" then
 			alert("miss")
-		end
-	end
-end
-
-function check_hit_e(o,dst,dam)
-	for e in all(enmy)do		
-		local d=dist(
-			o.x,o.y,o.z,
-			e.x,e.y,e.z)
-
-		if d<dst then
-			o.t=0
-			e.hp-=dam
-			del(objs,m)
-			alert("hit")
-			add_expl(o.x,o.y,o.z)
-			return
 		end
 	end
 end
@@ -1679,7 +1730,7 @@ function draw_grnd(g)
 	//spr(11,g[4][1],g[4][2],z,z)
 	//printh(z)
 	sspr(
-		cur_lvl.ter[3]*8,0,16,16*z,
+		88,0,16,16*z,
 		g.tri[2][1],g.tri[2][2],
 		z*16,z*16)
 end
@@ -1705,7 +1756,7 @@ function draw_sun(s)
 		s.tri[2][1],
 		s.tri[2][2],
 		10,
-		cur_lvl.ter[1]==12 and 9 or 6)
+		cur_lvl.day and 9 or 6)
 end
 -->8
 -- helpers
@@ -1821,23 +1872,48 @@ function print2(s,x,y,c1,c2)
 	pal()
 end
 
-function plane_tris(pl)
+
+--[[
+return all plane parts in a
+single tris obj
+]]--
+function plane_tris_all(pl)
 	local tris={}
-	for t in all(pl)do
+	for k in all(
+		{"bod","dwg","hrz","ver","can"}
+	)do
+	for t in all(pl[k])do
 		for f in all({-1,1})do
+			local tt=part_tris(t,f)
+			--[[
 			local tt={}
 			for i=1,3 do
 				local pts={}
-				pts[1]=t[i][1]*f
-				pts[2]=t[i][2]
-				pts[3]=t[i][3]
+				pts[1]=t[i][1]*f+t[5][1]*f
+				pts[2]=t[i][2]+t[5][2]
+				pts[3]=t[i][3]+t[5][3]
 				add(tt,pts)
 			end
 			tt[4]=t[4]
+			]]--
 			add(tris,tt)
 		end
-	end
+	end end
 	return tris
+end
+
+function part_tris(p,f)
+	local tt={}
+	for i=1,3 do
+		local pts={}
+		pts[1]=p[i][1]*f+p[5][1]*f
+		pts[2]=p[i][2]+p[5][2]
+		pts[3]=p[i][3]+p[5][3]
+		add(tt,pts)
+	end
+	tt[4]=p[4]
+	tt[5]=p[5]
+	return tt
 end
 
 
@@ -1861,49 +1937,149 @@ end
 -->8
 -- models
 
+--[[
+pp_tris_old={
+	{
+		{0,0,-10},
+		{10,0,8},
+		{0,0,0},
+		7
+	},
+	{
+		{0,0,0},
+		{8,0,10},
+		{0,0,8},
+		15
+	},
+	{
+		{0,0,-10},
+		{-10,0,8},
+		{0,0,0},
+		13
+	},
+	{
+		{0,0,0},
+		{-8,0,10},
+		{0,0,8},
+		15
+	},
+	{
+		{3,0,0},
+		{3,0,10},
+		{3,-5,12},
+		7
+	},
+	{
+		{-3,0,0},
+		{-3,0,10},
+		{-3,-5,12},
+		13
+	},
+}
+]]--
+
 planes={
-	{ //test plane
-		tris={
-			{ //wing
+	{
+		bod={ //body+wing (non adjust)
+			{
 				{0,0,-10},
 				{10,0,8},
 				{0,0,0},
-					7,
-			},
-			{ // horz stab
-				{0,0,0},
-				{8,0,10},
-				{0,0,8},
-				15,
-			},
-			{ //ver stab
-				{3,0,0},
-				{3,0,10},
-				{3,-5,8},
 				7,
-			},
-			{ //cockpit 1
-				{0,0,-8},
-				{2,0,-5},
-				{0,-1,-5},
-				5
-			},
-			{ //cockpit 2
-				{0,-1,-5},
-				{2,0,-5},
-				{0,0,-3},
-				5
+				{0,0,0} //bod offset should always be 0
 			},
 		},
-		data={
-			name="test plane",
-			ammo1=80, //missle
-			ammo2=500 //bullet
-		}
+		dwg={}, //dynamic wing
+		//flp={ //flaps
+		//},
+		hrz={ //horz stab
+			{
+				{0,0,-5},
+				{8,0,5},
+				{0,0,3},
+				15,
+				{0,0,5} //offset
+			}
+		},
+		ver={ //ver stab
+			{
+			{3,0,-5},
+			{3,0,5},
+			{3,-5,7},
+			7,
+			{0,0,5} //offset
+		},
+		},
+		can={ //canard
+		},
+	},
+	{
+		bod={ //body+wing (non adjust)
+			{
+				{0,0,-10},
+				{2,0,0},
+				{0,0,0},
+				7,
+				{0,0,0}
+			},
+			{
+				{0,0,-4},
+				{2,0,-4},
+				{0,0,10},
+				7,
+				{0,0,0}
+			},
+			{
+				{2,0,-4},
+				{4,0,0},
+				{0,0,10},
+				7,
+				{0,0,0}
+			},
+			{
+				{0,0,10},
+				{2,0,10},
+				{2,0,0},
+				7,
+				{0,0,0}
+			},
+		},
+		dwg={ //dynamic wing
+			
+			{
+				{4,0,-1},
+				{10,0,4},
+				{3,0,3},
+				15,
+				{0,0,0} //offset
+			}
+		}, 
+		//flp={ //flaps
+		//},
+		hrz={ //horz stab
+			{
+				{2,0,0},
+				{5,0,5},
+				{2,0,4},
+				15,
+				{0,0,5} //offset
+			}
+		},
+		ver={ //ver stab
+			{
+				{2,0,0},
+				{2,0,3},
+				{2,-5,5},
+				7,
+				{0,0,5} //offset
+			},
+		},
+		can={ //canard
+		},
 	}
-	//{ // f-14
-	//}
 }
+
+
 
 sam_tris={
 	{
@@ -1970,6 +2146,7 @@ bld_tris={
 		5,
 	},
 }
+//115
 
 mssl_tris={
 	{
@@ -1992,25 +2169,21 @@ lvls={
  	ppy=-150,
  	ppz=600,
  	title="lvl 1",
- 	ter={ //terrain
- 		12, //sky color
- 		3, //ground color
- 		11 //ground sprite idx
- 	},
+ 	day=true,
  	enmy={
  		{-1000,-400,0,"mig"},
  		{0,-400,0,"mig"},
  		{500,-400,0,"mig"},
- 		{0,0,-1000,"sam"},
+ 		{0,0,100,"sam"},
  	},
  	objs={},
  	blds={
- 		{0,0}, //x,z
- 		{-30,0},
- 		{30,0},
- 		{0,-300},
- 		{100,-500},
- 		{-100,-1000},
+ 		{0,0,0},
+ 		{-30,0,0},
+ 		{30,0,0},
+ 		{0,0,-300},
+ 		{100,0,-500},
+ 		{-100,0,-1000},
  	}
  },
  { -- level 2
@@ -2018,40 +2191,22 @@ lvls={
  	ppy=-50,
  	ppz=600,
  	title="lvl 2",
- 	ter={ 
- 		0,
- 		3, 
- 		11 
- 	},
+ 	day=false,
  	enmy={
  		{-1000,-400,0,"mig"},
  		{0,-400,0,"mig"},
  		{500,-400,0,"mig"},
- 		{0,0,1000,"sam"},
+ 		{0,0,100,"sam"},
  	},
  	objs={},
  	blds={
- 		{0,0},
- 		{-30,0},
- 		{30,0},
- 		{0,-300},
- 		{100,-500},
- 		{-100,-1000},
- 	},
- },
- { -- level 3
- 	ppx=0,
- 	ppy=-50,
- 	ppz=600,
- 	title="lvl 3",
- 	ter={ 
- 		12,
- 		1, 
- 		13 
- 	},
- 	enmy={},
- 	objs={},
- 	blds={}
+ 		{0,0,0},
+ 		{-30,0,0},
+ 		{30,0,0},
+ 		{0,0,-300},
+ 		{100,0,-500},
+ 		{-100,0,-1000},
+ 	}
  }
 }
 
@@ -2070,22 +2225,22 @@ enmy_p_base={
 	},
 }
 __gfx__
-00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00bb0b0b00b000000000000000000000000
-000000000000000000000000505555500bbb00006700076061000160600000600090000000000000000000000b000b000b000b00000000000000000000000000
-0070070000000000000000000500505000bbbb0060707060601010606000006000090000000fff0000000000b00b01b3b00b01b3000000000000000000000000
-00077000000000000000000055555050000bbbbb60070060600100606000006000009000000f0f00000000000b10b0bb0b10b0bb000060000000600000000000
-00077000000000000000000005055005000bbbbb60707060601010606000006000090000000fff000000000000b01b0b00b01b0b000606000006060000000000
-0070070000000000000000000555050500bbbb00670007606100016060000060009000000000000000000000b0b1b010b0b1b010006000600060006000000000
-000000000000000000000000505050500bbb00006666666066666660666666600000000000000000000000000b0b010b0b0b010b660000066600000600000000
-00000000000000000000000000500505bb0000000000000000000000000000000000000000000000000000001013010110130101000000000000000000000000
-66606066606660666066606660666000006060000060000000000000000000000000000000000000000000000000004004000000000000000000000000000000
-60606060606000606060606000060000060600000606000000000000000000000000000000000000000000000000000400000000000000000000000000000000
-66606066006000660066606600060000606000006060600000000000000000000000000000000000000000000000005004000000000060000006000000000000
-60606060606660606060606000060000060600000606000000000000000000000000000000000000000000000000004400000000000606600060600000000000
-66606660666066606660000000000000006060006000600000000000000000000000000000000000000000000000000505000000066000066060066000000000
-60000600606006006000000000000000000000000000000000000000000000000000000000000000000000000000005050000000600000000600000600000000
-00600600666006000060000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000
-66600600606006006660000000000000000000000000000000000000000000000000000000000000000000000000005505000000000000000000000000000000
+00000000000000000000000050505500bb000000666666606666666066666660000000000000000000000000b0b0b00bb0b0b00be0e0e00ee0e0e00e00000000
+000000000000000000000000505555500bbb00006700076061000160600000600090000000000000000000000b000b000b000b000e000e000e000e0000000000
+0070070000000000000000000500505000bbbb0060707060601010606000006000090000000fff0000000000b00b01b3b00b01b3e00e01e3e00e01e300000000
+00077000000000000000000055555050000bbbbb60070060600100606000006000009000000f0f00000000000b10b0bb0b10b0bb0e10e0ee0e10e0ee00000000
+00077000000000000000000005055005000bbbbb60707060601010606000006000090000000fff000000000000b01b0b00b01b0b00e01e0e00e01e0e00000000
+0070070000000000000000000555050500bbbb00670007606100016060000060009000000000000000000000b0b1b010b0b1b010e0e1e010e0e1e01000000000
+000000000000000000000000505050500bbb00006666666066666660666666600000000000000000000000000b0b010b0b0b010b0e0e010e0e0e010e00000000
+00000000000000000000000000500505bb0000000000000000000000000000000000000000000000000000001013010110130101101301011013010100000000
+66606066606660666066606660666000006060000060000000000000000000000000000000000000000000000000004004000000000000400400000000000000
+60606060606000606060606000060000060600000606000000000000000000000000000000000000000000000000000400000000000000040000000000000000
+66606066006000660066606600060000606000006060600000000000000000000000000000000000000000000000005004000000000000500400000000000000
+60606060606660606060606000060000060600000606000000000000000000000000000000000000000000000000004400000000000000440000000000000000
+66606660666066606660000000000000006060006000600000000000000000000000000000000000000000000000000505000000000000050500000000000000
+60000600606006006000000000000000000000000000000000000000000000000000000000000000000000000000005050000000000000505000000000000000
+00600600666006000060000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000400000000000000
+66600600606006006660000000000000000000000000000000000000000000000000000000000000000000000000005505000000000000550500000000000000
 66006660666000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 60606660600000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000060000000000000000000000000
 60606060606000000000000000000000000000000000000000000000000000000000000000000000000000000006666660000666600000000000000000000000
