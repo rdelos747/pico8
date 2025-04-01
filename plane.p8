@@ -154,12 +154,12 @@ function draw_title()
 		"clear save",
 		45,108,7)
 	
-	if uits() then
+	//if uits() then
 		rect(
 			34,82+tit_idx*8,
 			94,90+tit_idx*8,
 			3)
-	end
+	//end
 	//line(64,0,64,128,1)
 	//line(44,0,44,128,1)
 	//line(84,0,84,128,1)
@@ -302,6 +302,7 @@ function draw_game()
 	cls(cur_lvl.ter[1])
 	
 	if pp_int_d>=0 then
+		cls(0)
 		draw_hud()
 		
 		if uits() then
@@ -312,6 +313,10 @@ function draw_game()
 		print("retry",55,80,11)
 		print("exit",55,88,11) 
 		
+		return
+	elseif win_t>0 then
+		cls(0)
+		draw_hud()
 		return
 	end
 	
@@ -346,7 +351,6 @@ function draw_game()
 		)
 	)
 	
-		
 	for o in all(objs)do
 		if type(o.tris)=="function" then
 			proj_sprite(o)
@@ -411,7 +415,6 @@ function draw_game()
 	end
 	
 	draw_pp_plane()
-
 	draw_spr_layer(0,200,draw_grnd)
 	draw_spr_layer(-500,500,draw_cld)
 	draw_sorted()
@@ -424,9 +427,13 @@ function draw_game()
 	//print(pp_pi,110,40,7)
 end
 
-t12=0 //test val
 function update_game()
-	t12+=0.001
+	if alert_t>0 then
+		alert_t-=1
+	else
+		alert_m=""
+	end
+	
 	sunx=ppx-1000
 	sunz=ppz
 	suny=ppy-100
@@ -452,7 +459,19 @@ function update_game()
 			end
 			return
 		end
-	end 
+	elseif #enmy==0 then
+		//alert("mission complete")
+		if alert_t==0 then
+			//g_mode="lvl s"
+			//menu_t=0
+			win_t+=1
+		end
+		if win_t>40 and btnp(❎) then
+			g_mode="lvl s"
+			menu_t=0
+		end
+		return
+	end
 	
 	warn=false
 	update_player()
@@ -477,20 +496,19 @@ function update_game()
 	for o in all(objs)do
 		if(o.update)o.update(o)
 	end
-	
-	//alert_t=max(alert_t-1,0)
-	if alert_t>0 then
-		alert_t-=1
-	else
-		alert_m=""
-	end
-	
+		
 	g_start_t-=1
 	if g_start_t==0 then
 		alert("mission start")
 		lvl_start_t=time()
 	elseif g_start_t<0 then
 		lvl_t=300-(time()-lvl_start_t)
+	end
+	
+	-- this is a hack, but w/e
+	if #enmy==0 then
+		alert_m="mission complete"
+		alert_t=120
 	end
 end
 
@@ -511,8 +529,10 @@ function init_lvl()
 	pp_bays={0,0}
 	pp_ammo1=pp_plane_d.ammo1
 	pp_ammo2=pp_plane_d.ammo2
+	pp_scr=0
 	g_start_t=60
 	pp_int_d=-1 --interact after death
+	win_t=0
 	
 	for e in all(cur_lvl.enmy)do
 		add_enemy(e[1],e[2],e[3],e[4])
@@ -667,11 +687,6 @@ function draw_hud()
 		print("targ",60,74,c)
 	end
 	
-
-	--time/score
-	print(ftime(lvl_t),100,1,7)
-	print("scr:000",100,7,7)
-	
 	--alert
 	if alert_t>0 then
 		rectfill(
@@ -690,6 +705,36 @@ function draw_hud()
 	--altitude
 	if ppy>-100 and uits() then
 		print("pull up",50,62,8)
+	end
+	
+	--time/score
+	if win_t==0 then
+		print(ftime(lvl_t),100,1,7)
+		print("scr:"..pp_scr,100,7,7)
+	end
+	--win
+	//line(64,0,64,128,1)
+	//line(24,0,24,128,1)
+	//line(104,0,104,128,1)
+	if win_t>0 then
+		print("score",55,10,7)
+	end
+	if win_t>10 then
+		print("score",55,10,7)
+		print(pp_scr,59,18,7)
+	end
+	if win_t>20 then
+		print(
+			"time remaining",
+			37,30,7)
+	end
+	if win_t>30 then
+		print(ftime(lvl_t),40,38,7)
+	end
+	if win_t>40 then
+		print(
+			"press ❎ to continue ",
+			25,110,7)
 	end
 end
 
@@ -1149,7 +1194,7 @@ function update_player()
 				pp_ya,pp_pi,
 				6,0.06,
 				targ)
-		elseif pp_ammo2>0 then
+		elseif wpn==1 and pp_ammo2>0 then
 			sh_delay=2
 			pp_ammo2-=1
 			shoot_gun(
@@ -1296,8 +1341,11 @@ function add_enemy(x,y,z,typ)
 	local up=update_e_plane
 	
 	local tris={}
-	if typ=="sam" then
-		tris=base.plane
+	if typ=="trg" then
+		//tris=base.plane
+		up=update_e_trg
+	elseif typ=="sam" then
+		//tris=base.plane
 		up=update_e_sam
 	else
 		tris=plane_tris(base.plane)
@@ -1496,6 +1544,11 @@ function update_e_sam(e)
 	check_e_dead(e)
 end
 
+function update_e_trg(e)
+	get_onscr(e)
+	check_e_dead(e)
+end
+
 function check_e_dead(e)
 	if e.hp<=0 and e.mode!="dead" then
 		alert("destroyed")
@@ -1504,6 +1557,7 @@ function check_e_dead(e)
 		e.tx=e.x
 		e.tz=e.z
 		e.ty=0
+		pp_scr+=e.base.scr
 		del(enmy,e)
 		find_targ(false)
 	elseif e.y>=0 and e.mode=="dead" then
@@ -1905,20 +1959,22 @@ planes={
 	//}
 }
 
-sam_tris={
-	{
-		{-10,0,10},
-		{0,-10,0},
-		{10,0,10},
-		8
-	},
-	{
-		{-10,0,-10},
-		{0,-10,0},
-		{10,0,-10},
-		8
+function sam_tris(c)
+	return {
+		{
+			{0,0,-10},
+			{0,-10,0},
+			{0,0,10},
+			c
+		},
+		{
+			{-10,0,0},
+			{0,-10,0},
+			{10,0,0},
+			c
+		}
 	}
-}
+end
 
 bld_tris={
 	{
@@ -1990,7 +2046,7 @@ lvls={
  { -- level 1
  	ppx=0,
  	ppy=-150,
- 	ppz=600,
+ 	ppz=1000,
  	title="lvl 1",
  	ter={ //terrain
  		12, //sky color
@@ -1998,16 +2054,18 @@ lvls={
  		11 //ground sprite idx
  	},
  	enmy={
- 		{-1000,-400,0,"mig"},
- 		{0,-400,0,"mig"},
- 		{500,-400,0,"mig"},
- 		{0,0,-1000,"sam"},
+ 		//{-1000,-400,0,"mig"},
+ 		//{0,-400,0,"mig"},
+ 		//{500,-400,0,"mig"},
+ 		//{0,0,-1000,"sam"},
+ 		//{0,0,-1120,"trg"},
+ 		{100,0,-1000,"trg"}
  	},
  	objs={},
  	blds={
  		{0,0}, //x,z
- 		{-30,0},
- 		{30,0},
+ 		{-100,0},
+ 		{100,0},
  		{0,-300},
  		{100,-500},
  		{-100,-1000},
@@ -2056,13 +2114,18 @@ lvls={
 }
 
 enmy_p_base={
+	trg={
+		plane=sam_tris(15),
+		scr=50
+	},
 	sam={
-		plane=sam_tris,
+		plane=sam_tris(2),
+		scr=30,
 		lt_max=90,
-		//f_ch=nil
 	},
 	mig={
 		plane=planes[1],
+		scr=60,
 		lt_max=60, --lock time max
 		f_ch=0.5, --follow chance
 		la_f=0.03, --turn spd follow
