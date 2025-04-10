@@ -581,6 +581,7 @@ function update_player()
 	if btn(🅾️) then
 		if not pjp then
 			pjp=true
+			pov=false
 			--  bank,chnl,off, len
 			--sfx(0,   0,   0,   0)
 			if (pjmp<p_j_fre or
@@ -1207,7 +1208,7 @@ function init_lvl()
 			})
 		elseif s==95 then
 			add(vines,obj(
-					x+4,y+4,2,14,{s=s}))
+					x+4,y+4,2,9,{s=s}))
 		elseif fl==0 then
 			-- items created in this
 			-- block will clear the
