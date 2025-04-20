@@ -81,7 +81,7 @@ tit_idx=1
 lvl_s_idx=1
 lvl_s_tot=3
 pln_s_idx=1
-pln_s_tot=2
+pln_s_tot=3
 
 -- other globals
 alert_m="destroyed"
@@ -90,7 +90,7 @@ warn=false
 uit=0
 g_mode="title"
 g_start_t=0
-lvl_t=0
+lvl_t=300
 lvl_start_t=0
 cur_lvl=nil
 sunx,suny,sunz=0,0,0
@@ -438,7 +438,9 @@ function update_game()
 	sunz=ppz
 	suny=ppy-100
 	
-	if pp_hp==0 then
+	if pp_hp==0 or 
+				lvl_t<=0 and 
+				pp_scr<cur_lvl.min_scr then
 		alert("mission failed")
 		if pp_int_d==-1 and 
 					btnp(❎) then
@@ -459,7 +461,7 @@ function update_game()
 			end
 			return
 		end
-	elseif #enmy==0 then
+	elseif #enmy==0 or lvl_t<=0 then
 		//alert("mission complete")
 		if alert_t==0 then
 			//g_mode="lvl s"
@@ -506,7 +508,9 @@ function update_game()
 	end
 	
 	-- this is a hack, but w/e
-	if #enmy==0 then
+	if #enmy==0 or 
+				lvl_t<=0 and 
+				pp_scr>=cur_lvl.min_scr then
 		alert_m="mission complete"
 		alert_t=120
 	end
@@ -558,6 +562,16 @@ function init_lvl()
 			)
 		)
 	end
+	
+	rf_o=obj(
+		draw_rf,
+		cur_lvl.rf[1],
+		-40,
+		cur_lvl.rf[2],
+		0,0,0,
+		get_onscr
+	)
+	add(objs,rf_o)
 end
 
 function reset_objs()
@@ -613,6 +627,14 @@ function draw_hud()
 				64+sin(a+0.01)*46,
 				11)
 		end
+	end
+	
+	if onscr(rf_o) then
+		print2(
+			"refuel",
+			rf_o.scrx,
+			rf_o.scry,
+			12)
 	end
 	
 	--screen target box
@@ -1238,13 +1260,15 @@ function update_player()
 	end
 	
 	for b in all(cur_lvl.blds)do
-		if ppx>b[1]-10 and 
-					ppx<b[1]+10 and
-					ppz>b[2]-10 and 
-					ppz<b[2]+10 and
-					ppy>-100 then
-			pp_hp=0
+		if col_box(b[1],b[2],10,100) then
+			pp_hp=0	
 		end
+	end
+	
+	if col_box(rf_o.x,rf_o.z,40,40) then
+		pp_ammo1=pp_plane_d.ammo1
+		pp_ammo2=pp_plane_d.ammo2
+		alert("refuled")
 	end
 	
 	ppy=min(0,ppy)
@@ -1348,7 +1372,7 @@ function add_enemy(x,y,z,typ)
 		//tris=base.plane
 		up=update_e_sam
 	else
-		tris=plane_tris(base.plane)
+		tris=plane_tris(base.plane.tris)
 	end
 	
 	local e=obj(
@@ -1761,6 +1785,31 @@ function draw_sun(s)
 		10,
 		cur_lvl.ter[1]==12 and 9 or 6)
 end
+
+function draw_rf(r)
+	pset(r.tri[2][1],r.tri[2][2],8)
+	local pts={
+		{-1,-1},
+		{1,-1},
+		{1,1},
+		{-1,1}
+	}
+	for i=1,#pts do
+		local i2=max(1,(i+1)%5)
+		local x=r.col[1].x
+		local z=r.col[1].z
+		local x1=x+pts[i][1]*40
+		local z1=z+pts[i][2]*40
+		local x2=x+pts[i2][1]*40
+		local z2=z+pts[i2][2]*40
+		local px1,py1=proj(x1,-40,z1)
+		local px2,py2=proj(x2,-40,z2)
+		local px3,py3=proj(x1,0,z1)
+		//pset(px,py,8)
+		line(px1,py1,px2,py2,12)
+		line(px1,py1,px3,py3,12)
+	end
+end
 -->8
 -- helpers
 
@@ -1894,6 +1943,14 @@ function plane_tris(pl)
 	return tris
 end
 
+function col_box(x,z,w,h)
+	return ppx>x-w and 
+				ppx<x+w and
+				ppz>z-w and 
+				ppz<z+w and
+				ppy>h*-1
+end
+
 
 --debug functions
 --todo remove
@@ -1954,9 +2011,115 @@ planes={
 			ammo1=80, //missle
 			ammo2=500 //bullet
 		}
+	},
+	{ // f-14
+		tris={
+			{
+				{0,0,-12},
+				{0,0,10},
+				{3,0,10},
+				6
+			},
+			{
+				{0,0,-5},
+				{2,0,-5},
+				{2,0,6},
+				6
+			},
+			{
+				{2,0,-5},
+				{2,0,4},
+				{8,0,10},
+				7
+			},
+			{
+				{2,0,5},
+				{0,0,9},
+				{6,0,10},
+				7
+			},
+			{
+				{2,0,3},
+				{2,0,9},
+				{3,-4,9},
+				15
+			},
+			{ //cockpit 1
+				{0,0,-6},
+				{1,0,-3},
+				{0,-1,-3},
+				5
+			},
+			{ //cockpit 2
+				{0,-1,-3},
+				{1,0,-3},
+				{0,0,-1},
+				5
+			},
+		},
+		data={
+			name="test plane 2",
+			ammo1=80, //missle
+			ammo2=500 //bullet
+		}
+	},
+	{ //f15
+		tris={
+			{
+				{0,0,-12},
+				{0,0,8},
+				{2,0,8},
+				6
+			},
+			{
+				{0,0,-5},
+				{2,0,-5},
+				{2,0,8},
+				6
+			},
+			{
+				{2,0,-3},
+				{2,0,5},
+				{8,0,7},
+				7
+			},
+			{
+				{2,0,-3},
+				{8,0,7},
+				{9,0,6},
+				7
+			},
+			{ //horz stab
+				{2,0,6},
+				{2,0,10},
+				{6,0,11},
+				7
+			},
+			{ //ver stab
+				{2,0,6},
+				{2,0,10},
+				{2,-4,11},
+				15
+			},
+			{ //cockpit 1
+				{0,0,-6},
+				{1,0,-3},
+				{0,-1,-3},
+				5
+			},
+			{ //cockpit 2
+				{0,-1,-3},
+				{1,0,-3},
+				{0,0,-1},
+				5
+			},
+		},
+		data={
+			name="test plane 2",
+			ammo1=80, //missle
+			ammo2=500 //bullet
+		}
 	}
-	//{ // f-14
-	//}
 }
 
 function sam_tris(c)
@@ -2053,6 +2216,7 @@ lvls={
  		3, //ground color
  		11 //ground sprite idx
  	},
+ 	min_scr=0,
  	enmy={
  		//{-1000,-400,0,"mig"},
  		//{0,-400,0,"mig"},
@@ -2063,13 +2227,14 @@ lvls={
  	},
  	objs={},
  	blds={
- 		{0,0}, //x,z
- 		{-100,0},
- 		{100,0},
+ 		//{0,0}, //x,z
+ 		//{-100,0},
+ 		//{100,0},
  		{0,-300},
  		{100,-500},
  		{-100,-1000},
- 	}
+ 	},
+ 	rf={0,0}
  },
  { -- level 2
  	ppx=0,
@@ -2081,6 +2246,7 @@ lvls={
  		3, 
  		11 
  	},
+ 	min_scr=0,
  	enmy={
  		{-1000,-400,0,"mig"},
  		{0,-400,0,"mig"},
@@ -2096,6 +2262,7 @@ lvls={
  		{100,-500},
  		{-100,-1000},
  	},
+ 	rf={0,0}
  },
  { -- level 3
  	ppx=0,
@@ -2107,9 +2274,11 @@ lvls={
  		1, 
  		13 
  	},
+ 	min_scr=0,
  	enmy={},
  	objs={},
- 	blds={}
+ 	blds={},
+ 	rf={0,0}
  }
 }
 
