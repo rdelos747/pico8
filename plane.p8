@@ -76,12 +76,12 @@ st_p={} --[[
 																	1 targ locked
 									]]--
 										
-menu_t=0
+menu_t,menu_t2=0,0
 tit_idx=1
 lvl_s_idx=1
 lvl_s_tot=3
 pln_s_idx=1
-pln_s_tot=3
+pln_s_tot=5
 
 -- other globals
 alert_m="destroyed"
@@ -129,6 +129,7 @@ end
 function _update()
 	uit=(uit+0.5)%4
 	menu_t+=0.5
+	menu_t2+=0.5
 	
 	if g_mode=="title" then
 		update_title()
@@ -173,7 +174,7 @@ function update_title()
 		elseif tit_idx==2 then
 		elseif tit_idx==3 then
 		end
-		menu_t=0
+		menu_t,menu_t2=0,0
 	end
 	
 	if(btnp(⬆️))tit_idx-=1
@@ -216,11 +217,11 @@ end
 function update_lvl_s()
 	if btnp(❎) then
 		g_mode="plane s"
-		menu_t=0
+		menu_t,menu_t2=0,0
 		cur_lvl=lvls[lvl_s_idx]
 	elseif btnp(🅾️) then
 		g_mode="title"
-		menu_t=0
+		menu_t,menu_t2=0,0
 	end
 	if(btnp(⬆️))lvl_s_idx-=1
 	if(btnp(⬇️))lvl_s_idx+=1
@@ -234,28 +235,52 @@ function draw_plane_s()
 	cls()
 	print("plane slct",0,0,7)
 	
+	local p=planes[pln_s_idx]
+	
 	if menu_t>10 then
 		proj_obj({
-			tris=plane_tris(
-				planes[pln_s_idx].tris
-			),
+			tris=plane_tris(p.tris),
 			x=0,y=0,z=0,
 			ya=pp_ya,pi=0,ro=0
 		})
 		draw_sorted()
 	
-		print("mig-29",5,20,7)
+		print(p.data.name,5,20,7)
 	
 		print("speed",5,35,7)
-		print("armor",5,41,7)
-		print("missile",5,47,7)
-		print("gun",5,53,7)
+		print("armor",5,45,7)
+		print("turn",5,55,7)
+		print("missile",5,70,7)
+		print("gun",5,77,7)
+		
+		if menu_t2>10 then
+			print(p.data.ammo1,40,70,7)
+			print(p.data.ammo2,40,77,7)
+		end
+		
+		local ds={
+			{p.data.spd_max,8},
+			{p.data.hp_max,200},
+			{p.data.turn,0.005}
+		}
+		
+		for i=1,#ds do
+			local d=ds[i]
+			local o=i*10
+			line(
+				6,32+o,
+				max(
+					6,
+					49*(d[1]/d[2])*min(1,menu_t2/10)),
+				32+o,8)
+			rect(5,31+o,50,33+o,7)
+		end
 	end
 	
 	rect(1,13,
-		50*min(menu_t/5,1),26,6)
+		52*min(menu_t/5,1),26,6)
 
-	rect(1,28,50*min(menu_t/5,1),70,6)
+	rect(1,28,52*min(menu_t/5,1),85,6)
 		
 	if menu_t>5 then
 		sspr(0,8,32,4,3,15)
@@ -277,8 +302,13 @@ function update_plane_s()
 	cam_pi=-0.05
 	pp_ya+=0.005
 	
-	if(btnp(⬅️))pln_s_idx-=1
-	if(btnp(➡️))pln_s_idx+=1
+	if btnp(⬅️) then
+		pln_s_idx-=1
+		menu_t2=0
+	elseif btnp(➡️) then
+		pln_s_idx+=1
+		menu_t2=0
+	end
 	pln_s_idx=mid(
 		1,
 		pln_s_idx,
@@ -292,7 +322,7 @@ function update_plane_s()
 		init_lvl()
 	elseif btnp(🅾️) then
 		g_mode="lvl s"
-		menu_t=0
+		menu_t,menu_t2=0,0
 	end
 end
 
@@ -1973,6 +2003,7 @@ end
 -- models
 
 planes={
+--[[
 	{ //test plane
 		tris={
 			{ //wing
@@ -2010,6 +2041,61 @@ planes={
 			name="test plane",
 			ammo1=80, //missle
 			ammo2=500 //bullet
+		}
+	},
+	]]--
+	{ //mirage 2000
+		tris={
+			{ //body 1
+				{0,0,-10},
+				{0,0,-4},
+				{1,0,-4},
+				7
+			},
+			{ //body 1
+				{0,0,-10},
+				{0,0,10},
+				{1,0,10},
+				7
+			},
+			{ //body 2
+				{0,0,-4},
+				{2,0,-4},
+				{1,0,10},
+				7
+			},
+			{ //wing
+				{2,0,-2},
+				{8,0,7},
+				{1,0,8},
+				6
+			},
+			{//ver stab
+				{0,0,3},
+				{0,-4,9},
+				{0,0,9},
+				5
+			},
+			{ //cockpit 1
+				{0,0,-6},
+				{1,0,-4},
+				{0,-1,-4},
+				5
+			},
+			{ //cockpit 2
+				{0,-1,-4},
+				{1,0,-4},
+				{0,0,-2},
+				5
+			},
+		},
+		data={
+			name="m 2000",
+			ammo1=80,
+			ammo2=500,
+			spd_max=8,
+			turn=0.001,
+			hp_max=100
 		}
 	},
 	{ // f-14
@@ -2058,9 +2144,85 @@ planes={
 			},
 		},
 		data={
-			name="test plane 2",
+			name="fc-14",
 			ammo1=80, //missle
-			ammo2=500 //bullet
+			ammo2=500, //bullet
+			spd_max=8,
+			turn=0.001,
+			hp_max=100
+		}
+	},
+	{ //rafale
+		tris={
+			{ //body 1
+				{0,0,-10},
+				{0,0,-1},
+				{2,0,-1},
+				7
+			},
+			{ //body 2
+				{0,0,-1},
+				{2,0,-1},
+				{0,0,10},
+				7
+			},
+			{ //body 3
+				{2,0,-1},
+				{0,0,10},
+				{1,0,10},
+				7
+			},
+			{ //canard
+				{1,0,-4},
+				{4,0,-1},
+				{2,0,-1},
+				13
+			},
+			{ //wing 1
+				{2,0,-1},
+				{8,0,6},
+				{1,0,8},
+				6
+			},
+			{ //wing 2
+				//{2,0,-1},
+				{8,0,6},
+				{8,0,7},
+				{1,0,8},
+				6
+			},
+			{ //thingy
+				{7.8,0,8},
+				{8,0,8},
+				{8,0,4},
+				6
+			},
+			{//ver stab
+				{0,0,3},
+				{0,-4,9},
+				{0,0,9},
+				5
+			},
+			{ //cockpit 1
+				{0,0,-6},
+				{1,0,-3},
+				{0,-1,-3},
+				5
+			},
+			{ //cockpit 2
+				{0,-1,-3},
+				{1,0,-3},
+				{0,0,0},
+				5
+			},
+		},
+		data={
+			name="raf m",
+			ammo1=80,
+			ammo2=500,
+			spd_max=8,
+			turn=0.001,
+			hp_max=100
 		}
 	},
 	{ //f15
@@ -2115,11 +2277,86 @@ planes={
 			},
 		},
 		data={
-			name="test plane 2",
+			name="fe-15",
 			ammo1=80, //missle
-			ammo2=500 //bullet
+			ammo2=500, //bullet
+			spd_max=8,
+			turn=0.001,
+			hp_max=100
 		}
-	}
+	},
+	{ //su37
+		tris={
+			{ //body
+				{0,0,-10},
+				{0,0,10},
+				{2,0,10},
+				7
+			},
+			{ //body2
+				{0,0,-6},
+				{2,0,-2},
+				{2,0,10},
+				7
+			},
+			{ //canards
+				{2,0,-2},
+				{2,0,0},
+				{5,0,1},
+				13
+			},
+			{ //wing1
+				{2,0,0},
+				{2,0,6},
+				{8,0,6},
+				6
+			},
+			{ //wing2
+				{2,0,6},
+				{8,0,6},
+				{8,0,8},
+				6
+			},
+			{ // not sure what called
+				{7.8,0,8},
+				{8,0,8},
+				{8,0,4},
+				7
+			},
+			{ // hor stab
+				{2,0,6},
+				{2.5,0,10},
+				{5,0,11},
+				6
+			},
+			{ //ver stab
+				{2,0,5},
+				{2,-4,10},
+				{2,0,10},
+				5
+			},
+			{ //cockpit 1
+				{0,0,-5},
+				{1,0,-2},
+				{0,-1,-2},
+				5
+			},
+			{ //cockpit 2
+				{0,-1,-2},
+				{1,0,-2},
+				{0,0,0},
+				5
+			},
+		},
+		data={
+			name="sk37",
+			ammo1=80,
+			ammo2=500,
+			spd_max=8,
+			turn=0.001,
+			hp_max=100
+		}
+	},
 }
 
 function sam_tris(c)
@@ -2208,7 +2445,7 @@ mssl_tris={
 lvls={
  { -- level 1
  	ppx=0,
- 	ppy=-150,
+ 	ppy=-250,
  	ppz=1000,
  	title="lvl 1",
  	ter={ //terrain
@@ -2233,6 +2470,8 @@ lvls={
  		{0,-300},
  		{100,-500},
  		{-100,-1000},
+ 		{0,-2000},
+ 		{0,-3000},
  	},
  	rf={0,0}
  },
