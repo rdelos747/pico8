@@ -3,7 +3,7 @@ version 42
 __lua__
 -- jumper 2
 -- 2025-01-17
-ver="0.4.1"
+ver="0.4.2"
 
 hide_t=false //remove later
 p_win=0 //keep this
@@ -46,7 +46,9 @@ function _init()
 	//chl=31
 	//auto_save=dget(1)
 	tot_d=dget(2)
+	//tot_d=100
 	p_win=dget(3)
+	//p_win=1
 	printh("load save 0 "..chl)
 	//printh("load save 1 "..auto_save)
 	printh("load save 2 "..tot_d)
@@ -168,9 +170,6 @@ function _draw()
 		if dth_e and dth_e.draw then
 			dth_e.draw(dth_e)
 		end
-		for e in all(effs)do
-			e.draw(e)
-		end
 		return
 	end
 	
@@ -261,7 +260,6 @@ function _update()
 		update_tp_out()
 	else
 		for e in all(enemies)do
-			e.tswch=false
 			if(e.update)e.update(e)
 		end
 	
@@ -344,22 +342,13 @@ function on_layer(o,ox,oy,lrs,t_spk,hb_mod)
 		for f in all(lrs) do
 			local s=mget(i,j)
 			if fget(s,f) then
-				--[[
-				local aa=a
-				if scr_wrap then
-					aa=obj(
-						a.x%128+cmx,
-						a.y,a.w,a.h)
-				end
+				local h=f==1 and 4 or 8
 				local b=obj(
-					i*8+4,j*8+4,8,8,{s=s}
-				)
-				if col_bb(aa,b) then
-					return b
-				end
-				]]--
-				local b=obj(
-					i*8+4,j*8+4,8,8,{s=s}
+					i*8+4,
+					j*8+h/2,
+					8,
+					h,
+					{s=s}
 				)
 				if test_w_wrap(a,b) then
 					return b
@@ -864,7 +853,8 @@ function update_player()
 			ogt=0
 			l_ogt=-1
 			if p_win==1 then
-				og_text=og_texts[99]
+				_,__,idx=rank(tot_d)
+				og_text=og_texts[99-idx]
 			elseif og_texts[crl]!=nil then
 				og_text=og_texts[crl]
 			end
@@ -911,7 +901,7 @@ end
 --hud/general
 
 function draw_hud()
-	print(ver,67,121,1)
+	print(ver,107,121,1)
 	if(hide_t)return
 	--[[
 	// uncomment for testing
@@ -1122,7 +1112,20 @@ function draw_int(s,x,y,c1,c2)
 end
 
 og_texts={}
-og_texts[99]="henlo"
+// end game s+
+og_texts[99]="henlo s+"
+// end game s
+og_texts[98]="henlo s"
+// end game a
+og_texts[97]="henlo a"
+// end game b
+og_texts[96]="henlo b"
+// end game c
+og_texts[95]="henlo c"
+// end game d
+og_texts[94]="henlo d"
+
+// lvl texts
 og_texts[0]="bad news. one of the\ninterns spilled their\nlatte on the mainframe\nand scrambled our\nencrypted data. then\ni tripped and dropped\nall the backup files.\nmake haste and recover\nthe floppy disks!"
 og_texts[2]="if you look down, you\nwill notice these\ndancing flowers.\nthey're extra tasty\nthis time of year!"
 og_texts[8]="oh boy, i can't wait\nto get back to work!"
@@ -1134,11 +1137,11 @@ og_texts[31]="almost there, kid! use\nyour final resources\nwisely."
 
 
 function rank()
-	if(tot_d==0)return "s+",nil
-	if(tot_d<=10)return "s",8
-	if(tot_d<=40)return "a",9
-	if(tot_d<=80)return "b",11
-	if(tot_d<=120)return "c",13
+	if(tot_d==0)return "s+",nil,0
+	if(tot_d<=10)return "s",8,1
+	if(tot_d<=40)return "a",9,2
+	if(tot_d<=80)return "b",11,3
+	if(tot_d<=120)return "c",13,4
 	return "d",2
 end
 -->8
@@ -1636,6 +1639,7 @@ function update_lvl()
 		end
 		
 		for e in all(enemies)do
+			e.tswch=false
 			if col_bb(s,e) then
 				e.tswch=true
 				etswch=true
@@ -2006,8 +2010,7 @@ function update_e_general(e,lrs)
 			e.vy=0
 		elseif t.y-e.y>4 then
 			if e.vy>p_accel then
-				//printh("enemy landed")
-				//printh(t.y.." "..t.h)
+				// landed
 			end
 			e.y=flr(t.y-t.h/2)-flr(e.h/2)-1
 			e.vy=0
