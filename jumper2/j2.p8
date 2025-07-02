@@ -2,10 +2,9 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- jumper 2
--- 2025-01-17
-ver="0.4.2"
+-- 2025-06-24
+ver="0.4.3"
 
-hide_t=false //remove later
 p_win=0 //keep this
 last_lvl=31
 
@@ -14,11 +13,11 @@ p_spd=1
 p_accel=0.3		 --fall accel (0.3)
 p_f_max=4				 --fall spd max (4)
 p_j_max=-2.5	 --jump spd max (-2.5)
-p_j_fre=1   	 --num free jumps
 p_j_t_max=5 	 --jump frames
-p_w_spd=0.3 		--water fill speed
+//p_j_fre=1   	 --num free jumps
+//p_w_spd=0.3 		--water fill speed
 
-l_toucht=nil
+l_toucht=nil //last touch teleporter
 
 chl=0 --checkpoint lvl
 crl=0 --current lvl
@@ -38,43 +37,21 @@ aut=0
 
 function _init()
 	printh("=====start=====")
-	cartdata("gt_j2_041")
+	cartdata("gt_j2_043")
 	
 	mplay=false
 	pp=obj(-1,-1,3,5)
 	chl=dget(0)
 	//chl=31
-	//auto_save=dget(1)
 	tot_d=dget(2)
 	//tot_d=100
 	p_win=dget(3)
-	//p_win=1
+	p_win=1
 	printh("load save 0 "..chl)
-	//printh("load save 1 "..auto_save)
 	printh("load save 2 "..tot_d)
 	printh("load save 3 "..p_win)
 	
 	reset_checkpoint(0)
-	
-	--[[
-	menuitem(
-		1,
-		"save game",
-		save_game
-	)
-	
-	menuitem(
-		2,
-		"auto save "..(auto_save==1 and "is on" or "is off"),
-		toggle_auto_save
-	)
-	
-	menuitem(
-		3,
-		"clear save data",
-		clear_save
-	)
-	]]--
 end
 
 function reset_checkpoint(ll)
@@ -170,6 +147,9 @@ function _draw()
 		if dth_e and dth_e.draw then
 			dth_e.draw(dth_e)
 		end
+		for e in all(effs)do
+			if(e.isp)e.draw(e)
+		end
 		return
 	end
 	
@@ -252,6 +232,17 @@ function _update()
 	if pio then
 		update_old_guy_prompt()
 		return
+	end
+	
+	if crl==0 and 
+				p_win==1 and
+				flr(uitf%2)==0 and
+				flr(l_uitf%2)!=0 then
+		add_jump(
+			rand(0,127),
+			rand(0,127),
+			nil,
+			15)
 	end
 	
 	update_lvl()
@@ -468,7 +459,7 @@ function draw_player()
 	end
 
 	--head
-	if(pjmp>=p_j_fre)pal(12,5)
+	if(pjmp>=1)pal(12,5)
 	sspr(
 		8,pdry*4+12,
 		4,4,
@@ -579,9 +570,9 @@ function update_player()
 			pjp=true
 			--  bank,chnl,off, len
 			--sfx(0,   0,   0,   0)
-			if (pjmp<p_j_fre or
+			if (pjmp<1 or
 							flr(pwater/3)>0) then
-				if pjmp>=p_j_fre and pwater>2 then
+				if pjmp>=1 and pwater>2 then
 					pwater-=3
 					if pwater==0 then
 						pst=true
@@ -697,7 +688,7 @@ function update_player()
 		if(col_bb(pp,w))ptw=true
 	end
 	if ptw then
-		pwt+=p_w_spd
+		pwt+=0.3//p_w_spd
 		if pwt>=1 then
 			pwt=0
 			if pwater/3<ptank then
@@ -725,10 +716,16 @@ function update_player()
 	end
 	
 	--touch key
-	for k in all(l_keys)do
+	//for k in all(l_keys)do
+	for i=1,#l_keys do
+		local k=l_keys[i]
 		if not k.p and col_bb(pp,k) then
 			k.p=true
 			add(p_keys,k)
+			add_b_exp(
+				k.x,k.y,
+				3,6,
+				{key_cols[i]})
 			sfx(10)
 		end
 	end
@@ -893,7 +890,7 @@ function kill_plr(o)
 	add_b_exp(
 		mid(cmx,pp.x,cmx+127),
 		mid(cmy,pp.y,cmy+127),
-		10,10)
+		10,10,nil,true)
 		sfx(8,-1,0,27)
 end
 
@@ -902,7 +899,7 @@ end
 
 function draw_hud()
 	print(ver,107,121,1)
-	if(hide_t)return
+	
 	--[[
 	// uncomment for testing
 	print("lvl:"..crl+1,cmx+31,cmy+1,1)
@@ -1654,6 +1651,9 @@ function update_lvl()
 			del(swch_cs,s)
 			sw_state_c=not sw_state_c
 			sfx(13,-1,0,16)
+			local c={8,14}
+			if(sw_state_c)c={11,3}
+			add_b_exp(s.x,s.y,3,6,c)
 		end
 	end end
 	
@@ -1761,7 +1761,7 @@ function update_bullets()
 	end
 end
 
-function add_b_exp(x,y,m,n,c)
+function add_b_exp(x,y,m,n,c,isp)
 	for i=0,rand(m,n) do
 		add(effs,eff(
 			rand(x-4,x+4),rand(y-4,y+4),
@@ -1770,7 +1770,8 @@ function add_b_exp(x,y,m,n,c)
 				t=rand(10,15),
 				vx=rand(-0.5,0.5),
 				vy=rand(-0.5,0.5),
-				c=c
+				c=c,
+				isp=isp
 			}
 		))
 	end
@@ -1857,7 +1858,7 @@ function update_get(g)
 	end
 end
 
-function add_jump(x,y,c)
+function add_jump(x,y,c,t)
 	local dirs={
 		{1.2,-0.5},
 		{-1.2,-0.5},
@@ -1868,7 +1869,12 @@ function add_jump(x,y,c)
 	for dir in all(dirs)do
 		add(effs,eff(
 			x,y,draw_jump,update_spkl,
-			{dx=dir[1],dy=dir[2],t=10,c=c}
+			{
+				dx=dir[1],
+				dy=dir[2],
+				t=t!=nil and t or 10,
+				c=c
+			}
 		))
 	end
 end
