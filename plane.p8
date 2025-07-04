@@ -470,7 +470,7 @@ function update_game()
 	
 	if pp_hp==0 or 
 				lvl_t<=0 and 
-				pp_scr<cur_lvl.min_scr then
+				pp_scr<cur_lvl.rs[4] then
 		alert("mission failed")
 		if pp_int_d==-1 and 
 					btnp(❎) then
@@ -540,7 +540,7 @@ function update_game()
 	-- this is a hack, but w/e
 	if #enmy==0 or 
 				lvl_t<=0 and 
-				pp_scr>=cur_lvl.min_scr then
+				pp_scr>=cur_lvl.rs[4] then
 		alert_m="mission complete"
 		alert_t=120
 	end
@@ -773,7 +773,9 @@ function draw_hud()
 	end
 	if win_t>10 then
 		print("score",55,10,7)
-		print(pp_scr,59,18,7)
+		print(
+			pp_scr.."("..rank()..")",
+			59,18,7)
 	end
 	if win_t>20 then
 		print(
@@ -795,6 +797,7 @@ function draw_map()
 	//rectfill(1,1,32,32,1)
 	//fillp()
 	rectfill(1,1,32,32,0)
+	rect(1,1,32,32,1)
 	
 	for e in all(enmy)do
 		local mx,mz=get_map_xz(e)
@@ -815,8 +818,6 @@ function draw_map()
 	pset(16,16,11)
 	pset(15,17,3)
 	pset(17,17,3)
-	
-	rect(1,1,32,32,1)
 end
 
 function get_map_xz(o)
@@ -824,8 +825,8 @@ function get_map_xz(o)
 			o.x-ppx,
 			o.z-ppz,
 			(pp_ya+0.5))
-		mx=mid(-16,mx/64,16)
-		mz=mid(-16,mz/64,16)
+		mx=mid(-15,mx/64,15)
+		mz=mid(-15,mz/64,15)
 	return mx,mz
 end
 
@@ -1395,9 +1396,9 @@ function add_enemy(x,y,z,typ)
 	local up=update_e_plane
 	
 	local tris={}
-	if typ=="trg" then
+	if typ=="tnk" then
 		//tris=base.plane
-		up=update_e_trg
+		up=update_e_tnk
 	elseif typ=="sam" then
 		//tris=base.plane
 		up=update_e_sam
@@ -1598,7 +1599,7 @@ function update_e_sam(e)
 	check_e_dead(e)
 end
 
-function update_e_trg(e)
+function update_e_tnk(e)
 	get_onscr(e)
 	check_e_dead(e)
 end
@@ -1783,7 +1784,7 @@ function draw_blt(b)
 end
 
 function draw_grnd(g)
-	local z=max(0,(1000-g.dz)/1000)
+	local z=max(0,(500-g.dz)/500)
 	//spr(11,g[4][1],g[4][2],z,z)
 	//printh(z)
 	sspr(
@@ -1979,6 +1980,16 @@ function col_box(x,z,w,h)
 				ppz>z-w and 
 				ppz<z+w and
 				ppy>h*-1
+end
+
+function rank()
+	local r={"s","a","b","c"}
+	for i=1,#cur_lvl.rs do
+		if pp_scr>=cur_lvl.rs[i] then
+			return r[i]
+		end
+	end
+	return "f"
 end
 
 
@@ -2453,14 +2464,13 @@ lvls={
  		3, //ground color
  		11 //ground sprite idx
  	},
- 	min_scr=0,
  	enmy={
  		//{-1000,-400,0,"mig"},
  		//{0,-400,0,"mig"},
  		//{500,-400,0,"mig"},
  		//{0,0,-1000,"sam"},
- 		//{0,0,-1120,"trg"},
- 		{100,0,-1000,"trg"}
+ 		//{0,0,-1120,"tnk"},
+ 		{100,0,-1000,"tnk"}
  	},
  	objs={},
  	blds={
@@ -2473,7 +2483,8 @@ lvls={
  		{0,-2000},
  		{0,-3000},
  	},
- 	rf={0,0}
+ 	rf={0,0}, //refuel coords
+ 	rs={50,40,30,20} //ranks
  },
  { -- level 2
  	ppx=0,
@@ -2485,7 +2496,6 @@ lvls={
  		3, 
  		11 
  	},
- 	min_scr=0,
  	enmy={
  		{-1000,-400,0,"mig"},
  		{0,-400,0,"mig"},
@@ -2501,7 +2511,8 @@ lvls={
  		{100,-500},
  		{-100,-1000},
  	},
- 	rf={0,0}
+ 	rf={0,0},
+ 	rs={50,40,30,20}
  },
  { -- level 3
  	ppx=0,
@@ -2513,16 +2524,16 @@ lvls={
  		1, 
  		13 
  	},
- 	min_scr=0,
  	enmy={},
  	objs={},
  	blds={},
- 	rf={0,0}
+ 	rf={0,0},
+ 	rs={50,40,30,20}
  }
 }
 
 enmy_p_base={
-	trg={
+	tnk={
 		plane=sam_tris(15),
 		scr=50
 	},
