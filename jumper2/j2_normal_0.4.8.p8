@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- jumper 2
--- 2025-06-24
+-- 2025-08-18
 
 p_win=0 //keep this
 last_lvl=31
@@ -43,7 +43,7 @@ function _init()
 	chl=dget(0)
 	//chl=31
 	tot_d=dget(2)
-	//tot_d=100
+	//tot_d=0
 	p_win=dget(3)
 	//p_win=1
 	//printh("load save 0 "..chl)
@@ -2326,32 +2326,31 @@ end
 // code here differs between
 // modes. be careful!
 
-ver="0.4.6"
+ver="0.4.8"
 
 og_texts={}
 // end game s+
-og_texts[99]="henlo s+"
+og_texts[99]="i can see my\nreflection in the\nencryption matrix. as\nthe plasma within the\nmainframe courses\nthrough my veins, i\ncan breathe the air of\nthe universe itself.\nunbelievable, we did\nit, and by we i mean.."
 // end game s
-og_texts[98]="henlo s"
+og_texts[98]="the work is almost\ncomplete. soon our\nmainframe will\ntranscend time and\nspace. suns and moons\nwill collapse into\none.\n\nonly one rank remains."
 // end game a
-og_texts[97]="henlo a"
+og_texts[97]="what a sublime display\nof skill. this\nmainframe is running\nsmoother than my\ntelemorphic cube\ngenerator! but i think\nit could be better.\nreembark on this\njourney if you seek a\nhigher rank."
 // end game b
-og_texts[96]="henlo b"
+og_texts[96]="good job collecting\nthe floppies! at last,\nthe binary fluctuator\nis starting to produce\ncoherent structures.\nyou should try again\nto rebuild the\nmainframe further."
 // end game c
-og_texts[95]="henlo c"
+og_texts[95]="hey, you got all the\nfloppies! the\nmainframe is running\na little better,\nbut i keep getting\nerrors when i log into\ncoolspacegames! give\nit another shot."
 // end game d
-og_texts[94]="henlo d"
+og_texts[94]="thanks for getting\nall those floppy\ndisks. unfortunately,\nthe mainframe is still\nglitching profusely.\ni can't even access\nmy spacemail! please\ntry again."
 
 // lvl texts
 og_texts[0]="bad news. one of the\ninterns spilled their\nlatte on the mainframe\nand scrambled our\nencrypted data. then\ni tripped and dropped\nall the backup files.\nmake haste and recover\nthe floppy disks!"
 og_texts[2]="if you look down, you\nwill notice these\ndancing flowers.\nthey're extra tasty\nthis time of year!"
-og_texts[8]="oh boy, i can't wait\nto get back to work!"
+og_texts[8]="some jerk once\ncompared me to a\ntalking paper clip."
 og_texts[15]="wow, incredible! it\nappears a nearby sun,\ngeomanji, has released\nparticles of solar\nwind plasma into this\nbiome. touching them\nis known to reorient\none's molecules."
-og_texts[16]="these mushrooms really\nget me. they can help\nus reach high and low\nplaces!"
-og_texts[21]="my forehead feels\nrather warm! luckily,\nthe source of the heat\nmay not harm you."
-og_texts[28]="some jerk once\ncompared me to a\ntalking paper clip."
-og_texts[31]="almost there, kid! use\nyour final resources\nwisely."
-
+og_texts[16]="once again, i am\nperplexed by this\nbiome. these humble\nmushrooms seem to\npossess a rubbery\nexterior beyond my\ncomprehension. they\ncan help us reach\nhigh and low places!"
+og_texts[21]="if you please, spare\na moment of silence\nfor the great warrior\nking sigeward xvii,\nwhose many slain\nenemies permeate this\npurgatorial graveyard."
+og_texts[28]="prometheus was\npunished by the gods\nfor giving the gift of\nsomething something...\n\ni forget the rest."
+og_texts[31]="splendid, i think\nwe've reached the end.\ni feel the mainframe\nunscrambling itself!\nyou must now apply\nall your learnt\nknowledge to collect\nthe final four floppy\ndisks."
 
 function rank()
 	if(tot_d==0)return "s+",nil,0
@@ -2359,7 +2358,7 @@ function rank()
 	if(tot_d<=40)return "a",9,2
 	if(tot_d<=80)return "b",11,3
 	if(tot_d<=120)return "c",13,4
-	return "d",2
+	return "d",2,5
 end
 
 function title()
