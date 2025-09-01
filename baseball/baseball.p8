@@ -451,13 +451,13 @@ function move_ball_play()
 	)
 	
 	ball_air_t-=1/30
-	if b_air() then
+	if not b_air() then
 		ball_spd=max(0,ball_spd-fric)
 	end
 end
 
 function b_air()
-	return ball_air_t<=0
+	return ball_air_t>0
 end
 
 t1=0
@@ -488,6 +488,7 @@ function update_fielders()
 	local mind_r=30000
 	//local a_trg,r_trg=nil,nil
 	trgf_a,trgf_r=nil,nil
+	trgf_an,trgf_rn="",""
 	for k,f in pairs(fldrs)do
 		if f.bs!=nil then
 			f.tg=cpt(f.bs)
@@ -502,12 +503,14 @@ function update_fielders()
 		if ad<mind_a then
 			mind_a=ad
 			trgf_a=f
+			trgf_an=k
 			//t=ball_trg
 			//a_trg=ball_trg
 		end
 		if rd<mind_r then
 			mind_r=rd
 			trgf_r=f
+			trgf_rn=k
 			//t=ball_r_trg
 			//r_trg=ball_r_trg
 		end
@@ -515,9 +518,29 @@ function update_fielders()
 	
 	trgf_a.tg=cpt(ball_trg)
 	trgf_r.tg=cpt(ball_r_trg)
-	if not b_air() or
-				mind_r<mind_a then
-		trgf_a.tg=cpt(ball_r_trg)
+	//if not b_air() or
+	//			mind_r<mind_a then
+	//	trgf_a.tg=cpt(ball_r_trg)
+	//end
+	
+	local dta=distp(
+		trgf_a.pos,ball_r_trg)
+	local dtr=distp(
+		trgf_r.pos,ball_r_trg)
+		
+	loga({
+		"t air f", trgf_an,dta," | ",
+		"t rol f", trgf_rn,dtr
+	})	
+	
+	if not b_air() then
+		if trgf_a!=trgf_r and
+					dtr<dta then
+			printh("jere")
+			if trgf_a.bs then
+				trgf_a.tg=cpt(trgf_a.bs)
+			end
+		end
 	end
 	
 	//if(a_trgf)a_trgf.tg=a_trg
