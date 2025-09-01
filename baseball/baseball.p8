@@ -4,12 +4,7 @@ __lua__
 -- baseball
 
 --consants
-// base leg, which makes
-// base distance 90.5 instead
-// of 90, oh well, easier math
-bs_l=64
-
-//dpts={}
+fric=1
 
 -- pov
 fov=0.11
@@ -35,6 +30,13 @@ function _init()
 	scnd=pt("0,128")
 	thrd=pt("-64,64")
 	mond=pt("0,64")
+	
+	bases={
+		frst,
+		scnd,
+		thrd,
+		home
+	}
 	
 	dirt=pt_a(
 		"0,-5;94,64;0,163;-94,64"
@@ -65,7 +67,15 @@ function _init()
 	}
 	ptchr=fldrs.pi
 	
+	for _,f in pairs(fldrs)do
+		f.spd=21
+	end
+	
+	rnnrs={}
+	
 	reset_players()
+	
+	printh(distp(home,frst))
 end
 
 function _draw()
@@ -180,11 +190,14 @@ function draw_game()
 	if g_mode!="play" then
 		draw_pitcher_catcher()
 	end
-	if g_mode!="play" or bat_sw then
+	if g_mode!="play" or 
+				bat_sw!=0 or
+				not ball_fair then
 		draw_batter()
 	end
 	
 	draw_fielders()
+	draw_runners()
 	draw_ball()
 	
 	pria({
@@ -205,13 +218,21 @@ end
 
 function draw_ball()
 	if(not ball_m)return
-	dx,dy=projp(ball)
-	pset(dx,dy,7)
 	
-	if ball_targ then
-		dx,dy=projp(ball_targ)
+	if ball_trg then
+		dx,dy=projp(ball_trg)
 		pset(dx,dy,8)
 	end
+	
+	if ball_r_trg then
+		dx,dy=projp(ball_r_trg)
+		pset(dx,dy,8)
+	end
+	
+	dx,dy=proj(ball.x,0,ball.z)
+	pset(dx,dy,5)
+	dx,dy=projp(ball)
+	pset(dx,dy,7)
 end
 
 function draw_pitcher_catcher()
@@ -243,6 +264,13 @@ function draw_fielders()
 		::skip_draw::
 	end
 end
+
+function draw_runners()
+	for r in all(rnnrs)do
+		dx,dy=projp(r.pos)
+		spr(38+uits()%2,dx-4,dy-5)
+	end
+end
 -->8
 --game
 
@@ -251,15 +279,17 @@ function reset_players()
 	//ptchr.t=0
 	
 	bat_t=0
-	bat_sw=false
+	bat_sw=0
 	
-	ball=pt("0,68")
+	ball=pt(0,0,68)
 	ball_m=false
 	ball_a=0
 	ball_air_t=0
+	ball_air_t_m=0
 	//ball_t=0
-	ball_s=0
+	ball_spd=0
 	ball_trg=nil
+	ball_r_trg=nil
 	
 	ball_fair=false
 	
@@ -267,10 +297,16 @@ function reset_players()
 		f.pos=cpt(f.st)
 	end
 	fldrs.pi.t=0
+	targ_f=nil
 	
 	//bat_sw=false
 	//bat_strk=false
 	calc_pitch()
+	
+	--temp for testing
+	for r in all(rnnrs)do
+		del(rnnrs,r)
+	end
 end
 
 function update_game()
@@ -303,7 +339,7 @@ function update_game()
 		
 		if ball.z<20 and will_sw then
 			//bat_t=min(bat_t+0.5,4)
-			bat_sw=true
+			bat_sw=1
 		end
 		if did_cont and ball.z<=0 then
 			calc_contact()
@@ -315,24 +351,36 @@ function update_game()
 		end
 	elseif g_mode=="play" then
 		move_ball_play()
-		
+		update_fielders()
+		update_runners()
 		if(btnp(❎)) then
 			reset_players()
 			g_mode="wait"
 		end
 	end
 	
-	if bat_sw then
-		bat_t=bat_t+0.5
-		if bat_t>=8 then
+	if bat_sw!=0 then
+		bat_t=bat_t+bat_sw*0.5
+		if bat_t>8 then
 			// bat_t draws until 4, any
 			// amt after that is for 
 			// delay until batter starts
 			// running
-			bat_sw=false
-			if did_cont then
+			if ball_fair then
 				//create runner to 1st here
+				bat_sw=0
+				local r=plyr("0,0",home)
+				r.run=true
+				r.tgidx=1
+				r.tg=frst
+				r.spd=21
+				add(rnnrs,r)
+				t1=time()
+			else
+				bat_sw=-1
 			end
+		elseif bat_t<=0 then
+			bat_sw=0
 		end
 	end
 end
@@ -352,7 +400,8 @@ function calc_contact()
 	local rz=rand(-20,300) //todo 
 	local d=dist(0,0,rx,rz)
 	
-	ball_targ=pt(rx,0,rz)
+	-- calc ball targ,spd,time
+	ball_trg=pt(rx,0,rz)
 	ball_a=atan2(
 		ball.x-rx,ball.z-rz
 	)
@@ -360,7 +409,20 @@ function calc_contact()
 		rnd(4),
 		d/146
 	)
-	ball_s=d/ball_air_t
+	ball_air_t_m=ball_air_t
+	ball_spd=d/ball_air_t
+	
+	--calc ball roll targ
+	local bs=ball_spd
+	local roll=cpt(ball_trg)
+	while bs>0 do
+		//local bs=ball_spd/30
+		roll.x-=cos(ball_a)*bs/30
+		roll.z-=sin(ball_a)*bs/30
+		bs-=fric
+		//loga({roll.x,roll.z,bs})
+	end
+	ball_r_trg=roll
 	
 	if ball_a>=0.125 and 
 				ball_a<=0.375 then
@@ -372,20 +434,109 @@ function calc_contact()
 		ball_a,
 		d,d/146,
 		ball_air_t,
-		ball_s,
+		ball_spd,
 		ball_fair
 	})
 end
 
 function move_ball_play()
-	local bs=ball_s/30
+	local bs=ball_spd/30
 	ball.x-=cos(ball_a)*bs
 	ball.z-=sin(ball_a)*bs
 	
+	local at2=ball_air_t_m/2
+	ball.y=min(
+		0,
+		(at2-abs(ball_air_t-at2))*-10
+	)
+	
 	ball_air_t-=1/30
-	if ball_air_t<=0 then
-		ball_s=max(0,ball_s-1)
+	if b_air() then
+		ball_spd=max(0,ball_spd-fric)
 	end
+end
+
+function b_air()
+	return ball_air_t<=0
+end
+
+t1=0
+t2=0
+function update_runners()
+	for r in all(rnnrs)do
+		if r.run then
+			local rs=r.spd/30
+			local a=atan2p(r.pos,r.tg)
+			r.pos.x-=cos(a)*rs
+			r.pos.z-=sin(a)*rs
+		
+			if distp(r.pos,r.tg)<=1 then
+				//r.run=false
+				t2=time()
+				printh(t2-t1)
+				r.bs=r.tg
+				r.tgidx+=1
+				r.tg=bases[r.tgidx]
+			end
+		end
+	end
+end
+
+function update_fielders()
+	--calc targ fielder
+	local mind_a=30000
+	local mind_r=30000
+	//local a_trg,r_trg=nil,nil
+	trgf_a,trgf_r=nil,nil
+	for k,f in pairs(fldrs)do
+		if f.bs!=nil then
+			f.tg=cpt(f.bs)
+		else
+			f.tg=nil
+		end
+		
+		local ad=distp(f.pos,ball_trg)
+		local rd=distp(f.pos,ball_r_trg)
+		//local d=min(ad,rd)
+		//local t=nil
+		if ad<mind_a then
+			mind_a=ad
+			trgf_a=f
+			//t=ball_trg
+			//a_trg=ball_trg
+		end
+		if rd<mind_r then
+			mind_r=rd
+			trgf_r=f
+			//t=ball_r_trg
+			//r_trg=ball_r_trg
+		end
+	end
+	
+	trgf_a.tg=cpt(ball_trg)
+	trgf_r.tg=cpt(ball_r_trg)
+	if not b_air() or
+				mind_r<mind_a then
+		trgf_a.tg=cpt(ball_r_trg)
+	end
+	
+	//if(a_trgf)a_trgf.tg=a_trg
+	//if(r_trgf)r_trgf.tg=r_trg
+	
+	
+	for k,f in pairs(fldrs)do
+		if f.tg !=nil then
+			local fs=f.spd/30
+			local a=atan2p(f.pos,f.tg)
+			f.pos.x-=cos(a)*fs
+			f.pos.z-=sin(a)*fs
+			
+			if distp(f.pos,f.tg)<=1 then
+				//r.run=false
+				
+			end
+		end
+	end 
 end
 
 
@@ -499,6 +650,16 @@ function dist(x1,y1,x2,y2)
  return max(a0,b0)*0.9609+min(a0,b0)*0.3984
 end
 
+function distp(p1,p2)
+	return dist(p1.x,p1.z,p2.x,p2.z)
+ //local a0,b0=abs(p1.x-p2.x),abs(p1.y-p2.y)
+ //return max(a0,b0)*0.9609+min(a0,b0)*0.3984
+end
+
+function atan2p(p1,p2)
+	return atan2(p1.x-p2.x,p1.z-p2.z)
+end
+
 -- split a table of string 
 -- world points into a table 
 -- of world pts
@@ -517,7 +678,7 @@ function plyr(sst,bs)
 	end
 	return {
 		st=pt(sst), //start point
-		bs=bs, //targ base
+		bs=bs, //targ base idx
 		tg=pt(0,0,0), //target
 		pos=pt(0,0,0),
 		t=0 //time
@@ -558,14 +719,14 @@ __gfx__
 000000000067770000067000000000000022d000002dd00000ddd00000d2200000dd200000dd0d0000d22000022dd00000ddd20002dd20000000000000000000
 0000000000066000000000000000000000ddd00000ddd00000ddd00000ddd00000d0d00000d00d0000dd0d0000d0d0000000200000d020000000000000000000
 0000000000000000000000000000000000d0d00000d0d00000d0d00000d0d00000d0000000d0000000d00d000000d0000000d0000000d0000000000000000000
-0000000000000000000000000000000000ddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000dddd00000ddd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000009990000dddd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000009990000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000002ddd2000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000002ddd20002ddd20000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000ddd00002ddd20000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000d0d00000d0d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000ddd0000000000000ddd000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000dddd00000ddd00000dddd0000ddd0000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000009990000dddd00000dd900000dddd000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000999000009990000099900000d990000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000002ddd20000999000002dd200009990000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000002ddd20002ddd20002ddd000002dd0000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000ddd00002ddd20000d00d0000d2d0000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000d0d00000d0d00000d00d000d00d0000000000000000000000000000000000000000000000000000000000000000000
 0d077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00dd7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
