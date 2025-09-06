@@ -73,6 +73,28 @@ function _init()
 	
 	rnnrs={}
 	
+	// test runners:
+	// must be added in the
+	// correct order
+	
+	local r=plyr("-64,64",thrd)
+		r.run=false
+		r.tgidx=4
+		r.trg=home
+		r.bs=home
+		r.spd=21
+		r.out=false
+	add(rnnrs,r)
+	
+	local r=plyr("64,64",frst)
+		r.run=false
+		r.tgidx=2
+		r.trg=scnd
+		r.bs=scnd
+		r.spd=21
+		r.out=false
+	add(rnnrs,r)
+	
 	reset_players()
 	
 	printh(distp(home,frst))
@@ -200,10 +222,15 @@ function draw_game()
 	draw_runners()
 	draw_ball()
 	
+	//pria({
+	//	camx,camy,camz,
+	//	g_mode,
+	//	ball_s,ball_a,ball_fair})
 	pria({
-		camx,camy,camz,
 		g_mode,
-		ball_s,ball_a,ball_fair})
+		rnnrs_done,
+		fldrs_done
+	})
 end
 
 function get_proj_pts(arrs)
@@ -259,8 +286,16 @@ function draw_fielders()
 			goto skip_draw
 		end
 		dx,dy=projp(f.pos)
-		spr(36+uits()%2,dx-4,dy-9)
+		if(f==trg_f)pal(13,10)
 		
+		if f.throw_t>0 then
+			spr(40+f.throw_t,dx-4,dy-9)
+		else
+			local s=36
+			if(f.run)s=38
+			spr(s+uits()%2,dx-4,dy-9)
+		end
+		pal()
 		::skip_draw::
 	end
 end
@@ -268,7 +303,10 @@ end
 function draw_runners()
 	for r in all(rnnrs)do
 		dx,dy=projp(r.pos)
-		spr(38+uits()%2,dx-4,dy-5)
+		spr(52+uits()%2,dx-4,dy-5)
+		if r.out then
+			spr(16,dx-4,dy-5)
+		end
 	end
 end
 -->8
@@ -278,6 +316,9 @@ function reset_players()
 	//ptchr.pos=cpt(ptchr.st)
 	//ptchr.t=0
 	
+	rnnrs_done=false
+	fldrs_done=false
+	
 	bat_t=0
 	bat_sw=0
 	
@@ -286,26 +327,35 @@ function reset_players()
 	ball_a=0
 	ball_air_t=0
 	ball_air_t_m=0
+	ball_from_bat=true
 	//ball_t=0
 	ball_spd=0
 	ball_trg=nil
 	ball_r_trg=nil
-	
+	ball_throw_d=0
 	ball_fair=false
 	
 	for _,f in pairs(fldrs)do
 		f.pos=cpt(f.st)
+		f.throw_t=0
 	end
 	fldrs.pi.t=0
-	targ_f=nil
+	
+	trg_f=nil
+	trg_f_try_c=false
 	
 	//bat_sw=false
 	//bat_strk=false
 	calc_pitch()
 	
-	--temp for testing
 	for r in all(rnnrs)do
-		del(rnnrs,r)
+		//del(rnnrs,r)
+		if r.out then
+			del(rnnrs,r)
+		else
+			r.pos=cpt(r.st)
+			r.run=false
+		end
 	end
 end
 
@@ -351,9 +401,20 @@ function update_game()
 		end
 	elseif g_mode=="play" then
 		move_ball_play()
-		update_fielders()
 		update_runners()
+		update_fielders()
 		if(btnp(❎)) then
+			reset_players()
+			g_mode="wait"
+		end
+		if rnnrs_done and 
+					fldrs_done then
+			reset_players()
+			g_mode="wait"
+		end
+		
+		if not b_air() and
+					not ball_fair then
 			reset_players()
 			g_mode="wait"
 		end
@@ -372,8 +433,10 @@ function update_game()
 				local r=plyr("0,0",home)
 				r.run=true
 				r.tgidx=1
-				r.tg=frst
+				r.trg=frst
+				r.bs=frst
 				r.spd=21
+				r.out=false
 				add(rnnrs,r)
 				t1=time()
 			else
@@ -396,31 +459,21 @@ function calc_no_contact()
 end
 
 function calc_contact()
+	printh("==contact==")
 	local rx=rand(-100,100)
 	local rz=rand(-20,300) //todo 
-	local d=dist(0,0,rx,rz)
 	
-	-- calc ball targ,spd,time
-	ball_trg=pt(rx,0,rz)
-	ball_a=atan2(
-		ball.x-rx,ball.z-rz
-	)
-	ball_air_t=max(
-		rnd(4),
-		d/146
-	)
-	ball_air_t_m=ball_air_t
-	ball_spd=d/ball_air_t
+	//testing values
+	rx,rz,s=-70,235,146.0015
+	send_ball(rx,rz,s)
 	
 	--calc ball roll targ
 	local bs=ball_spd
 	local roll=cpt(ball_trg)
 	while bs>0 do
-		//local bs=ball_spd/30
 		roll.x-=cos(ball_a)*bs/30
 		roll.z-=sin(ball_a)*bs/30
 		bs-=fric
-		//loga({roll.x,roll.z,bs})
 	end
 	ball_r_trg=roll
 	
@@ -429,17 +482,63 @@ function calc_contact()
 		ball_fair=true
 	end
 	
+	// determine if runners
+	// should go
+	update_fielders()
+	
+	local dtca=distp(trg_f.pos,ball_trg)
+	loga({#rnnrs, dtca, trg_f_try_c})
+	if not trg_f_try_c or
+				dtca>90 then
+		calc_forced_runners()
+		calc_unforced_runners()
+	end
+end
+
+function send_ball(x,z,spd,delay)
+	ball_trg=pt(x,0,z)
+	ball_r_trg=cpt(ball_trg)
+	ball_a=atan2(
+		ball.x-x,ball.z-z
+	)
+	
+	-- calc ball targ,spd,time
+	
+	local d=dist(ball.x,ball.z,x,z)
+	if spd then
+		ball_spd=spd
+		ball_air_t=d/spd
+	else
+		ball_air_t=max(
+			rnd(4),
+			d/146
+		)
+		ball_spd=d/ball_air_t
+	end
+	ball_air_t_m=ball_air_t
+	
+	if delay then
+		ball_throw_d=0.2
+	end
+	
+	
 	loga({
-		rx,rz,
-		ball_a,
-		d,d/146,
-		ball_air_t,
-		ball_spd,
-		ball_fair
+		"ball x:",x,"z:",z,
+		"s:",ball_spd,
+		//ball_a,
+		//d,
+		//ball_air_t,
 	})
 end
 
 function move_ball_play()
+	if ball_throw_d>0 then
+		ball_m=false
+		ball_throw_d-=1/30
+		return
+	end
+	
+	ball_m=true
 	local bs=ball_spd/30
 	ball.x-=cos(ball_a)*bs
 	ball.z-=sin(ball_a)*bs
@@ -447,12 +546,13 @@ function move_ball_play()
 	local at2=ball_air_t_m/2
 	ball.y=min(
 		0,
-		(at2-abs(ball_air_t-at2))*-10
+		(at2-abs(ball_air_t-at2))*-20
 	)
 	
 	ball_air_t-=1/30
 	if not b_air() then
 		ball_spd=max(0,ball_spd-fric)
+		ball_from_bat=false
 	end
 end
 
@@ -463,22 +563,99 @@ end
 t1=0
 t2=0
 function update_runners()
+	rnnrs_done=true
+	local next_r=nil
 	for r in all(rnnrs)do
-		if r.run then
+		if r.run and not r.out then
 			local rs=r.spd/30
-			local a=atan2p(r.pos,r.tg)
+			local a=atan2p(r.pos,r.trg)
 			r.pos.x-=cos(a)*rs
 			r.pos.z-=sin(a)*rs
 		
-			if distp(r.pos,r.tg)<=1 then
+			if distp(r.pos,r.trg)<=1 then
 				//r.run=false
+				printh("at target")
 				t2=time()
 				printh(t2-t1)
-				r.bs=r.tg
+				
+				if r.tgidx==4 then
+					del(rnnrs,r)
+					return
+				end
+				
 				r.tgidx+=1
-				r.tg=bases[r.tgidx]
+				r.st=r.bs
+				r.bs=bases[r.tgidx]
+				r.trg=cpt(bases[r.tgidx])
+				calc_should_run(r,next_r)
 			end
+			next_r=r
 		end
+		if r.run and not r.out then
+			rnnrs_done=false
+		end
+	end
+end
+
+function calc_should_run(r,next_r)
+	r.run=true
+	local dtfb=distp(
+		trg_f.pos,ball)
+	local drpb=distp(
+		r.pos,ball)
+	local drtb=distp(
+		r.trg,ball)
+	
+	if next_r and 
+				next_r.run==false then
+		r.run=false
+	end
+	
+	--hack but whatever
+	if ball_from_bat then
+		drpb=30000
+		drtb=30000
+	end
+	
+	loga({
+		"cr",
+			dtfb,drpb,drtb,
+			ball_from_bat
+		})
+	
+	if dtfb<50 or 
+			 drpb<50 or
+				drtb<50 then
+		r.run=false
+	end
+end
+
+function calc_forced_runners()
+	printh("calc forced")
+	if #rnnrs>0 then
+		rnnrs[#rnnrs].run=true
+	end
+	for i=#rnnrs-1,1,-1 do
+		loga({"  check ", i})
+		local cr=rnnrs[i]
+		local pr=rnnrs[i+1]
+		if pr.bs==cr.st and 
+					not pr.out then
+			cr.run=true
+		end
+	end
+end
+
+function calc_unforced_runners()
+	printh("calc unforced")
+	local next_r=nil
+	for i=1,#rnnrs do
+		local r=rnnrs[i]
+		loga({"  check",i})
+		if not r.run then
+			calc_should_run(r,next_r)
+		end
+		next_r=r
 	end
 end
 
@@ -486,80 +663,147 @@ function update_fielders()
 	--calc targ fielder
 	local mind_a=30000
 	local mind_r=30000
-	//local a_trg,r_trg=nil,nil
-	trgf_a,trgf_r=nil,nil
-	trgf_an,trgf_rn="",""
+	local trgf_a,trgf_r=nil,nil
 	for k,f in pairs(fldrs)do
 		if f.bs!=nil then
-			f.tg=cpt(f.bs)
+			//shouldnt need to copy this
+			f.trg=f.bs 
 		else
-			f.tg=nil
+			f.trg=nil
 		end
 		
 		local ad=distp(f.pos,ball_trg)
 		local rd=distp(f.pos,ball_r_trg)
-		//local d=min(ad,rd)
-		//local t=nil
 		if ad<mind_a then
 			mind_a=ad
 			trgf_a=f
-			trgf_an=k
-			//t=ball_trg
-			//a_trg=ball_trg
 		end
 		if rd<mind_r then
 			mind_r=rd
 			trgf_r=f
-			trgf_rn=k
-			//t=ball_r_trg
-			//r_trg=ball_r_trg
 		end
 	end
 	
-	trgf_a.tg=cpt(ball_trg)
-	trgf_r.tg=cpt(ball_r_trg)
-	//if not b_air() or
-	//			mind_r<mind_a then
-	//	trgf_a.tg=cpt(ball_r_trg)
-	//end
-	
-	local dta=distp(
-		trgf_a.pos,ball_r_trg)
-	local dtr=distp(
-		trgf_r.pos,ball_r_trg)
-		
-	loga({
-		"t air f", trgf_an,dta," | ",
-		"t rol f", trgf_rn,dtr
-	})	
-	
+	trgf_a.trg=ball_trg
+	trg_f=trgf_a
+	trg_f_try_c=true
 	if not b_air() then
-		if trgf_a!=trgf_r and
-					dtr<dta then
-			printh("jere")
+		trgf_a.trg=ball_r_trg
+	end
+	if trgf_a!=trgf_r then
+		trgf_r.trg=ball_r_trg
+		
+		local dta=distp(
+			trgf_a.pos,ball_r_trg)
+		local dtr=distp(
+			trgf_r.pos,ball_r_trg)
+
+		if dtr<dta then
+			trg_f=trgf_r
+			trg_f_try_c=false
 			if trgf_a.bs then
-				trgf_a.tg=cpt(trgf_a.bs)
+				trgf_a.trg=trgf_a.bs
 			end
 		end
 	end
 	
-	//if(a_trgf)a_trgf.tg=a_trg
-	//if(r_trgf)r_trgf.tg=r_trg
+	if ball_spd==0 then
+		trg_f.trg=ball
+	end
 	
-	
+	-- move fielders
 	for k,f in pairs(fldrs)do
-		if f.tg !=nil then
-			local fs=f.spd/30
-			local a=atan2p(f.pos,f.tg)
-			f.pos.x-=cos(a)*fs
-			f.pos.z-=sin(a)*fs
+		f.run=false
+		if f.trg !=nil then
+			if distp(f.pos,f.trg)>1 then
+				f.run=true
+				local fs=f.spd/30
+				local a=atan2p(f.pos,f.trg)
+				f.pos.x-=cos(a)*fs
+				f.pos.z-=sin(a)*fs
+			end
 			
-			if distp(f.pos,f.tg)<=1 then
-				//r.run=false
-				
+			if ball_m and
+						distp(f.pos,ball)<3 and 
+						ball.y>-4 then
+				loga({"ball catch", k})
+				ball_catch()
+			end
+		end
+		
+		if f.throw_t>0 then
+			f.throw_t+=0.3
+			if f.throw_t>4 then
+				f.throw_t=0
 			end
 		end
 	end 
+end
+
+function ball_catch()
+	local thrower=trg_f
+	local close_d=30000
+	local close_r=nil
+	
+	if ball_from_bat then
+		printh("caught from air")
+		loga({ball.y})
+		//todo
+		//del(rnnrs,rnnrs[#rnnrs])
+		if ball_fair and #rnnrs>0 then
+			rnnrs[#rnnrs].out=true
+		end
+		calc_unforced_runners()
+	else
+		printh("caught from grnd or throw")
+	end
+	
+	for r in all(rnnrs)do
+		if not r.run or r.out then
+			goto skip_rnnr
+		end
+		local drt=distp(
+			r.pos,r.trg)
+		local dtf=distp(
+			trg_f.pos,r.trg)
+		if dtf<1 and drt>1 then
+			printh("runner thrown out")
+			r.out=true
+		elseif dtf<close_d then
+			close_d=dtf
+			close_r=r
+		end		
+	end
+		
+	::skip_rnnr::
+	
+	if not close_r then
+		printh("no viable runners")
+		fldrs_done=true
+		return
+	end		
+	
+	if pteq(close_r.bs,trg_f.trg) then
+		// this is a hack. if the
+		// runners trg is the same as
+		// the fielders run to trg,
+		// we "throw" the ball to
+		// that trg at the same speed
+		// as the fielders run speed.
+		// this triggers a throw anim
+		// which i should fix at some
+		// point
+		send_ball(
+			close_r.trg.x,
+			close_r.trg.z,
+			trg_f.spd, false)
+	else
+		send_ball(
+			close_r.trg.x,
+			close_r.trg.z,
+			100, true)
+		trg_f.throw_t=0.1
+	end
 end
 
 
@@ -664,6 +908,12 @@ function cpt(pt)
 	return {x=pt.x,y=pt.y,z=pt.z}
 end
 
+function pteq(p1,p2)
+	return p1.x==p2.x and
+								p1.y==p2.y and
+								p1.z==p2.z
+end
+
 function rand(bot,top)
 	return flr(rnd((top+1)-bot))+bot
 end
@@ -702,7 +952,7 @@ function plyr(sst,bs)
 	return {
 		st=pt(sst), //start point
 		bs=bs, //targ base idx
-		tg=pt(0,0,0), //target
+		trg=pt(0,0,0), //target
 		pos=pt(0,0,0),
 		t=0 //time
 	}
@@ -734,30 +984,30 @@ __gfx__
 00700700006776000006600000555fffffffff000000000022922000229220000029000000d2900000ddd90002ddd20000000000000000000000000000000000
 0000000000066000000000000000555fffff00000000000000dd000000dd000000dd000000dd000000ddd00000ddd00000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000d00d0000d00d0000d00d00000d0d00000d0d0000d000d0000000000000000000000000000000000
-0000000000000000000000000000000000ddd00000ddd00000ddd00000ddd00000ddd00000ddd000000000000000000000000000000000000000000000000000
-000000007777777700077000000000000dddd0000dddd00000dddd0000dddd0000dddd0000dddd0000ddd07000ddd00000ddd00000ddd0000000000000000000
-0000000077777777067777700000000000999000009990000099900000999000009990000099970000dddd0000ddd0000dddd0000dddd0000000000000000000
-0000000067777777677777770000000000999000009790000029970000d9900000dd970000dd9200009992000099920002999000009990000000000000000000
-0000000006777770066777700000000002d7200002d2200000d22000002dd70000d2d20000d2200000dd90000099970002999000009990000000000000000000
-000000000067770000067000000000000022d000002dd00000ddd00000d2200000dd200000dd0d0000d22000022dd00000ddd20002dd20000000000000000000
-0000000000066000000000000000000000ddd00000ddd00000ddd00000ddd00000d0d00000d00d0000dd0d0000d0d0000000200000d020000000000000000000
-0000000000000000000000000000000000d0d00000d0d00000d0d00000d0d00000d0000000d0000000d00d000000d0000000d0000000d0000000000000000000
-0000000000000000000000000000000000ddd0000000000000ddd000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000dddd00000ddd00000dddd0000ddd0000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000009990000dddd00000dd900000dddd000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000999000009990000099900000d990000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000002ddd20000999000002dd200009990000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000002ddd20002ddd20002ddd000002dd0000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000ddd00002ddd20000d00d0000d2d0000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000d0d00000d0d00000d00d000d00d0000000000000000000000000000000000000000000000000000000000000000000
-0d077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00dd7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00070070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00067000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00060700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00607000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000ddd00000ddd00000ddd00000ddd00000ddd00000ddd00000000000000000000000000000000000000000000000000
+08000800777777770007700000000000000dddd0000dddd000dddd0000dddd0000dddd0000dddd00070ddd00000ddd00000ddd00000ddd000000000000000000
+0080800077777777067777700000000000099900000999000009990000099900000999000079990000dddd00000ddd00000dddd0000dddd00000000000000000
+0008000067777777677777770000000000099900000979000079920000099d000079dd000029dd00002999000029990000099920000999000000000000000000
+0080800006777770066777700000000000027d2000022d2000022d00007dd200002d2d0000022d000009dd000079990000099920000999000000000000000000
+08000800006777000006700000000000000d2200000dd200000ddd0000022d000002dd0000d0dd0000022d00000dd220002ddd000002dd200000000000000000
+00000000000660000000000000000000000ddd00000ddd00000ddd00000ddd00000d0d0000d00d0000d0dd00000d0d000002000000020d000000000000000000
+00000000000000000000000000000000000d0d00000d0d00000d0d00000d0d0000000d0000000d0000d00d00000d0000000d0000000d00000000000000000000
+0000000000000000000000000000000000ddd0000000000000ddd0000000000000ddd00000ddd000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000dddd00000ddd00000dddd0000ddd00000dddd0000d2dd0000ddd00000ddd00000000000000000000000000000000000
+00000000000000000000000000000000009990000dddd0000099900000dddd00009990000092900000dddd0000dddd0000000000000000000000000000000000
+00000000000000000000000000000000009990000099900000999000009990000099900000929000009920000099900000000000000000000000000000000000
+0000000000000000000000000000000002ddd20000999000002dd20000999000002d2000002dd000009290000299900000000000000000000000000000000000
+0000000000000000000000000000000002ddd20002ddd20002ddd000002dd00000d2d00000ddd000002dd0000022d00000000000000000000000000000000000
+0000000000000000000000000000000000ddd00002ddd20000d00d0000d2d00000ddd00000d00d0000ddd00000dd200000000000000000000000000000000000
+0000000000000000000000000000000000d0d00000d0d00000d00d000d00d00000d0d00000d00d000d00d0000d00d00000000000000000000000000000000000
+0d07700000000000000000000000000000ccc0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00dd700000000000000000000000000000cccc0000ccc00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000dd0000000000000000000000000000cc900000cccc0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000700700000000000000000000000000099900000c9900000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077700000000000000000000000000006cc6000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0006700000000000000000000000000006ccc000006cc00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0006070000000000000000000000000000c00c0000c6c00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0060700000000000000000000000000000c00c000c00c00000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
