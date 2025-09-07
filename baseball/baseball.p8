@@ -202,6 +202,8 @@ function score(r,h,o)
 	inns[#inns][k].runs+=r
 	inns[#inns][k].hits+=h
 	outs+=o
+	//bals+=b
+	//stks+=s
 end
 -->8
 --draw
@@ -322,6 +324,12 @@ function draw_game()
 	//	fldrs_done
 	//})
 	draw_hud()
+	
+	if pi_loc and 
+				(g_mode=="play" or
+				g_mode=="after play") then
+		draw_pitch()
+	end
 end
 
 function get_proj_pts(arrs)
@@ -435,6 +443,22 @@ function draw_hud()
 		pal()
 	end
 end
+
+function draw_pitch()
+	// todo condense these vals
+	rect(
+		127-32,127-39,
+		127-1,127-1,5)
+	rect(
+		127-32+8,127-39+10,
+		127-1-8,127-1-10,6)
+	
+	spr(
+		18,
+		127-32+8+pi_loc.x,
+		127-39+10+pi_loc.y
+	)
+end
 -->8
 --game
 
@@ -463,6 +487,10 @@ function reset_players()
 	ball_throw_d=0
 	ball_fair=false
 	
+	pi_type="4 seam"
+	pi_spd=100
+	pi_loc=nil
+	
 	for _,f in pairs(fldrs)do
 		f.pos=cpt(f.st)
 		f.throw_t=0
@@ -474,7 +502,7 @@ function reset_players()
 	
 	//bat_sw=false
 	//bat_strk=false
-	calc_pitch()
+	//calc_pitch()
 	
 	for r in all(rnnrs)do
 		//del(rnnrs,r)
@@ -508,6 +536,7 @@ function update_game()
 	if g_mode=="wait" then
 		if btnp(❎) then
 			g_mode="pitch"
+			calc_pitch()
 		end
 		
 		bat_t=uits()%2
@@ -532,8 +561,14 @@ function update_game()
 			g_mode="play"
 		elseif ball.z<=-8 then
 			//ball.z=-8
-			calc_no_contact()
-			g_mode="wait"
+			//calc_no_contact()
+			g_mode="after play"
+			
+			if pi_res=="ball" then
+				bals+=1
+			elseif pi_res!="cont" then
+				stks+=1
+			end
 		end
 	elseif g_mode=="play" then
 		update_runners()
@@ -546,34 +581,44 @@ function update_game()
 		end
 		//printh(ball_mode)
 		
-		if(btnp(❎)) then
-			reset_players()
-			g_mode="wait"
-		end
 		if rnnrs_done and 
 					fldrs_done then
 			reset_players()
-			g_mode="wait"
+			g_mode="after play"
 		end
 		
 		if not b_air() and
 					not ball_fair then
 			reset_players()
-			g_mode="wait"
+			g_mode="after play"
 		end
-		
-		-- sanity check remove
-		if outs>3 then
-			for i=1,10 do
-				printh("more than 3 outs!!")
-			end
-		end
-		
-		if outs==3 then
-			advance_inn()
+	elseif g_mode=="after play" then
+		if(btnp(❎)) then
 			reset_players()
 			g_mode="wait"
 		end
+	end
+	
+	-- sanity check remove
+	if outs>3 or 
+				stks>3 or
+				bals>4 then
+		for i=1,10 do
+			loga({
+				"sanity check!!!!",
+				outs,stks,bals
+			})
+		end
+	end
+		
+	if outs<3 and stks==3 then
+		outs+=1
+	end
+		
+	if outs==3 then
+		advance_inn()
+		//reset_players()
+		g_mode="after play"
 	end
 	
 	
@@ -606,10 +651,51 @@ function update_game()
 end
 
 function calc_pitch()
-	will_sw=true
-	did_cont=true
-	// todo: determine if batter
-	// will swing
+	printh("calc pitch")
+
+	-- zone w = 16"
+	-- zone h = 30"
+	-- outr w = 20"
+	-- outr h = 34"
+	
+	local rx=rnd()*30-15
+	local ry=rnd()*37-15
+	pi_loc=pt(rx,ry,0)
+	
+	pi_in=true
+	if rx>8 or rx<-8 or
+				ry>15 or ry<-15 then
+		pi_in=false
+	end
+	
+	will_sw=false
+	did_cont=false
+	if(rnd()>0.5)will_sw=true
+	if will_sw and rnd()>0.5 then
+		did_cont=true
+	end
+	
+	pi_res="cont"
+	if not did_cont then
+		if will_sw then
+			pi_res="strike"
+			//score(0,0,0,1,0)
+			//stks+=1
+		elseif pi_in then
+			pi_res="strike looking"
+			//stks+=1
+		else
+			pi_res="ball"
+			//bals+=1
+		end
+	end
+	
+	loga({
+		"pr",
+		pi_res,pi_in,
+		will_sw,did_cont,
+		logp(pi_loc)
+	})	
 end
 
 function calc_no_contact()
@@ -1236,9 +1322,9 @@ __gfx__
 0000000000000000000000000000000000000000000000000d00d0000d00d0000d00d00000d0d00000d0d0000d000d0000000000000000000000000000000000
 00000000000000000000000000000000000ddd00000ddd00000ddd00000ddd00000ddd00000ddd00000000000000000000000000000000000000000000000000
 08000800000000000000000000000000000dddd0000dddd000dddd0000dddd0000dddd0000dddd00070ddd00000ddd00000ddd00000ddd000000000000000000
-0080800000080000000000000000000000099900000999000009990000099900000999000079990000dddd00000ddd00000dddd0000dddd00000000000000000
-0008000000080000000000000000000000099900000979000079920000099d000079dd000029dd00002999000029990000099920000999000000000000000000
-0080800000080000000000000000000000027d2000022d2000022d00007dd200002d2d0000022d000009dd000079990000099920000999000000000000000000
+0080800000080000007070000000000000099900000999000009990000099900000999000079990000dddd00000ddd00000dddd0000dddd00000000000000000
+0008000000080000000700000000000000099900000979000079920000099d000079dd000029dd00002999000029990000099920000999000000000000000000
+0080800000080000007070000000000000027d2000022d2000022d00007dd200002d2d0000022d000009dd000079990000099920000999000000000000000000
 08000800088888000000000000000000000d2200000dd200000ddd0000022d000002dd0000d0dd0000022d00000dd220002ddd000002dd200000000000000000
 00000000008880000000000000000000000ddd00000ddd00000ddd00000ddd00000d0d0000d00d0000d0dd00000d0d000002000000020d000000000000000000
 00000000000800000000000000000000000d0d00000d0d00000d0d00000d0d0000000d0000000d0000d00d00000d0000000d0000000d00000000000000000000
