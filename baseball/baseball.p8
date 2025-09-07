@@ -5,11 +5,15 @@ __lua__
 
 --consants
 fric=1
+cols={
+	home={13,2},
+	away={14,12}
+}
 
 -- pov
-fov=0.11
-fov_c=-2.778 // 1/tan(fov/2)
-zfar=500
+fov=0.11//0.11
+fov_c=nil // 1/tan(fov/2)
+zfar=500//500
 znear=10
 lam=zfar/(zfar-znear)
 
@@ -20,10 +24,18 @@ camx,camy,camz=0,-90,-135
 cam_pi,cam_ya=0.95,0
 g_mode="wait"
 
+scr={home=0,away=0}
+inns={}
+hlf="top"
+bals=0
+stks=0
+outs=2
+
 _uits,_uitf=0,0
 
 function _init()
 	printh("====start====")
+	fov_c=1/tan(fov/2)
 	
 	home=pt("0,0")
 	frst=pt("64,64")
@@ -38,26 +50,28 @@ function _init()
 		home
 	}
 	
+	out_dirt=pt_a(
+		"0,70;204,200;0,400;-204,200"
+	)//y2  x2        y1   x1
+	
 	dirt=pt_a(
 		"0,-5;94,64;0,163;-94,64"
-	)
+	)//	y2 x2       y1  x1
 	
 	dirt_cover=pt_a(
-		"100,-5;100,92;-100,-5;-100,92"
+		"204,-5;190,180;-204,-5;-190,180"
 	)
 	
 	home_dirt=pt_a(
 		"0,-8;8,8;0,8;-8,8"
 	)
 	
-	//ptchr=plyr("0,64","0,64")
-	//bttr=pt("-3,2")
 	ball=pt(0,0,0)
 	
 	fldrs={
 		pi=plyr("0,64",mond),
 		ct=plyr("0,-9",home), 
-		b1=plyr("64,64",frst), 
+		b1=plyr("60,64",frst), 
 		b2=plyr("40,110",scnd),
 		b3=plyr("-64,64",thrd),
 		ss=plyr("-40,110",nil),
@@ -86,6 +100,7 @@ function _init()
 		r.out=false
 	add(rnnrs,r)
 	
+	
 	local r=plyr("64,64",frst)
 		r.run=false
 		r.tgidx=2
@@ -95,9 +110,8 @@ function _init()
 		r.out=false
 	add(rnnrs,r)
 	
+	create_inn()
 	reset_players()
-	
-	printh(distp(home,frst))
 end
 
 function _draw()
@@ -150,6 +164,45 @@ function draw_logo()
 		(t-1)%4>1,
 		t%4<2)
 end
+
+function create_inn()
+	add(inns,{
+		home={
+			runs=0,
+			hits=0,
+			errs=0
+		},
+		away={
+			runs=0,
+			hits=0,
+			errs=0
+		}
+	})
+end
+
+function advance_inn()
+	if hlf=="top" then
+		hlf="bot"
+	else
+		hlf="top"
+		create_inn()
+	end
+	
+	bals,stks,outs=0,0,0
+	for r in all(rnnrs)do
+		del(rnnrs,r)
+	end
+end
+
+function score(r,h,o)
+	local k="away"
+	if(hlf=="top")k="home"
+	
+	scr[k]+=r
+	inns[#inns][k].runs+=r
+	inns[#inns][k].hits+=h
+	outs+=o
+end
 -->8
 --draw
 
@@ -160,21 +213,42 @@ function draw_title()
 end
 
 function draw_game()
-	cls(3)
+	cls(12)
+	
+	_,ty=proj(0,0,408)
+	rectfill(0,ty,127,127,15)
 	
 	pts=get_proj_pts({
 		{home,frst,scnd,thrd}, --1,4
 		dirt, --5,8
 		dirt_cover, --9,12
-		home_dirt, --13,16
+		home_dirt, --13,16,
+		out_dirt,--17,20
 	})
+	
+	-- outfield dirt
+	ovalfill(
+		pts[20].x,
+		pts[19].y,
+		pts[18].x,
+		min(pts[17].y,250),3)
+		
+	--outfield wall
+	for i=0,20 do
+		local a=(i/20)*0.5+0.5
+		local x=cos(a)*204
+		local z=204+sin(a)*204
+		px,py=projp(pt(x,0,z))
+		_,py2=projp(pt(x,-10,z))
+		line(px,py,px,py2,8)
+	end
 	
 	-- infield dirt
 	ovalfill(
 		pts[8].x,
 		pts[7].y,
 		pts[6].x,
-		pts[5].y,15)
+		min(pts[5].y,350),15)
 	
 	-- cover dirt in foul area
 	p_trip(pts[5],pts[9],pts[10],3)
@@ -189,7 +263,8 @@ function draw_game()
 		pts[16].x,
 		pts[15].y,
 		pts[14].x,
-		pts[13].y,15)
+		pts[13].y,
+		15)
 
 	-- bases and lines
 	for i=1,4 do
@@ -205,32 +280,48 @@ function draw_game()
 	px,py=projp(mond)
 	spr(3,px-8,py-4,2,1)
 	
-	--test center field
-	px,py=projp(pt("0,408"))
-	pset(px,py,8)
+	local cf=cols["away"]
+	local cr=cols["home"]
+	if hlf=="top" then
+		cf=cols["home"]
+		cr=cols["away"]
+	end
+	pal(13,cf[1])
+	pal(2,cf[2])
 	
 	if g_mode!="play" then
 		draw_pitcher_catcher()
 	end
+	draw_fielders()
+	
+	pal()
+	
+	pal(13,cr[1])
+	pal(2,cr[2])
+	
 	if g_mode!="play" or 
 				bat_sw!=0 or
 				not ball_fair then
 		draw_batter()
 	end
 	
-	draw_fielders()
 	draw_runners()
+	
+	pal()
+	
 	draw_ball()
 	
 	//pria({
 	//	camx,camy,camz,
 	//	g_mode,
 	//	ball_s,ball_a,ball_fair})
-	pria({
-		g_mode,
-		rnnrs_done,
-		fldrs_done
-	})
+	//pria({
+	//	camx,camy,camz,
+	//	g_mode,
+	//	rnnrs_done,
+	//	fldrs_done
+	//})
+	draw_hud()
 end
 
 function get_proj_pts(arrs)
@@ -253,7 +344,7 @@ function draw_ball()
 	
 	if ball_r_trg then
 		dx,dy=projp(ball_r_trg)
-		pset(dx,dy,8)
+		pset(dx,dy,9)
 	end
 	
 	dx,dy=proj(ball.x,0,ball.z)
@@ -286,27 +377,62 @@ function draw_fielders()
 			goto skip_draw
 		end
 		dx,dy=projp(f.pos)
-		if(f==trg_f)pal(13,10)
+		if(f==trg_f)spr(17,dx-4,dy-17)
+		
+		local fx=f.trg and f.trg.x<f.pos.x
 		
 		if f.throw_t>0 then
-			spr(40+f.throw_t,dx-4,dy-9)
+			spr(
+				40+f.throw_t,
+				dx-4,dy-9,
+				1,1,fx)
 		else
 			local s=36
 			if(f.run)s=38
-			spr(s+uits()%2,dx-4,dy-9)
+			spr(
+				s+uits()%2,
+				dx-4,dy-9,
+				1,1,fx)
 		end
-		pal()
 		::skip_draw::
 	end
 end
 
-function draw_runners()
+function draw_runners()	
 	for r in all(rnnrs)do
 		dx,dy=projp(r.pos)
-		spr(52+uits()%2,dx-4,dy-5)
+		local fx=r.trg.x<r.pos.x
+		spr(
+			52+uits()%2,
+			dx-4,dy-5,
+			1,1,fx)
 		if r.out then
 			spr(16,dx-4,dy-5)
 		end
+	end
+end
+
+function draw_hud()
+	rectfill(1,1,47,15,0)
+	rect(1,1,47,15,7)
+	print("awy "..scr.away,3,3,7)
+	print("hom "..scr.home,3,9,7)
+	print(#inns,29,6,7)
+	
+	if hlf=="top" then
+		spr(32,29,3)
+	else
+		spr(32,29,6,1,1,false,true)
+	end
+	print(bals.."-"..stks,35,3,7)
+	for i=0,1 do
+		pal(15,0)
+		if	outs>i	then
+			pal(15,7)
+		end
+		
+		spr(33,36+i*5,10)
+		pal()
 	end
 end
 -->8
@@ -328,7 +454,9 @@ function reset_players()
 	ball_air_t=0
 	ball_air_t_m=0
 	ball_from_bat=true
-	//ball_t=0
+	ball_wall=false
+	ball_mode="phys"
+	
 	ball_spd=0
 	ball_trg=nil
 	ball_r_trg=nil
@@ -338,11 +466,11 @@ function reset_players()
 	for _,f in pairs(fldrs)do
 		f.pos=cpt(f.st)
 		f.throw_t=0
+		//f.catch=false
 	end
 	fldrs.pi.t=0
 	
 	trg_f=nil
-	trg_f_try_c=false
 	
 	//bat_sw=false
 	//bat_strk=false
@@ -368,6 +496,14 @@ function update_game()
 	//camx=ball.x
 	//camz=min(-135,ball.z-135)
 	//camz=camz-135
+	
+	if(btn(⬆️))camz+=1
+	if(btn(⬇️))camz-=1
+	if(btn(➡️))camx+=1
+	if(btn(⬅️))camx-=1
+	
+	//camx=ball.x
+	//camz=max(-132,ball.z-200)
 	
 	if g_mode=="wait" then
 		if btnp(❎) then
@@ -400,9 +536,16 @@ function update_game()
 			g_mode="wait"
 		end
 	elseif g_mode=="play" then
-		move_ball_play()
 		update_runners()
 		update_fielders()
+		
+		if ball_mode=="phys" then
+			move_ball_phys()
+		elseif ball_mode=="trg" then
+			move_ball_trg()
+		end
+		//printh(ball_mode)
+		
 		if(btnp(❎)) then
 			reset_players()
 			g_mode="wait"
@@ -418,7 +561,21 @@ function update_game()
 			reset_players()
 			g_mode="wait"
 		end
+		
+		-- sanity check remove
+		if outs>3 then
+			for i=1,10 do
+				printh("more than 3 outs!!")
+			end
+		end
+		
+		if outs==3 then
+			advance_inn()
+			reset_players()
+			g_mode="wait"
+		end
 	end
+	
 	
 	if bat_sw!=0 then
 		bat_t=bat_t+bat_sw*0.5
@@ -464,35 +621,35 @@ function calc_contact()
 	local rz=rand(-20,300) //todo 
 	
 	//testing values
-	rx,rz,s=-70,235,146.0015
+	//rx,rz,s=-70,235,146.0015
+	//rx,rz,s=5,147,38.1289
+	//rx,rz,s=-30,109,146
+	//rx,rz,s=-73,228,146.0004
 	send_ball(rx,rz,s)
 	
-	--calc ball roll targ
-	local bs=ball_spd
-	local roll=cpt(ball_trg)
-	while bs>0 do
-		roll.x-=cos(ball_a)*bs/30
-		roll.z-=sin(ball_a)*bs/30
-		bs-=fric
-	end
-	ball_r_trg=roll
+	calc_roll_trg(ball_trg)
 	
 	if ball_a>=0.125 and 
 				ball_a<=0.375 then
 		ball_fair=true
 	end
 	
-	// determine if runners
-	// should go
+	-- update targets based on
+	-- contact 
 	update_fielders()
 	
-	local dtca=distp(trg_f.pos,ball_trg)
-	loga({#rnnrs, dtca, trg_f_try_c})
-	if not trg_f_try_c or
-				dtca>90 then
+	-- detmine if runners should go
+	if not will_catch_fly() then
+		printh("runners go")
 		calc_forced_runners()
 		calc_unforced_runners()
 	end
+end
+
+function calc_first_land()
+	printh("calc first")
+	calc_forced_runners()
+	calc_unforced_runners()
 end
 
 function send_ball(x,z,spd,delay)
@@ -503,7 +660,6 @@ function send_ball(x,z,spd,delay)
 	)
 	
 	-- calc ball targ,spd,time
-	
 	local d=dist(ball.x,ball.z,x,z)
 	if spd then
 		ball_spd=spd
@@ -518,12 +674,12 @@ function send_ball(x,z,spd,delay)
 	ball_air_t_m=ball_air_t
 	
 	if delay then
-		ball_throw_d=0.2
+		ball_throw_d=0.3
 	end
 	
 	
 	loga({
-		"ball x:",x,"z:",z,
+		"send ball x:",x,"z:",z,
 		"s:",ball_spd,
 		//ball_a,
 		//d,
@@ -531,13 +687,7 @@ function send_ball(x,z,spd,delay)
 	})
 end
 
-function move_ball_play()
-	if ball_throw_d>0 then
-		ball_m=false
-		ball_throw_d-=1/30
-		return
-	end
-	
+function move_ball_phys()
 	ball_m=true
 	local bs=ball_spd/30
 	ball.x-=cos(ball_a)*bs
@@ -550,16 +700,71 @@ function move_ball_play()
 	)
 	
 	ball_air_t-=1/30
+	
+	//loga({
+	//	dist(ball.x,ball.z,0,0)
+	//})
+	
+	local bd=dist(ball.x,ball.z,0,0)
+	
+	if bd>408 and 
+				not ball_wall then
+		printh("ball bounce wall")
+		ball_wall=true
+		ball_from_bat=false
+		local wa=atan2(ball.z,ball.x)
+		
+		wa-=0.25
+		loga({ball_a,ball_a+wa})
+		ball_a=wa
+		calc_roll_trg(ball)
+		ball_trg=cpt(ball_r_trg)
+		ball_air_t=0
+		ball_spd-=fric*20
+		calc_first_land()
+	end
+	
 	if not b_air() then
 		ball_spd=max(0,ball_spd-fric)
-		ball_from_bat=false
+		if ball_from_bat then
+			calc_first_land()
+			ball_from_bat=false
+		end
 	end
+end
+
+function move_ball_trg()
+	if ball_throw_d>0 then
+		ball_m=false
+		ball_throw_d-=1/30
+		return
+	end
+	ball_m=true
+	
+	local bs=ball_spd/30
+	ball_a=atan2p(ball,trg_f.pos)
+	ball.x-=cos(ball_a)*bs
+	ball.z-=sin(ball_a)*bs
+end
+
+function calc_roll_trg(from)
+	local bs=ball_spd
+	local roll=cpt(from)
+	while bs>0 do
+		roll.x-=cos(ball_a)*bs/30
+		roll.z-=sin(ball_a)*bs/30
+		bs-=fric
+	end
+	ball_r_trg=roll
 end
 
 function b_air()
 	return ball_air_t>0
 end
 
+
+-->8
+-- runners
 t1=0
 t2=0
 function update_runners()
@@ -576,10 +781,11 @@ function update_runners()
 				//r.run=false
 				printh("at target")
 				t2=time()
-				printh(t2-t1)
+				//printh(t2-t1)
 				
 				if r.tgidx==4 then
 					del(rnnrs,r)
+					score(1,0,0)
 					return
 				end
 				
@@ -598,51 +804,54 @@ function update_runners()
 end
 
 function calc_should_run(r,next_r)
-	r.run=true
-	local dtfb=distp(
-		trg_f.pos,ball)
-	local drpb=distp(
-		r.pos,ball)
-	local drtb=distp(
-		r.trg,ball)
-	
 	if next_r and 
 				next_r.run==false then
 		r.run=false
 	end
 	
-	--hack but whatever
-	if ball_from_bat then
-		drpb=30000
-		drtb=30000
+	-- time rnnr to trg
+	local drt=distp(
+		r.pos,r.trg)
+	local tr=drt/r.spd
+	
+	-- time fldr to trg
+	local tf=0
+	if ball_mode=="phys" then
+		local dtft=distp(
+			trg_f.pos,trg_f.trg)
+		tf=dtft/trg_f.spd
 	end
+	
+	-- time ball to rnnr trg
+	local bp=ball
+	if ball_from_bat then
+		bp=ball_r_trg
+	end
+	local dbrt=distp(
+		bp,r.trg)
+	local tb=dbrt/100 //todo use throw speed
+	
+	r.run=tr<tf+tb
 	
 	loga({
-		"cr",
-			dtfb,drpb,drtb,
-			ball_from_bat
-		})
-	
-	if dtfb<50 or 
-			 drpb<50 or
-				drtb<50 then
-		r.run=false
-	end
+		"cr",r.run,tr,tf+tb,tf,tb
+	})
 end
 
 function calc_forced_runners()
-	printh("calc forced")
+	loga({"calc forced",#rnnrs})
 	if #rnnrs>0 then
 		rnnrs[#rnnrs].run=true
 	end
 	for i=#rnnrs-1,1,-1 do
-		loga({"  check ", i})
+		
 		local cr=rnnrs[i]
 		local pr=rnnrs[i+1]
-		if pr.bs==cr.st and 
+		if pteq(pr.bs,cr.st) and 
 					not pr.out then
 			cr.run=true
 		end
+		loga({"  check ",i,cr.run})
 	end
 end
 
@@ -658,9 +867,49 @@ function calc_unforced_runners()
 		next_r=r
 	end
 end
-
+-->8
+-- fielders
 function update_fielders()
-	--calc targ fielder
+	if ball_mode!="held" then
+		calc_trg_fielder()
+	end
+	
+	-- move fielders
+	for k,f in pairs(fldrs)do
+		f.run=false
+		if f.trg !=nil and 
+					f.throw_t==0 then
+			if distp(f.pos,f.trg)>1 then
+				f.run=true
+				local fs=f.spd/30
+				local a=atan2p(f.pos,f.trg)
+				f.pos.x-=cos(a)*fs
+				f.pos.z-=sin(a)*fs
+			end
+			
+			if ball_mode=="phys" or
+						f==trg_f then
+				if distp(f.pos,ball)<3 and 
+							ball.y>-4 and
+							f.throw_t==0 then
+					printh(" ")
+					loga({"ball catch", k})
+					//loga({distp(f.pos,ball)})
+					ball_catch()
+				end
+			end
+		end
+		
+		if f.throw_t>0 then
+			f.throw_t+=0.3
+			if f.throw_t>4 then
+				f.throw_t=0
+			end
+		end
+	end 
+end
+
+function calc_trg_fielder()
 	local mind_a=30000
 	local mind_r=30000
 	local trgf_a,trgf_r=nil,nil
@@ -684,72 +933,46 @@ function update_fielders()
 		end
 	end
 	
-	trgf_a.trg=ball_trg
+	trgf_a.trg=cpt(ball_trg)
 	trg_f=trgf_a
-	trg_f_try_c=true
 	if not b_air() then
-		trgf_a.trg=ball_r_trg
+		trgf_a.trg=cpt(ball_r_trg)
 	end
 	if trgf_a!=trgf_r then
-		trgf_r.trg=ball_r_trg
+		trgf_r.trg=cpt(ball_r_trg)
 		
 		local dta=distp(
 			trgf_a.pos,ball_r_trg)
 		local dtr=distp(
 			trgf_r.pos,ball_r_trg)
-
-		if dtr<dta then
-			trg_f=trgf_r
-			trg_f_try_c=false
-			if trgf_a.bs then
-				trgf_a.trg=trgf_a.bs
-			end
-		end
-	end
-	
-	if ball_spd==0 then
-		trg_f.trg=ball
-	end
-	
-	-- move fielders
-	for k,f in pairs(fldrs)do
-		f.run=false
-		if f.trg !=nil then
-			if distp(f.pos,f.trg)>1 then
-				f.run=true
-				local fs=f.spd/30
-				local a=atan2p(f.pos,f.trg)
-				f.pos.x-=cos(a)*fs
-				f.pos.z-=sin(a)*fs
-			end
 			
-			if ball_m and
-						distp(f.pos,ball)<3 and 
-						ball.y>-4 then
-				loga({"ball catch", k})
-				ball_catch()
+		//loga({mind_a,mind_r,dta,dtr})
+
+		if mind_a>1 and
+					mind_r<mind_a and
+					dtr<dta then
+			trg_f=trgf_r
+			if trgf_a.bs then
+				trgf_a.trg=cpt(trgf_a.bs)
 			end
 		end
-		
-		if f.throw_t>0 then
-			f.throw_t+=0.3
-			if f.throw_t>4 then
-				f.throw_t=0
-			end
-		end
-	end 
+	end
+	
+	//if ball_spd==0 and 
+	//			ball_m_mode!="held" then
+	if ball_spd==0 then
+		trg_f.trg=cpt(ball)
+	end
 end
 
-function ball_catch()
-	local thrower=trg_f
+function ball_catch()	
 	local close_d=30000
 	local close_r=nil
 	
 	if ball_from_bat then
 		printh("caught from air")
-		loga({ball.y})
-		//todo
-		//del(rnnrs,rnnrs[#rnnrs])
+		ball_from_bat=false
+		score(0,0,1)
 		if ball_fair and #rnnrs>0 then
 			rnnrs[#rnnrs].out=true
 		end
@@ -758,24 +981,33 @@ function ball_catch()
 		printh("caught from grnd or throw")
 	end
 	
-	for r in all(rnnrs)do
+	for i=1,#rnnrs do
+		local r=rnnrs[i]
 		if not r.run or r.out then
+			//loga({"skip",i})
 			goto skip_rnnr
 		end
 		local drt=distp(
 			r.pos,r.trg)
 		local dtf=distp(
 			trg_f.pos,r.trg)
+			//loga({
+			//	drt,dtf,
+			//	pteq(trg_f.trg,r.trg),
+			//	logp(trg_f.trg),
+			//logp(r.trg)
+			//})
 		if dtf<1 and drt>1 then
-			printh("runner thrown out")
+			loga({
+				"runner thrown out",i})
 			r.out=true
+			score(0,0,1)
 		elseif dtf<close_d then
 			close_d=dtf
 			close_r=r
-		end		
+		end
+		::skip_rnnr::	
 	end
-		
-	::skip_rnnr::
 	
 	if not close_r then
 		printh("no viable runners")
@@ -783,30 +1015,37 @@ function ball_catch()
 		return
 	end		
 	
-	if pteq(close_r.bs,trg_f.trg) then
-		// this is a hack. if the
-		// runners trg is the same as
-		// the fielders run to trg,
-		// we "throw" the ball to
-		// that trg at the same speed
-		// as the fielders run speed.
-		// this triggers a throw anim
-		// which i should fix at some
-		// point
-		send_ball(
-			close_r.trg.x,
-			close_r.trg.z,
-			trg_f.spd, false)
+	if pteq(close_r.bs,trg_f.bs) then
+		trg_f.trg=cpt(trg_f.bs)
+		ball=cpt(trg_f.pos)
+		ball_mode="held"
+		printh("fielder has ball")
 	else
 		send_ball(
 			close_r.trg.x,
 			close_r.trg.z,
-			100, true)
+			100,
+			true)
 		trg_f.throw_t=0.1
+		ball_mode="trg"
 	end
 end
 
-
+function will_catch_fly()
+	if not pteq(trg_f.trg,ball_trg) then
+		printh("wont try for fly")
+		return false
+	end
+	
+	-- decrease the distance
+	-- a little to make runners
+	-- more cautious
+	local dtft=distp(
+		trg_f.pos,trg_f.trg)-8
+	local t=dtft/trg_f.spd
+	loga({"wcf",t,ball_air_t_m})
+	return t<ball_air_t_m
+end
 -->8
 -- pov
 
@@ -909,6 +1148,9 @@ function cpt(pt)
 end
 
 function pteq(p1,p2)
+	if p1==nil or p2==nil then
+		return false
+	end
 	return p1.x==p2.x and
 								p1.y==p2.y and
 								p1.z==p2.z
@@ -932,6 +1174,8 @@ end
 function atan2p(p1,p2)
 	return atan2(p1.x-p2.x,p1.z-p2.z)
 end
+
+function tan(a) return sin(a)/cos(a) end
 
 -- split a table of string 
 -- world points into a table 
@@ -975,6 +1219,12 @@ end
 function pria(arr,x,y,c)
 	print(a_to_s(arr),x,y,c)
 end
+
+function logp(pt)
+	return "x:"..pt.x..
+								" y:"..pt.y..
+								" z:"..pt.z
+end
 __gfx__
 000000000000000000000000000000000000000000000000004d000040dd000000dd000000ddd00000ddd0000000000000000000000000000000000000000000
 000000006666666600066000000055ffffff000000000000004ddd0040dddd0000dddd0000dddd0000ddd0000000000000000000000000000000000000000000
@@ -985,29 +1235,29 @@ __gfx__
 0000000000066000000000000000555fffff00000000000000dd000000dd000000dd000000dd000000ddd00000ddd00000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000d00d0000d00d0000d00d00000d0d00000d0d0000d000d0000000000000000000000000000000000
 00000000000000000000000000000000000ddd00000ddd00000ddd00000ddd00000ddd00000ddd00000000000000000000000000000000000000000000000000
-08000800777777770007700000000000000dddd0000dddd000dddd0000dddd0000dddd0000dddd00070ddd00000ddd00000ddd00000ddd000000000000000000
-0080800077777777067777700000000000099900000999000009990000099900000999000079990000dddd00000ddd00000dddd0000dddd00000000000000000
-0008000067777777677777770000000000099900000979000079920000099d000079dd000029dd00002999000029990000099920000999000000000000000000
-0080800006777770066777700000000000027d2000022d2000022d00007dd200002d2d0000022d000009dd000079990000099920000999000000000000000000
-08000800006777000006700000000000000d2200000dd200000ddd0000022d000002dd0000d0dd0000022d00000dd220002ddd000002dd200000000000000000
-00000000000660000000000000000000000ddd00000ddd00000ddd00000ddd00000d0d0000d00d0000d0dd00000d0d000002000000020d000000000000000000
-00000000000000000000000000000000000d0d00000d0d00000d0d00000d0d0000000d0000000d0000d00d00000d0000000d0000000d00000000000000000000
-0000000000000000000000000000000000ddd0000000000000ddd0000000000000ddd00000ddd000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000dddd00000ddd00000dddd0000ddd00000dddd0000d2dd0000ddd00000ddd00000000000000000000000000000000000
-00000000000000000000000000000000009990000dddd0000099900000dddd00009990000092900000dddd0000dddd0000000000000000000000000000000000
-00000000000000000000000000000000009990000099900000999000009990000099900000929000009920000099900000000000000000000000000000000000
+08000800000000000000000000000000000dddd0000dddd000dddd0000dddd0000dddd0000dddd00070ddd00000ddd00000ddd00000ddd000000000000000000
+0080800000080000000000000000000000099900000999000009990000099900000999000079990000dddd00000ddd00000dddd0000dddd00000000000000000
+0008000000080000000000000000000000099900000979000079920000099d000079dd000029dd00002999000029990000099920000999000000000000000000
+0080800000080000000000000000000000027d2000022d2000022d00007dd200002d2d0000022d000009dd000079990000099920000999000000000000000000
+08000800088888000000000000000000000d2200000dd200000ddd0000022d000002dd0000d0dd0000022d00000dd220002ddd000002dd200000000000000000
+00000000008880000000000000000000000ddd00000ddd00000ddd00000ddd00000d0d0000d00d0000d0dd00000d0d000002000000020d000000000000000000
+00000000000800000000000000000000000d0d00000d0d00000d0d00000d0d0000000d0000000d0000d00d00000d0000000d0000000d00000000000000000000
+0700000007700000000000000000000000ddd0000000000000ddd0000000000000ddd00000ddd000000000000000000000000000000000000000000000000000
+707000007ff7000000000000000000000dddd00000ddd00000dddd0000ddd00000dddd0000d2dd0000ddd00000ddd00000000000000000000000000000000000
+000000007ff700000000000000000000009990000dddd0000099900000dddd00009990000092900000dddd0000dddd0000000000000000000000000000000000
+00000000077000000000000000000000009990000099900000999000009990000099900000929000009920000099900000000000000000000000000000000000
 0000000000000000000000000000000002ddd20000999000002dd20000999000002d2000002dd000009290000299900000000000000000000000000000000000
 0000000000000000000000000000000002ddd20002ddd20002ddd000002dd00000d2d00000ddd000002dd0000022d00000000000000000000000000000000000
 0000000000000000000000000000000000ddd00002ddd20000d00d0000d2d00000ddd00000d00d0000ddd00000dd200000000000000000000000000000000000
 0000000000000000000000000000000000d0d00000d0d00000d00d000d00d00000d0d00000d00d000d00d0000d00d00000000000000000000000000000000000
-0d07700000000000000000000000000000ccc0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00dd700000000000000000000000000000cccc0000ccc00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000dd0000000000000000000000000000cc900000cccc0000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000700700000000000000000000000000099900000c9900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077700000000000000000000000000006cc6000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0006700000000000000000000000000006ccc000006cc00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0006070000000000000000000000000000c00c0000c6c00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0060700000000000000000000000000000c00c000c00c00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0d07700000000000000000000000000000ddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00dd700000000000000000000000000000dddd0000ddd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000dd0000000000000000000000000000dd900000dddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000700700000000000000000000000000099900000d9900000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077700000000000000000000000000002dd2000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0006700000000000000000000000000002ddd000002dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0006070000000000000000000000000000d00d0000d2d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0060700000000000000000000000000000d00d000d00d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1040,3 +1290,133 @@ __gfx__
 0000000000000000000000000000000000000000000000000000000087777877aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa
 0000000000000000000000000000000000000000000000000000000007778770aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa
 00000000000000000000000000000000000000000000000000000000007787000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa
+__label__
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c77777777777777777777777777777777777777777777777cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70000000000000000000000000000000000000000000007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70777070707070000077700000000700007770000077707cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70707070707070000070700000007070007070000070707cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70777070707770000070700000000000007070777070707cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70707077700070000070700000007700007070000070707cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70707077707770000077700000000700007770000077707cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70000000000000000000000000000700000000000000007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70707007707770000077700000000700000000000000007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70707070707770000070700000007770000077000770007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70777070707070000070700000000000000777707777007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70707070707070000070700000000000000777707777007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70707077007070000077700000000000000077000770007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c70000000000000000000000000000000000000000000007cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c77777777777777777777777777777777777777777777777cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdddccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccccccccccc8ccccccccc8cccccccc999ccccccccc8ccccccccc8ccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccc8cccccccccc8cccccccccc8ccccccccc8cccccccc999ccccccccc8ccccccccc8cccccccccc8cccccccccc8ccccccccccccccccccccc
+cccccccccdddccccccccc8cccccccccc8cccccccccc8ccccccccc8ccccccc2ddd2cccccccc8ccccccccc8cccccccccc8cccccccccc8ccccccccdddcccccccccc
+ffffffffddddfffffffff8ffffffffff8ffffffff338333333333833333332ddd2333333338333333333833ffffffff8ffffffffff8ffffffffddddfffffffff
+8ffffffff999fffffffff8fff3333333833333333333333333333333333333d3d33333333333333333333333333333383333333fff8ffffffff999fffffffff8
+8ffffffff999fff33333383333333333333333333333333333333333333333333333333333333333333333333333333333333333338333333ff999fffffffff8
+8ffffff32ddd2333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333332ddd233ffffff8
+833333332ddd2333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333332ddd2333333338
+833333333d3d3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333d3d3333333338
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+3333333333333333333333333333333333333333333333333ffffffffffffffffffffffffffffff3333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333ffffffffffffffffffffffffffffffffffffffffffffffffffff33333333333333333333333333333333333333
+3333333333333333333333333333333fffdddfffffffffffffffffffffffffffffffffffffffffffffffffffffdddffff3333333333333333333333333333333
+33333333333333333333333333fffffffddddfffffffffffffffffffffffffffffffffffffffffffffffffffffddddffffffff33333333333333333333333333
+333333333333333333333fffffffffffff999fffffffffffffffffffffffffffffffffffffffffffffffffffff999ffffffffffffff333333333333333333333
+33333333333333333fffffffffffffffff999ffffffffffffffffffffffffff66fffffffffffffffffffffffff999ffffffffffffffffff33333333333333333
+33333333333333fffffffffffffffffff2ddd2fffffffffffffffffffffff667766ffffffffffffffffffffff2ddd2ffffffffffffffffffff33333333333333
+3333333333fffffffffffffffffffffff2ddd2ffffffffffffffffffffff67777776fffffffffffffffffffff2ddd2ffffffffffffffffffffffff3333333333
+33333333ffffffffffffffffffffffffffdfdfffffffffffffffffffffff766776677fffffffffffffffffffffdfdfffffffffffffffffffffffffff33333333
+33333ffffffffffffffffffffffffffffffffffffffffffffffffffff777333663333777fffffffffffffffffffffffffffffffffffffffffffffffffff33333
+333fffffffffffffffffffffffffffffffffffffffffffffffffff777333333333333333777ffffffffffffffffffffffffffffffffffffffffffffffffff333
+3ffffffffffffffffffffffffffffffffffffffffffffffffff777333333333333333333333777fffffffffffffffffffffffffffffffffffffffffffffffff3
+ffffffffffffffffffffffffffffffffffffffffffffffff777333333333333333333333333333777fffffffffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffff777333333333333333333333333333333333777ffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffff777333333333333333333333333333333333333333777fffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffff777333333333333333333333ddd333333333333333333333777ffffffffffffffffffffffffffffffffffffff
+ffffffffdddfffffffffffffffffffffffff777333333333333333333333333dddd3333333333333333333333377fffffffffffffffffffffdddffffffffffff
+fffffffddddffffffffffffffffffffff77733333333333333333333333333399933333333333333333333333333777ffffffffffffffffffddddfffffffffff
+ffffffff999fffffffffffffffffff77733333333333333333333333333333399933333333333333333333333333333777fffffffffffffff999ffffffffffff
+ffffffff999ffffffffffffffff77733333333333333333333333333333333327d23333333333333333333333333333333777ffffffffffff999ffffffffffff
+fffffff2ccc2fffffffffff3777333333333333333333333333333333333333d22333333333333333333333333333333333337773fffffff2dddcccfffffffff
+fffffff2ccccffffffff377733333333333333333333333333333333333355fdddff3333333333333333333333333333333333337773ffff2ddccccfffffffff
+ffffffffc99ffffff3777333333333333333333333333333333333333355fffdfdffff33333333333333333333333333333333333337773ffdfd99cfffffffff
+33ffffff999fff377733333333333333333333333333333333333333355fff7777fffff3333333333333333333333333333333333333337773ff999fffffff33
+3333fff66cc667733333333333333333333333333333333333333333355ffffffffffff333333333333333333333333333333333333333333766cc66ffff3333
+33333f67c6c77633333333333333333333333333333333333333333333555fffffffff3333333333333333333333333333333333333333333677c6c76ff33333
+3333333c67c6633333333333333333333333333333333333333333333333555fffff333333333333333333333333333333333333333333333366c76cf3333333
+33333333366ff773333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333377f66f333333333
+3333333333fffff73333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333337fffff3333333333
+333333333333ffff773333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333377ffff333333333333
+33333333333333ffff77333333333333333333333333333333333333333333333333333333333333333333333333333333333333333377ffff33333333333333
+333333333333333fffff7333333333333333333333333333333333333333333333333333333333333333333333333333333333333337fffff333333333333333
+33333333333333333ffff77333333333333333333333333333333333333333333333333333333333333333333333333333333333377ffff33333333333333333
+3333333333333333333ffff7733333333333333333333333333333333333333333333333333333333333333333333333333333377ffff3333333333333333333
+33333333333333333333fffff773333333333333333333333333333333333333333333333333333333333333333333333333337fffff33333333333333333333
+3333333333333333333333ffff3733333333333333333333333333333333333333333333333333333333333333333333333377ffff3333333333333333333333
+333333333333333333333333ffff773333333333333333333333333333333333333333333333333333333333333333333377ffff333333333333333333333333
+3333333333333333333333333fffff77333333333333333333333333333333333333333333333333333333333333333337fffff3333333333333333333333333
+333333333333333333333333333fffff73333333333333333333333333333333333333333333333333333333333333377ffff333333333333333333333333333
+33333333333333333333333333333ffff77333333333333333333333333333333333333333333333333333333333377ffff33333333333333333333333333333
+333333333333333333333333333333fffff7733333333333333333333333333333333333333333333333333333337fffff333333333333333333333333333333
+33333333333333333333333333333333fffff7333333333333333333333333333333333333333333333333333377ffff33333333333333333333333333333333
+3333333333333333333333333333333333ffff7733333333333333333333333333333333333333333333333337ffff3333333333333333333333333333333333
+33333333333333333333333333333333333fffff7733333333333333333333333333333333333333333333377ffff33333333333333333333333333333333333
+3333333333333333333333333333333333333fffff733333333333333333333333333333333333333333377ffff3333333333333333333333333333333333333
+333333333333333333333333333333333333333ffff773333333333333333333333333333333333333337ffff333333333333333333333333333333333333333
+3333333333333333333333333333333333333333fffff773333333333333333333333333333333333377ffff3333333333333333333333333333333333333333
+333333333333333333333333333333333333333333fffff73333333333333333333333333333333377ffff333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333ffff77333333333333333333333333333337ffff33333333333333333333333333333333333333333333
+333333333333333333333333333333333333333333333fffff77333333333333333333333333377ffff333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333fffff773343ddffffffff333333377ffff33333333333333333333333333333333333333333333333
+3333333333333333333333333333333333333333333333333ffff37343ddddffffffff33337ffff3333333333333333333333333333333333333333333333333
+33333333333333333333333333333333333333333333333333fffff774dd9fffffffffff77ffff33333333333333333333333333333333333333333333333333
+3333333333333333333333333333333333333333333333333333fffff4999fffffffff77ffff3333333333333333333333333333333333333333333333333333
+333333333333333333333333333333333333333333333333333333fff24d2ffffffff7ffff333333333333333333333333333333333333333333333333333333
+333333333333333333333333333333333333333333333333333333ff2292276666667fffff333333333333333333333333333333333333333333333333333333
+333333333333333333333333333333333333333333333333333333ffffdd67777776ffffff333333333333333333333333333333333333333333333333333333
+333333333333333333333333333333333333333333333333333333fffdffd7777776ffffff333333333333333333333333333333333333333333333333333333
+3333333333333333333333333333333333333333333333333333333ffffff677776ffffff3333333333333333333333333333333333333333333333333333333
+3333333333333333333333333333333333333333333333333333333fffffff6776fffffff3333333333333333333333333333333333333333333333333333333
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdddfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffddddfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9992ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff2ddd2ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdddfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdfffdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+
