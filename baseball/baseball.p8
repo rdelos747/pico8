@@ -22,6 +22,8 @@ logo_t=0
 mode="title"
 camx,camy,camz=0,-90,-135
 cam_pi,cam_ya=0.95,0
+cam_st=0 //still time
+cam_sh=0 //shake time
 g_mode="wait"
 
 scr={home=0,away=0}
@@ -29,7 +31,11 @@ inns={}
 hlf="top"
 bals=0
 stks=0
-outs=2
+outs=0
+
+alert_t=0
+alert_m=""
+alert_p=nil
 
 _uits,_uitf=0,0
 
@@ -112,6 +118,14 @@ function _init()
 	
 	create_inn()
 	reset_players()
+	
+	--temp
+	test_pis={
+		"2 seam fb",
+		"cutter",
+		"curveball",
+		"changeup",
+	}
 end
 
 function _draw()
@@ -137,6 +151,11 @@ function _update()
 		end
 		return
 	end
+	
+	if cam_st>0 then
+		cam_st-=1
+		return
+	end
 		
 	_uits=(_uits+0.1)%30
 	_uitf=(_uitf+0.5)%30
@@ -146,6 +165,17 @@ function _update()
 			mode="game"
 		end
 	elseif mode=="game" then
+		
+		if alert_t>0 then
+			alert_t-=0.2
+		end
+	
+		if cam_sh>0.05 then
+			cam_sh*=0.87
+		else
+			cam_sh=0
+		end
+		
 		update_game()
 	end
 end
@@ -164,6 +194,121 @@ function draw_logo()
 		(t-1)%4>1,
 		t%4<2)
 end
+
+--utils
+
+function uits()
+	return flr(_uits)
+end
+
+function uitf()
+	return flr(_uitf)
+end
+
+function pt(x,y,z)
+	if type(x)=="string" then
+		x,z=unpack(split(x))
+		y=0
+	end
+	return {x=x,y=y,z=z}
+end
+
+function cpt(pt)
+	return {x=pt.x,y=pt.y,z=pt.z}
+end
+
+function pteq(p1,p2)
+	if p1==nil or p2==nil then
+		return false
+	end
+	return p1.x==p2.x and
+								p1.y==p2.y and
+								p1.z==p2.z
+end
+
+function rand(bot,top)
+	return flr(rnd((top+1)-bot))+bot
+end
+
+function dist(x1,y1,x2,y2)
+ local a0,b0=abs(x1-x2),abs(y1-y2)
+ return max(a0,b0)*0.9609+min(a0,b0)*0.3984
+end
+
+function distp(p1,p2)
+	return dist(p1.x,p1.z,p2.x,p2.z)
+ //local a0,b0=abs(p1.x-p2.x),abs(p1.y-p2.y)
+ //return max(a0,b0)*0.9609+min(a0,b0)*0.3984
+end
+
+function atan2p(p1,p2)
+	return atan2(p1.x-p2.x,p1.z-p2.z)
+end
+
+function tan(a) return sin(a)/cos(a) end
+
+-- split a table of string 
+-- world points into a table 
+-- of world pts
+function pt_a(s)
+	local vs=split(s,";")
+	local out={}
+	for v in all(vs)do
+		add(out,pt(v))
+	end
+	return out
+end
+
+function plyr(sst,bs)
+	if type(bs)=="string" then
+		bs=pt(bs)
+	end
+	return {
+		st=pt(sst), //start point
+		bs=bs, //targ base idx
+		trg=pt(0,0,0), //target
+		pos=pt(0,0,0),
+		t=0 //time
+	}
+end
+
+function txt2(s,x,y,f,bk)
+	print(s,x,y+1,bk)
+	print(s,x,y,f)
+end
+
+function txt_cen(s)
+	return (#s*4)/2-2
+end
+
+function mph(v)
+	return flr(v*0.6818)
+end
+
+-- start debug functions
+-- todo remove
+function a_to_s(arr)
+	local s=arr[1]
+	for i=2,#arr do
+		s=s.." "..tostr(arr[i])
+	end
+	return s
+end
+
+function loga(arr)
+	printh(a_to_s(arr))
+end
+
+function pria(arr,x,y,c)
+	print(a_to_s(arr),x,y,c)
+end
+
+function logp(pt)
+	return "x:"..pt.x..
+								" y:"..pt.y..
+								" z:"..pt.z
+end
+-- end debug functions
 
 function create_inn()
 	add(inns,{
@@ -205,6 +350,12 @@ function score(r,h,o)
 	//bals+=b
 	//stks+=s
 end
+
+function alert(s,x,z)
+	alert_m=s
+	alert_t=5
+	alert_p=pt(x,0,z)
+end
 -->8
 --draw
 
@@ -216,6 +367,14 @@ end
 
 function draw_game()
 	cls(12)
+	//local sx=rnd()*cam_s
+	//local ry
+	if cam_st==0 then
+		camera(
+			rnd()*cam_sh,
+			rnd()*cam_sh
+		)
+	end
 	
 	_,ty=proj(0,0,408)
 	rectfill(0,ty,127,127,15)
@@ -301,9 +460,10 @@ function draw_game()
 	pal(13,cr[1])
 	pal(2,cr[2])
 	
-	if g_mode!="play" or 
+	if g_mode!="walk" and
+				(g_mode!="play" or 
 				bat_sw!=0 or
-				not ball_fair then
+				not ball_fair) then
 		draw_batter()
 	end
 	
@@ -313,22 +473,22 @@ function draw_game()
 	
 	draw_ball()
 	
-	//pria({
-	//	camx,camy,camz,
-	//	g_mode,
-	//	ball_s,ball_a,ball_fair})
-	//pria({
-	//	camx,camy,camz,
-	//	g_mode,
-	//	rnnrs_done,
-	//	fldrs_done
-	//})
 	draw_hud()
 	
 	if pi_loc and 
 				(g_mode=="play" or
 				g_mode=="after play") then
-		draw_pitch()
+		if pi_res!="cont" then
+			draw_pitch()
+		end
+	end
+	
+	if g_mode=="wait" do
+		draw_pitch_select()
+	end
+	
+	if alert_t>0 then
+		draw_alert()
 	end
 end
 
@@ -340,6 +500,16 @@ function get_proj_pts(arrs)
 		add(pts,pt(x,y,0))
 	end end
 	return pts
+end
+
+function draw_alert()
+	dx,dy=projp(alert_p)
+		txt2(
+			alert_m,
+			dx-txt_cen(alert_m),
+			dy+alert_t,
+			11,1
+		)
 end
 
 function draw_ball()
@@ -458,6 +628,51 @@ function draw_pitch()
 		127-32+8+pi_loc.x,
 		127-39+10+pi_loc.y
 	)
+	
+	if pi_res!="cont" then
+		dx,dy=projp(ptchr.pos)
+		local s=pi_type.." "..
+										mph(pi_spd).."mph"
+		//s="4"
+		//print(
+		//	s,
+		//	dx-txt_cen(s),dy-10,7
+		//)
+		txt2(
+			s,
+			dx-txt_cen(s),
+			dy-15,
+			11,1
+		)
+	end
+end
+
+function draw_pitch_select()
+	rectfill(50,8,124,69,0)
+	rect(50,8,124,69,7)
+	pal(1,0)spr(19,55,69)pal()
+	print(
+		"rhp 123456789(99)",
+		54,12,7)
+	rect(54,18,120,20,7)
+	for i=0,#test_pis-1 do
+		local sy=25+i*8
+		print(
+			test_pis[i+1],
+			70,sy,7)
+		print(".99",110,sy)
+		//rect(65,42+i*12,107,44+i*12,7)
+	end
+	print("manager",70,60,7)
+	
+	local sy=24+(ps_idx-1)*8
+	if ps_idx==#test_pis+1 then
+		sy=59
+	end
+	spr(
+		49,
+		57+uits()%2,
+		sy)
 end
 -->8
 --game
@@ -465,6 +680,8 @@ end
 function reset_players()
 	//ptchr.pos=cpt(ptchr.st)
 	//ptchr.t=0
+	
+	ps_idx=1
 	
 	rnnrs_done=false
 	fldrs_done=false
@@ -478,7 +695,6 @@ function reset_players()
 	ball_air_t=0
 	ball_air_t_m=0
 	ball_from_bat=true
-	ball_wall=false
 	ball_mode="phys"
 	
 	ball_spd=0
@@ -487,7 +703,7 @@ function reset_players()
 	ball_throw_d=0
 	ball_fair=false
 	
-	pi_type="4 seam"
+	//pi_type="4 seam"
 	pi_spd=100
 	pi_loc=nil
 	
@@ -525,20 +741,19 @@ function update_game()
 	//camz=min(-135,ball.z-135)
 	//camz=camz-135
 	
-	if(btn(⬆️))camz+=1
-	if(btn(⬇️))camz-=1
-	if(btn(➡️))camx+=1
-	if(btn(⬅️))camx-=1
+	--temp remove
+	if g_mode!="wait" then
+		if(btn(⬆️))camz+=1
+		if(btn(⬇️))camz-=1
+		if(btn(➡️))camx+=1
+		if(btn(⬅️))camx-=1
+	end
 	
 	//camx=ball.x
 	//camz=max(-132,ball.z-200)
 	
 	if g_mode=="wait" then
-		if btnp(❎) then
-			g_mode="pitch"
-			calc_pitch()
-		end
-		
+		update_pitch_select()
 		bat_t=uits()%2
 	elseif g_mode=="pitch" then
 		if ptchr.t<5 then
@@ -566,8 +781,18 @@ function update_game()
 			
 			if pi_res=="ball" then
 				bals+=1
+				if bals==4 then
+					alert("walk",0,20)
+					bals,stks=0,0
+					create_runner()
+					calc_forced_runners()
+					g_mode="walk"
+				else
+					alert("ball",0,20)
+				end
 			elseif pi_res!="cont" then
 				stks+=1
+				alert("strike",0,20)
 			end
 		end
 	elseif g_mode=="play" then
@@ -592,8 +817,16 @@ function update_game()
 			reset_players()
 			g_mode="after play"
 		end
+	elseif g_mode=="walk" then
+		update_runners()
+		if rnnrs_done then
+			g_mode="after play"
+		end
 	elseif g_mode=="after play" then
 		if(btnp(❎)) then
+			if outs==3 then
+				advance_inn()
+			end
 			reset_players()
 			g_mode="wait"
 		end
@@ -616,7 +849,7 @@ function update_game()
 	end
 		
 	if outs==3 then
-		advance_inn()
+		//advance_inn()
 		//reset_players()
 		g_mode="after play"
 	end
@@ -632,15 +865,7 @@ function update_game()
 			if ball_fair then
 				//create runner to 1st here
 				bat_sw=0
-				local r=plyr("0,0",home)
-				r.run=true
-				r.tgidx=1
-				r.trg=frst
-				r.bs=frst
-				r.spd=21
-				r.out=false
-				add(rnnrs,r)
-				t1=time()
+				create_runner()
 			else
 				bat_sw=-1
 			end
@@ -690,6 +915,11 @@ function calc_pitch()
 		end
 	end
 	
+	//test
+	//will_sw=false
+	//did_cont=false
+	//pi_res="ball"
+	
 	loga({
 		"pr",
 		pi_res,pi_in,
@@ -706,11 +936,17 @@ function calc_contact()
 	local rx=rand(-100,100)
 	local rz=rand(-20,300) //todo 
 	
+	if rnd()>0.5 then
+		//todo homerun
+		cam_st=10
+		cam_sh=10
+	end
+	
 	//testing values
 	//rx,rz,s=-70,235,146.0015
 	//rx,rz,s=5,147,38.1289
-	//rx,rz,s=-30,109,146
-	//rx,rz,s=-73,228,146.0004
+	//rx,rz,s=-30,90,140 //ground to ss
+	//rx,rz,s=21,214,146.0006
 	send_ball(rx,rz,s)
 	
 	calc_roll_trg(ball_trg)
@@ -773,11 +1009,15 @@ function send_ball(x,z,spd,delay)
 	})
 end
 
-function move_ball_phys()
-	ball_m=true
+function move_ball()
 	local bs=ball_spd/30
 	ball.x-=cos(ball_a)*bs
 	ball.z-=sin(ball_a)*bs
+end
+
+function move_ball_phys()
+	ball_m=true
+	move_ball()
 	
 	local at2=ball_air_t_m/2
 	ball.y=min(
@@ -787,27 +1027,24 @@ function move_ball_phys()
 	
 	ball_air_t-=1/30
 	
-	//loga({
-	//	dist(ball.x,ball.z,0,0)
-	//})
+	local bd=dist(ball.x,ball.z,0,204)
 	
-	local bd=dist(ball.x,ball.z,0,0)
-	
-	if bd>408 and 
-				not ball_wall then
+	if ball.z>204 and bd>204 and 
+				ball_a<0.5 then
 		printh("ball bounce wall")
-		ball_wall=true
-		ball_from_bat=false
 		local wa=atan2(ball.z,ball.x)
-		
 		wa-=0.25
 		loga({ball_a,ball_a+wa})
 		ball_a=wa
-		calc_roll_trg(ball)
 		ball_trg=cpt(ball_r_trg)
 		ball_air_t=0
 		ball_spd-=fric*20
-		calc_first_land()
+		move_ball()
+		calc_roll_trg(ball)
+		if ball_from_bat then
+			ball_from_bat=false
+			calc_first_land()
+		end
 	end
 	
 	if not b_air() then
@@ -827,10 +1064,8 @@ function move_ball_trg()
 	end
 	ball_m=true
 	
-	local bs=ball_spd/30
 	ball_a=atan2p(ball,trg_f.pos)
-	ball.x-=cos(ball_a)*bs
-	ball.z-=sin(ball_a)*bs
+	move_ball()
 end
 
 function calc_roll_trg(from)
@@ -848,11 +1083,40 @@ function b_air()
 	return ball_air_t>0
 end
 
+function update_pitch_select()
+	if btnp(⬆️) then
+		ps_idx=max(ps_idx-1,1)
+	elseif btnp(⬇️) then
+		ps_idx=min(
+			ps_idx+1,
+			#test_pis+1)
+	end
+	
+	if btnp(❎) then
+		if ps_idx==#test_pis+1 then
+		else
+			g_mode="pitch"
+			pi_type=test_pis[ps_idx]
+			calc_pitch()
+		end
+	end
+end
+
 
 -->8
 -- runners
-t1=0
-t2=0
+
+function create_runner()
+	local r=plyr("0,0",home)
+	r.run=true
+	r.tgidx=1
+	r.trg=frst
+	r.bs=frst
+	r.spd=21
+	r.out=false
+	add(rnnrs,r)
+end
+
 function update_runners()
 	rnnrs_done=true
 	local next_r=nil
@@ -879,7 +1143,11 @@ function update_runners()
 				r.st=r.bs
 				r.bs=bases[r.tgidx]
 				r.trg=cpt(bases[r.tgidx])
-				calc_should_run(r,next_r)
+				if g_mode=="walk" then
+					r.run=false
+				else
+					calc_should_run(r,next_r)
+				end
 			end
 			next_r=r
 		end
@@ -890,6 +1158,10 @@ function update_runners()
 end
 
 function calc_should_run(r,next_r)
+	//if trg_f==nil then
+	//	return false
+	//end
+	
 	if next_r and 
 				next_r.run==false then
 		r.run=false
@@ -937,7 +1209,7 @@ function calc_forced_runners()
 					not pr.out then
 			cr.run=true
 		end
-		loga({"  check ",i,cr.run})
+		//loga({"  check ",i,cr.run})
 	end
 end
 
@@ -946,7 +1218,7 @@ function calc_unforced_runners()
 	local next_r=nil
 	for i=1,#rnnrs do
 		local r=rnnrs[i]
-		loga({"  check",i})
+		//loga({"  check",i})
 		if not r.run then
 			calc_should_run(r,next_r)
 		end
@@ -1211,106 +1483,27 @@ function pelogen_tri(l,t,c,m,r,b,col,f)
 end
 
 -->8
---utils
+--data
 
-function uits()
-	return flr(_uits)
-end
+pitches={
+	"2 seam fb",
+	"4 seam fb",
+	"cutter",
+	"sinker",
+	"curveball",
+	"slider",
+	"changeup", 
+	"forkball",
+}
 
-function uitf()
-	return flr(_uitf)
-end
-
-function pt(x,y,z)
-	if type(x)=="string" then
-		x,z=unpack(split(x))
-		y=0
-	end
-	return {x=x,y=y,z=z}
-end
-
-function cpt(pt)
-	return {x=pt.x,y=pt.y,z=pt.z}
-end
-
-function pteq(p1,p2)
-	if p1==nil or p2==nil then
-		return false
-	end
-	return p1.x==p2.x and
-								p1.y==p2.y and
-								p1.z==p2.z
-end
-
-function rand(bot,top)
-	return flr(rnd((top+1)-bot))+bot
-end
-
-function dist(x1,y1,x2,y2)
- local a0,b0=abs(x1-x2),abs(y1-y2)
- return max(a0,b0)*0.9609+min(a0,b0)*0.3984
-end
-
-function distp(p1,p2)
-	return dist(p1.x,p1.z,p2.x,p2.z)
- //local a0,b0=abs(p1.x-p2.x),abs(p1.y-p2.y)
- //return max(a0,b0)*0.9609+min(a0,b0)*0.3984
-end
-
-function atan2p(p1,p2)
-	return atan2(p1.x-p2.x,p1.z-p2.z)
-end
-
-function tan(a) return sin(a)/cos(a) end
-
--- split a table of string 
--- world points into a table 
--- of world pts
-function pt_a(s)
-	local vs=split(s,";")
-	local out={}
-	for v in all(vs)do
-		add(out,pt(v))
-	end
-	return out
-end
-
-function plyr(sst,bs)
-	if type(bs)=="string" then
-		bs=pt(bs)
-	end
-	return {
-		st=pt(sst), //start point
-		bs=bs, //targ base idx
-		trg=pt(0,0,0), //target
-		pos=pt(0,0,0),
-		t=0 //time
+teams={
+	hom={
+		strtrs={
+			//         bonzalez
+			"firstname;lastname;rhp"
+		}
 	}
-end
-
---debug functions
---todo remove
-function a_to_s(arr)
-	local s=arr[1]
-	for i=2,#arr do
-		s=s.." "..tostr(arr[i])
-	end
-	return s
-end
-
-function loga(arr)
-	printh(a_to_s(arr))
-end
-
-function pria(arr,x,y,c)
-	print(a_to_s(arr),x,y,c)
-end
-
-function logp(pt)
-	return "x:"..pt.x..
-								" y:"..pt.y..
-								" z:"..pt.z
-end
+}
 __gfx__
 000000000000000000000000000000000000000000000000004d000040dd000000dd000000ddd00000ddd0000000000000000000000000000000000000000000
 000000006666666600066000000055ffffff000000000000004ddd0040dddd0000dddd0000dddd0000ddd0000000000000000000000000000000000000000000
@@ -1320,11 +1513,11 @@ __gfx__
 00700700006776000006600000555fffffffff000000000022922000229220000029000000d2900000ddd90002ddd20000000000000000000000000000000000
 0000000000066000000000000000555fffff00000000000000dd000000dd000000dd000000dd000000ddd00000ddd00000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000d00d0000d00d0000d00d00000d0d00000d0d0000d000d0000000000000000000000000000000000
-00000000000000000000000000000000000ddd00000ddd00000ddd00000ddd00000ddd00000ddd00000000000000000000000000000000000000000000000000
-08000800000000000000000000000000000dddd0000dddd000dddd0000dddd0000dddd0000dddd00070ddd00000ddd00000ddd00000ddd000000000000000000
-0080800000080000007070000000000000099900000999000009990000099900000999000079990000dddd00000ddd00000dddd0000dddd00000000000000000
-0008000000080000000700000000000000099900000979000079920000099d000079dd000029dd00002999000029990000099920000999000000000000000000
-0080800000080000007070000000000000027d2000022d2000022d00007dd200002d2d0000022d000009dd000079990000099920000999000000000000000000
+00000000000000000000000007111170000ddd00000ddd00000ddd00000ddd00000ddd00000ddd00000000000000000000000000000000000000000000000000
+08000800000000000000000000711170000dddd0000dddd000dddd0000dddd0000dddd0000dddd00070ddd00000ddd00000ddd00000ddd000000000000000000
+0080800000080000007070000007117000099900000999000009990000099900000999000079990000dddd00000ddd00000dddd0000dddd00000000000000000
+0008000000080000000700000000717000099900000979000079920000099d000079dd000029dd00002999000029990000099920000999000000000000000000
+0080800000080000007070000000070000027d2000022d2000022d00007dd200002d2d0000022d000009dd000079990000099920000999000000000000000000
 08000800088888000000000000000000000d2200000dd200000ddd0000022d000002dd0000d0dd0000022d00000dd220002ddd000002dd200000000000000000
 00000000008880000000000000000000000ddd00000ddd00000ddd00000ddd00000d0d0000d00d0000d0dd00000d0d000002000000020d000000000000000000
 00000000000800000000000000000000000d0d00000d0d00000d0d00000d0d0000000d0000000d0000d00d00000d0000000d0000000d00000000000000000000
@@ -1336,14 +1529,14 @@ __gfx__
 0000000000000000000000000000000002ddd20002ddd20002ddd000002dd00000d2d00000ddd000002dd0000022d00000000000000000000000000000000000
 0000000000000000000000000000000000ddd00002ddd20000d00d0000d2d00000ddd00000d00d0000ddd00000dd200000000000000000000000000000000000
 0000000000000000000000000000000000d0d00000d0d00000d00d000d00d00000d0d00000d00d000d00d0000d00d00000000000000000000000000000000000
-0d07700000000000000000000000000000ddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00dd700000000000000000000000000000dddd0000ddd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000dd0000000000000000000000000000dd900000dddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000700700000000000000000000000000099900000d9900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077700000000000000000000000000002dd2000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0006700000000000000000000000000002ddd000002dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0006070000000000000000000000000000d00d0000d2d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0060700000000000000000000000000000d00d000d00d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0d07700007770000000000000000000000ddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00dd700077667776000000000000000000dddd0000ddd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000dd0077676666000000000000000000dd900000dddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000700707777770000000000000000000099900000d9900000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077700777666000000000000000000002dd2000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0006700077777000000000000000000002ddd000002dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0006070077766000000000000000000000d00d0000d2d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0060700007770000000000000000000000d00d000d00d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
