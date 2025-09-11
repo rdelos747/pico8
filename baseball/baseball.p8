@@ -5,10 +5,6 @@ __lua__
 
 --consants
 fric=1
-cols={
-	home={13,2},
-	away={14,12}
-}
 
 -- pov
 fov=0.11//0.11
@@ -24,14 +20,6 @@ camx,camy,camz=0,-90,-135
 cam_pi,cam_ya=0.95,0
 cam_st=0 //still time
 cam_sh=0 //shake time
-g_mode="wait"
-
-scr={home=0,away=0}
-inns={}
-hlf="top"
-bals=0
-stks=0
-outs=0
 
 alert_t=0
 alert_m=""
@@ -42,6 +30,14 @@ _uits,_uitf=0,0
 function _init()
 	printh("====start====")
 	fov_c=1/tan(fov/2)
+	
+	g_mode="select"
+
+	inns={}
+	hlf="top"
+	bals=0
+	stks=0
+	outs=0
 	
 	home=pt("0,0")
 	frst=pt("64,64")
@@ -72,31 +68,27 @@ function _init()
 		"0,-8;8,8;0,8;-8,8"
 	)
 	
-	ball=pt(0,0,0)
+	//ball=pt(0,0,0)
 	
-	fldrs={
-		pi=plyr("0,64",mond),
-		ct=plyr("0,-9",home), 
-		b1=plyr("60,64",frst), 
-		b2=plyr("40,110",scnd),
-		b3=plyr("-64,64",thrd),
-		ss=plyr("-40,110",nil),
-		lf=plyr("-130,300",nil),
-		cf=plyr("0,350",nil),
-		rf=plyr("130,300",nil),
-	}
-	ptchr=fldrs.pi
+	-- create teams
+	teams={}
+	teams.home=create_team(
+		d_teams.hom)
+	teams.away=create_team(
+		d_teams.awy)
 	
-	for _,f in pairs(fldrs)do
-		f.spd=21
-	end
+	//ptchr=fldrs.pi
 	
 	rnnrs={}
+	fldrs={}
+	bat_tm=teams.away
+	fld_tm=teams.home
 	
 	// test runners:
 	// must be added in the
 	// correct order
 	
+	--[[
 	local r=plyr("-64,64",thrd)
 		r.run=false
 		r.tgidx=4
@@ -115,8 +107,10 @@ function _init()
 		r.spd=21
 		r.out=false
 	add(rnnrs,r)
+	]]--
 	
 	create_inn()
+	advance_inn(true)
 	reset_players()
 	
 	--temp
@@ -206,6 +200,7 @@ function uitf()
 end
 
 function pt(x,y,z)
+	if(x==nil)return nil
 	if type(x)=="string" then
 		x,z=unpack(split(x))
 		y=0
@@ -259,19 +254,6 @@ function pt_a(s)
 	return out
 end
 
-function plyr(sst,bs)
-	if type(bs)=="string" then
-		bs=pt(bs)
-	end
-	return {
-		st=pt(sst), //start point
-		bs=bs, //targ base idx
-		trg=pt(0,0,0), //target
-		pos=pt(0,0,0),
-		t=0 //time
-	}
-end
-
 function txt2(s,x,y,f,bk)
 	print(s,x,y+1,bk)
 	print(s,x,y,f)
@@ -304,11 +286,50 @@ function pria(arr,x,y,c)
 end
 
 function logp(pt)
+	if(pt==nil)return "nil"
 	return "x:"..pt.x..
 								" y:"..pt.y..
 								" z:"..pt.z
 end
 -- end debug functions
+
+function create_team(d)
+	printh("creating team")
+	local t={
+		name=d.name,
+		cols=d.cols,
+		scr=0,
+		bat_idx=1,
+		pit_idx=1,
+		plyrs={}
+	}
+	for ds in all(d.plyrs) do
+		local dd=split(ds,";")
+		local fn,ln,hnd,psn,stt,spd,tspd,pi_m,wm_t=unpack(dd)
+		
+		loga({"cr plyr",fn,ln,ps,hnd,stt,spd,tspd,pi_m,wm_t})
+		
+		local psnp=positions[psn]
+		local p={
+			st=pt(psnp[1]), //start pos
+			bs=pt(psnp[2]), //trg base
+			//pos=pt("0,0"),
+			psn=psn,
+			fn=fn, --first name
+			ln=ln, --last name
+			hnd=hnd, --hand
+			stt=stt, --stat(era or avg)
+			spd=spd, --run speed
+			tspd=tspd, --throw speed
+			pi_m=pi_m, --max pitch
+			wm_t=wm_t, --warm up time,
+			pi_num=0 --pitch number
+		}
+		//loga({"   st:",logp(p.st)})
+		add(t.plyrs,p)
+	end
+	return t
+end
 
 function create_inn()
 	add(inns,{
@@ -325,17 +346,38 @@ function create_inn()
 	})
 end
 
-function advance_inn()
-	if hlf=="top" then
-		hlf="bot"
-	else
-		hlf="top"
-		create_inn()
+function advance_inn(start)
+	if not start then
+		if hlf=="top" then
+			hlf="bot"
+			bat_tm=teams.home
+			fld_tm=teams.away
+		else
+			hlf="top"
+			bat_tm=teams.away
+			fld_tm=teams.home
+			create_inn()
+		end
 	end
 	
 	bals,stks,outs=0,0,0
 	for r in all(rnnrs)do
 		del(rnnrs,r)
+	end
+	
+	for f in all(fldrs)do
+		del(fldrs,f)
+	end
+	
+	// todo, set this to cur pitcher
+	printh(fld_tm.name)
+	add(fldrs,fld_tm.plyrs[1])
+	ptchr=fldrs[1]
+	for i=7,15 do
+		local p=fld_tm.plyrs[i]
+		if p.psn!="dh" then
+			add(fldrs,p)
+		end
 	end
 end
 
@@ -343,12 +385,10 @@ function score(r,h,o)
 	local k="away"
 	if(hlf=="top")k="home"
 	
-	scr[k]+=r
+	bat_tm.scr+=r
 	inns[#inns][k].runs+=r
 	inns[#inns][k].hits+=h
 	outs+=o
-	//bals+=b
-	//stks+=s
 end
 
 function alert(s,x,z)
@@ -441,14 +481,8 @@ function draw_game()
 	px,py=projp(mond)
 	spr(3,px-8,py-4,2,1)
 	
-	local cf=cols["away"]
-	local cr=cols["home"]
-	if hlf=="top" then
-		cf=cols["home"]
-		cr=cols["away"]
-	end
-	pal(13,cf[1])
-	pal(2,cf[2])
+	pal(13,fld_tm.cols[1])
+	pal(2,fld_tm.cols[2])
 	
 	if g_mode!="play" then
 		draw_pitcher_catcher()
@@ -457,8 +491,8 @@ function draw_game()
 	
 	pal()
 	
-	pal(13,cr[1])
-	pal(2,cr[2])
+	pal(13,bat_tm.cols[1])
+	pal(2,bat_tm.cols[2])
 	
 	if g_mode!="walk" and
 				(g_mode!="play" or 
@@ -483,8 +517,12 @@ function draw_game()
 		end
 	end
 	
-	if g_mode=="wait" do
+	if g_mode=="select" then
 		draw_pitch_select()
+	elseif g_mode=="manage" then
+		draw_manage()
+	elseif g_mode=="lineup" then
+		draw_lineup()
 	end
 	
 	if alert_t>0 then
@@ -549,9 +587,12 @@ function draw_batter()
 end
 
 function draw_fielders()
-	for k,f in pairs(fldrs)do
+	for f in all(fldrs)do
 		if g_mode!="play" and
-					(k=="pi" or k=="ct") then
+					(f.psn=="lhp" or 
+						f.psn=="rhp" or 
+						f.psn=="ct"
+					) then
 			goto skip_draw
 		end
 		dx,dy=projp(f.pos)
@@ -593,8 +634,8 @@ end
 function draw_hud()
 	rectfill(1,1,47,15,0)
 	rect(1,1,47,15,7)
-	print("awy "..scr.away,3,3,7)
-	print("hom "..scr.home,3,9,7)
+	print("awy "..teams.away.scr,3,3,7)
+	print("hom "..teams.home.scr,3,9,7)
 	print(#inns,29,6,7)
 	
 	if hlf=="top" then
@@ -665,14 +706,72 @@ function draw_pitch_select()
 	end
 	print("manager",70,60,7)
 	
-	local sy=24+(ps_idx-1)*8
-	if ps_idx==#test_pis+1 then
+	local sy=24+(mn_idx-1)*8
+	if mn_idx==#test_pis+1 then
 		sy=59
 	end
 	spr(
 		49,
 		57+uits()%2,
 		sy)
+end
+
+function draw_manage()
+	rectfill(10,30,62,69,0)
+	
+	color(7)
+	rect(10,30,62,69)
+	
+	print("manager",13,33)
+	line(13,39,59,39)
+	
+	print("linescore",25,44)
+	print("lineup",25,52)
+	print("bullpen",25,60)
+	
+	spr(
+		49,
+		14+uits()%2,
+		mn_idx*8+43)
+end
+
+function draw_lineup()
+	rectfill(0,0,127,127,0)
+	rect(0,0,127,127,7)
+	
+	local ks={"away","home"}
+	
+	for i=0,1 do
+		local t=teams[ks[i+1]]
+		local x=2+i*64
+		print(t.name,x,2)
+		line(x,8,x+59,8)
+		
+		local j,y=1,15
+		while j<=15 do
+			local c=7
+			if j==t.pit_idx then
+				c=8
+			elseif j==t.bat_idx+6 then
+				c=9
+			end
+			print(
+				lineup_plyr(t,j),
+			x,y,c)
+			
+			if(j==1 or j==6)y+=6
+			
+			j+=1
+			y+=6
+		end
+	end
+end
+
+function lineup_plyr(t,idx)
+	local p=t.plyrs[idx]
+	local s=p.psn.." "..
+									p.fn.."."..p.ln
+	return s
 end
 -->8
 --game
@@ -681,7 +780,7 @@ function reset_players()
 	//ptchr.pos=cpt(ptchr.st)
 	//ptchr.t=0
 	
-	ps_idx=1
+	mn_idx=1
 	
 	rnnrs_done=false
 	fldrs_done=false
@@ -707,19 +806,15 @@ function reset_players()
 	pi_spd=100
 	pi_loc=nil
 	
-	for _,f in pairs(fldrs)do
+	for f in all(fldrs)do
 		f.pos=cpt(f.st)
 		f.throw_t=0
-		//f.catch=false
 	end
-	fldrs.pi.t=0
+	
+	ptchr.t=0	
 	
 	trg_f=nil
-	
-	//bat_sw=false
-	//bat_strk=false
-	//calc_pitch()
-	
+
 	for r in all(rnnrs)do
 		//del(rnnrs,r)
 		if r.out then
@@ -742,7 +837,11 @@ function update_game()
 	//camz=camz-135
 	
 	--temp remove
-	if g_mode!="wait" then
+	if g_mode!="select" and 
+				g_mode!="manage" and
+				g_mode!="linescore" and
+				g_mode!="lineup" and
+				g_mode!="bullpen" then
 		if(btn(⬆️))camz+=1
 		if(btn(⬇️))camz-=1
 		if(btn(➡️))camx+=1
@@ -752,9 +851,13 @@ function update_game()
 	//camx=ball.x
 	//camz=max(-132,ball.z-200)
 	
-	if g_mode=="wait" then
+	if g_mode=="select" then
 		update_pitch_select()
 		bat_t=uits()%2
+	elseif g_mode=="manage" then
+		update_manage()
+	elseif g_mode=="lineup" then
+		update_lineup()
 	elseif g_mode=="pitch" then
 		if ptchr.t<5 then
 			ptchr.t+=1/15
@@ -828,7 +931,7 @@ function update_game()
 				advance_inn()
 			end
 			reset_players()
-			g_mode="wait"
+			g_mode="select"
 		end
 	end
 	
@@ -845,6 +948,8 @@ function update_game()
 	end
 		
 	if outs<3 and stks==3 then
+		printh("strike out")
+		bals,stks=0,0
 		outs+=1
 	end
 		
@@ -916,9 +1021,9 @@ function calc_pitch()
 	end
 	
 	//test
-	//will_sw=false
-	//did_cont=false
-	//pi_res="ball"
+	will_sw=true
+	did_cont=true
+	pi_res="cont"
 	
 	loga({
 		"pr",
@@ -1085,20 +1190,61 @@ end
 
 function update_pitch_select()
 	if btnp(⬆️) then
-		ps_idx=max(ps_idx-1,1)
+		mn_idx=max(mn_idx-1,1)
 	elseif btnp(⬇️) then
-		ps_idx=min(
-			ps_idx+1,
+		mn_idx=min(
+			mn_idx+1,
 			#test_pis+1)
 	end
 	
 	if btnp(❎) then
-		if ps_idx==#test_pis+1 then
+		if mn_idx==#test_pis+1 then
+			g_mode="manage"
+			mn_idx=0
 		else
 			g_mode="pitch"
-			pi_type=test_pis[ps_idx]
+			pi_type=test_pis[mn_idx]
 			calc_pitch()
 		end
+	end
+end
+
+function update_manage()
+	if btnp(🅾️) then
+		g_mode="select"
+		mn_idx=1
+		return
+	end
+	
+	if btnp(⬆️) then
+		mn_idx=max(mn_idx-1,0)
+	elseif btnp(⬇️) then
+		mn_idx=min(mn_idx+1,3)
+	end
+	
+	if btnp(❎) then
+		
+		if mn_idx==0 then
+		elseif mn_idx==1 then
+			g_mode="lineup"
+		else 
+		end
+		
+		mn_idx=0
+	end
+end
+
+function update_lineup()
+	if btnp(🅾️) then
+		g_mode="manage"
+		mn_idx=1
+		return
+	end
+	
+	if btnp(⬆️) then
+		mn_idx=max(mn_idx-1,0)
+	elseif btnp(⬇️) then
+		mn_idx=min(mn_idx+1,3)
 	end
 end
 
@@ -1107,14 +1253,21 @@ end
 -- runners
 
 function create_runner()
-	local r=plyr("0,0",home)
+	//local r=plyr("0,0",home)
+	local r=bat_tm.plyrs[6+bat_tm.bat_idx]
+	r.pos=pt("0,0")
 	r.run=true
 	r.tgidx=1
 	r.trg=frst
 	r.bs=frst
-	r.spd=21
+	//r.spd=21
 	r.out=false
 	add(rnnrs,r)
+	
+	bat_tm.bat_idx+=1
+	if bat_tm.bat_idx==10 then
+		bat_tm.bat_idx=1
+	end
 end
 
 function update_runners()
@@ -1233,7 +1386,7 @@ function update_fielders()
 	end
 	
 	-- move fielders
-	for k,f in pairs(fldrs)do
+	for f in all(fldrs)do
 		f.run=false
 		if f.trg !=nil and 
 					f.throw_t==0 then
@@ -1496,13 +1649,73 @@ pitches={
 	"forkball",
 }
 
-teams={
-	hom={
-		strtrs={
-			//         bonzalez
-			"firstname;lastname;rhp"
-		}
+positions={
+		rhp={"0,64",mond},
+		lhp={"0,64",mond},
+		ct={"0,-9",home}, 
+		b1={"60,64",frst}, 
+		b2={"40,110",scnd},
+		b3={"-64,64",thrd},
+		ss={"-40,110",nil},
+		lf={"-130,300",nil},
+		cf={"0,350",nil},
+		rf={"130,300",nil},
+		dh={nil,nil},
 	}
+
+//players={}
+
+d_teams={
+	hom={
+		name="mutroplitanos",
+		cols={13,2},
+		plyrs={
+			//f in;lname;hand;pos;stat;spd;tspd;fat;wrm up t
+			// start pitcher
+			"f;lastnamee;r;rhp;0.123;21;100;90;0",
+			//bullpen
+			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			"f;lastnamee;l;lhp;0.123;21;100;20;10",
+			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			"f;lastnamee;l;lhp;0.123;21;100;20;10",
+			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			// pos players
+			"f;lastnamee;r;lf;0.123;21;100",
+			"f;lastnamee;r;ct;0.123;21;100",
+			"f;lastnamee;r;cf;0.123;21;100",
+			"f;lastnamee;l;b1;0.123;21;100",
+			"f;lastnamee;r;dh;0.123;21;100",
+			"f;lastnamee;r;b3;0.123;21;100",
+			"f;lastnamee;l;rf;0.123;21;100",
+			"f;lastnamee;l;ss;0.123;21;100",
+			"f;lastnamee;l;b2;0.123;21;100",
+		}
+	},
+	awy={
+		name="mutroplitanos",
+		cols={12,14},
+		plyrs={
+			//f in;lname;hand;pos;stat;spd;tspd;fat;wrm up t
+			// start pitcher
+			"f;lastnamee;r;rhp;0.123;21;100;90;0",
+			//bullpen
+			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			"f;lastnamee;l;lhp;0.123;21;100;20;10",
+			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			"f;lastnamee;l;lhp;0.123;21;100;20;10",
+			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			// pos players
+			"f;lastnamee;r;lf;0.123;21;100",
+			"f;lastnamee;r;ct;0.123;21;100",
+			"f;lastnamee;r;cf;0.123;21;100",
+			"f;lastnamee;l;b1;0.123;21;100",
+			"f;lastnamee;r;dh;0.123;21;100",
+			"f;lastnamee;r;b3;0.123;21;100",
+			"f;lastnamee;l;rf;0.123;21;100",
+			"f;lastnamee;l;ss;0.123;21;100",
+			"f;lastnamee;l;b2;0.123;21;100",
+		}
+	},
 }
 __gfx__
 000000000000000000000000000000000000000000000000004d000040dd000000dd000000ddd00000ddd0000000000000000000000000000000000000000000
