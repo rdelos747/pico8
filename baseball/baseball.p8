@@ -305,12 +305,13 @@ function create_team(d)
 	}
 	for ds in all(d.plyrs) do
 		local dd=split(ds,";")
-		local fn,ln,hnd,psn,stt,spd,tspd,pi_m,wm_t=unpack(dd)
+		local fn,ln,hnd,psn,stt,spd,tspd,pi_m,wm_tm=unpack(dd)
 		
 		loga({"cr plyr",fn,ln,ps,hnd,stt,spd,tspd,pi_m,wm_t})
 		
 		local psnp=positions[psn]
 		local p={
+			t=0,
 			st=pt(psnp[1]), //start pos
 			bs=pt(psnp[2]), //trg base
 			//pos=pt("0,0"),
@@ -322,10 +323,16 @@ function create_team(d)
 			spd=spd, --run speed
 			tspd=tspd, --throw speed
 			pi_m=pi_m, --max pitch
-			wm_t=wm_t, --warm up time,
+			wm_tm=wm_tm, --warm up time max
+			wm_t=0, --warm up time
+			wrm=false, --warming up
 			pi_num=0 --pitch number
 		}
 		//loga({"   st:",logp(p.st)})
+		if p.wm_tm==1 then
+			p.wm_t=1
+		end
+		
 		add(t.plyrs,p)
 	end
 	return t
@@ -502,11 +509,9 @@ function draw_game()
 	end
 	
 	draw_runners()
-	
 	pal()
 	
 	draw_ball()
-	
 	draw_hud()
 	
 	if pi_loc and 
@@ -523,6 +528,8 @@ function draw_game()
 		draw_manage()
 	elseif g_mode=="lineup" then
 		draw_lineup()
+	elseif g_mode=="bullpen" then
+		draw_bullpen()
 	end
 	
 	if alert_t>0 then
@@ -631,9 +638,13 @@ function draw_runners()
 	end
 end
 
+function box(x1,y1,x2,y2)
+	rectfill(x1,y1,x2,y2,0)
+	rect(x1,y1,x2,y2,7)
+end
+
 function draw_hud()
-	rectfill(1,1,47,15,0)
-	rect(1,1,47,15,7)
+	box(1,1,47,15)
 	print("awy "..teams.away.scr,3,3,7)
 	print("hom "..teams.home.scr,3,9,7)
 	print(#inns,29,6,7)
@@ -688,14 +699,45 @@ function draw_pitch()
 	end
 end
 
+function draw_fat(p,x,y,w)
+	local d=(p.pi_m/100)*w
+	local t=p.wm_t/p.wm_tm
+	local l=ceil(t*d-p.pi_num)
+	
+	local per=l/d
+	local c=11
+	
+	
+	if per<0.3 then
+		c=8
+	elseif per<0.5 then
+		c=9
+	elseif per<0.75 then
+		c=10
+	elseif per<0.9 then
+		c=3
+	end
+	
+	
+	rect(x,y,x+d+2,y+2,7)
+	line(
+		x+1,
+		y+1,
+		x+l,y+1,c)
+end
+
 function draw_pitch_select()
-	rectfill(50,8,124,69,0)
-	rect(50,8,124,69,7)
+	box(50,8,124,69)
 	pal(1,0)spr(19,55,69)pal()
 	print(
-		"rhp 123456789(99)",
+		ptchr.psn.." "..
+		ptchr.ln.."("..
+		ptchr.pi_num..")",
 		54,12,7)
-	rect(54,18,120,20,7)
+		
+	//todo add pitcher here
+	draw_fat(ptchr,54,18,66)
+	
 	for i=0,#test_pis-1 do
 		local sy=25+i*8
 		print(
@@ -717,11 +759,9 @@ function draw_pitch_select()
 end
 
 function draw_manage()
-	rectfill(10,30,62,69,0)
+	box(10,30,62,69)
 	
 	color(7)
-	rect(10,30,62,69)
-	
 	print("manager",13,33)
 	line(13,39,59,39)
 	
@@ -736,8 +776,7 @@ function draw_manage()
 end
 
 function draw_lineup()
-	rectfill(0,0,127,127,0)
-	rect(0,0,127,127,7)
+	box(0,0,127,127)
 	
 	local ks={"away","home"}
 	
@@ -772,6 +811,39 @@ function lineup_plyr(t,idx)
 	local s=p.psn.." "..
 									p.fn.."."..p.ln
 	return s
+end
+
+function draw_bullpen()
+	box(5,20,92,109)
+	
+	// todo, make this only
+	// players team
+	local t=teams.away.plyrs
+	local i,j=0,23
+	while i<5 do
+		local p=t[i+2]
+		if p.wrm then
+			spr(21+min(p.t,8),19,j)
+		else
+			spr(54+uits()%2,20,j)
+		end
+		print(p.psn.." "..p.ln,31,j)
+		draw_fat(p,31,j+6,58)
+		if i==mn_idx then
+			for k=0,3 do
+				print("curveball 0.99",35,j+10+k*7)
+			end
+			j+=39
+		else
+			j+=12
+		end
+		i+=1
+	end
+	
+	spr(
+		49,
+		10+uits()%2,
+		mn_idx*12+23)
 end
 -->8
 --game
@@ -858,6 +930,8 @@ function update_game()
 		update_manage()
 	elseif g_mode=="lineup" then
 		update_lineup()
+	elseif g_mode=="bullpen" then
+		update_bullpen()
 	elseif g_mode=="pitch" then
 		if ptchr.t<5 then
 			ptchr.t+=1/15
@@ -911,13 +985,13 @@ function update_game()
 		
 		if rnnrs_done and 
 					fldrs_done then
-			reset_players()
+			//reset_players()
 			g_mode="after play"
 		end
 		
 		if not b_air() and
 					not ball_fair then
-			reset_players()
+			//reset_players()
 			g_mode="after play"
 		end
 	elseif g_mode=="walk" then
@@ -1205,6 +1279,17 @@ function update_pitch_select()
 			g_mode="pitch"
 			pi_type=test_pis[mn_idx]
 			calc_pitch()
+			ptchr.pi_num+=1
+			
+			// todo, make this only
+			// players team
+			local t=teams.away.plyrs
+			for i=2,6 do
+				local p=t[i]
+				if p.wrm then
+					p.wm_t+=1
+				end
+			end
 		end
 	end
 end
@@ -1219,7 +1304,7 @@ function update_manage()
 	if btnp(⬆️) then
 		mn_idx=max(mn_idx-1,0)
 	elseif btnp(⬇️) then
-		mn_idx=min(mn_idx+1,3)
+		mn_idx=min(mn_idx+1,2)
 	end
 	
 	if btnp(❎) then
@@ -1227,7 +1312,8 @@ function update_manage()
 		if mn_idx==0 then
 		elseif mn_idx==1 then
 			g_mode="lineup"
-		else 
+		else
+			g_mode="bullpen"
 		end
 		
 		mn_idx=0
@@ -1245,6 +1331,44 @@ function update_lineup()
 		mn_idx=max(mn_idx-1,0)
 	elseif btnp(⬇️) then
 		mn_idx=min(mn_idx+1,3)
+	end
+end
+
+function update_bullpen()
+	// todo, make this only
+	// players team
+	local t=teams.away.plyrs
+	for i=2,6 do
+		local p=t[i]
+		if p.wrm and p!=ptchr then
+			if p.t<5 then
+				p.t+=1/15
+			elseif p.t<20 then
+				p.t+=1/4
+			else
+				p.t=0
+			end
+		end 
+	end
+	
+	if btnp(🅾️) then
+		g_mode="manage"
+		mn_idx=2
+		return
+	end
+	
+	if btnp(❎) then
+		if t[mn_idx+2].wrm then
+			//todo: send out
+		else
+			t[mn_idx+2].wrm=true
+		end
+	end
+	
+	if btnp(⬆️) then
+		mn_idx=max(mn_idx-1,0)
+	elseif btnp(⬇️) then
+		mn_idx=min(mn_idx+1,4)
 	end
 end
 
@@ -1670,9 +1794,9 @@ d_teams={
 		name="mutroplitanos",
 		cols={13,2},
 		plyrs={
-			//f in;lname;hand;pos;stat;spd;tspd;fat;wrm up t
+			//f in;lname;hand;pos;stat;spd;tspd;pi_max;wrm up t
 			// start pitcher
-			"f;lastnamee;r;rhp;0.123;21;100;90;0",
+			"f;lastnamee;r;rhp;0.123;21;100;90;1",
 			//bullpen
 			"f;lastnamee;r;rhp;0.123;21;100;20;10",
 			"f;lastnamee;l;lhp;0.123;21;100;20;10",
@@ -1692,12 +1816,12 @@ d_teams={
 		}
 	},
 	awy={
-		name="mutroplitanos",
+		name="bananas",
 		cols={12,14},
 		plyrs={
 			//f in;lname;hand;pos;stat;spd;tspd;fat;wrm up t
 			// start pitcher
-			"f;lastnamee;r;rhp;0.123;21;100;90;0",
+			"f;lastnamee;r;rhp;0.123;21;100;90;1",
 			//bullpen
 			"f;lastnamee;r;rhp;0.123;21;100;20;10",
 			"f;lastnamee;l;lhp;0.123;21;100;20;10",
@@ -1742,14 +1866,14 @@ __gfx__
 0000000000000000000000000000000002ddd20002ddd20002ddd000002dd00000d2d00000ddd000002dd0000022d00000000000000000000000000000000000
 0000000000000000000000000000000000ddd00002ddd20000d00d0000d2d00000ddd00000d00d0000ddd00000dd200000000000000000000000000000000000
 0000000000000000000000000000000000d0d00000d0d00000d00d000d00d00000d0d00000d00d000d00d0000d00d00000000000000000000000000000000000
-0d07700007770000000000000000000000ddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00dd700077667776000000000000000000dddd0000ddd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000dd0077676666000000000000000000dd900000dddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000700707777770000000000000000000099900000d9900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077700777666000000000000000000002dd2000099900000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0006700077777000000000000000000002ddd000002dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0006070077766000000000000000000000d00d0000d2d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0060700007770000000000000000000000d00d000d00d00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0d07700007770000000000000000000000ddd0000000000000000888000000000000000000000000000000000000000000000000000000000000000000000000
+00dd700077667776000000000000000000dddd0000ddd00000ddd00800ddd0000000000000000000000000000000000000000000000000000000000000000000
+0000dd0077676666000000000000000000dd900000dddd0000ddd08000ddd0000000000000000000000000000000000000000000000000000000000000000000
+000700707777770000000000000000000099900000d990000dd998000dd990000000000000000000000000000000000000000000000000000000000000000000
+00077700777666000000000000000000002dd200009990000099d8880099d2000000000000000000000000000000000000000000000000000000000000000000
+0006700077777000000000000000000002ddd000002dd00002ddd20002ddd2000000000000000000000000000000000000000000000000000000000000000000
+0006070077766000000000000000000000d00d0000d2d00002ddd00002ddd0000000000000000000000000000000000000000000000000000000000000000000
+0060700007770000000000000000000000d00d000d00d00000d0d00000d0d0000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
