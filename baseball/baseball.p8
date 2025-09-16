@@ -305,9 +305,9 @@ function create_team(d)
 	}
 	for ds in all(d.plyrs) do
 		local dd=split(ds,";")
-		local fn,ln,hnd,psn,stt,spd,tspd,pi_m,wm_tm=unpack(dd)
+		local fn,ln,hnd,psn,stt,spd,tspd,pi_m,wm_tm,ptchs=unpack(dd)
 		
-		loga({"cr plyr",fn,ln,ps,hnd,stt,spd,tspd,pi_m,wm_t})
+		loga({"cr plyr",fn,ln,psn,hnd,stt,spd,tspd,pi_m,wm_t})
 		
 		local psnp=positions[psn]
 		local p={
@@ -326,11 +326,24 @@ function create_team(d)
 			wm_tm=wm_tm, --warm up time max
 			wm_t=0, --warm up time
 			wrm=false, --warming up
-			pi_num=0 --pitch number
+			pi_num=0, --pitch number
+			fat=0, --fatigue
+			ptchs={}
 		}
 		//loga({"   st:",logp(p.st)})
 		if p.wm_tm==1 then
 			p.wm_t=1
+		end
+		
+		if ptchs then
+			local pptchs={}
+			aps=split(ptchs," ")
+			for p in all(aps)do
+				pp=split(p,",")
+				loga({"  ",pitches[pp[1]],pp[2]})
+			add(pptchs,pp)
+			end
+			p.ptchs=pptchs
 		end
 		
 		add(t.plyrs,p)
@@ -591,6 +604,11 @@ end
 function draw_batter()
 	px,py=projp(pt("-3,2"))
 	spr(6+min(bat_t,4),px-4,py-4)
+	if g_mode=="select" then
+		local s=bttr.ln.."("..
+										bttr.stt..")"
+		print(s,px-txt_cen(s),py-12,1)
+	end
 end
 
 function draw_fielders()
@@ -683,7 +701,7 @@ function draw_pitch()
 	
 	if pi_res!="cont" then
 		dx,dy=projp(ptchr.pos)
-		local s=pi_type.." "..
+		local s=pitches[pi_type[1]].." "..
 										mph(pi_spd).."mph"
 		//s="4"
 		//print(
@@ -702,7 +720,7 @@ end
 function draw_fat(p,x,y,w)
 	local d=(p.pi_m/100)*w
 	local t=p.wm_t/p.wm_tm
-	local l=ceil(t*d-p.pi_num)
+	local l=ceil(t*d-p.fat)
 	
 	local per=l/d
 	local c=11
@@ -738,12 +756,13 @@ function draw_pitch_select()
 	//todo add pitcher here
 	draw_fat(ptchr,54,18,66)
 	
-	for i=0,#test_pis-1 do
+	for i=0,#ptchr.ptchs-1 do
 		local sy=25+i*8
+		local pt=ptchr.ptchs[i+1]
 		print(
-			test_pis[i+1],
+			pitches[pt[1]],
 			70,sy,7)
-		print(".99",110,sy)
+		print("."..pt[2],110,sy)
 		//rect(65,42+i*12,107,44+i*12,7)
 	end
 	print("manager",70,60,7)
@@ -886,6 +905,8 @@ function reset_players()
 	ptchr.t=0	
 	
 	trg_f=nil
+	
+	bttr=bat_tm.plyrs[6+bat_tm.bat_idx]
 
 	for r in all(rnnrs)do
 		//del(rnnrs,r)
@@ -953,7 +974,6 @@ function update_game()
 			g_mode="play"
 		elseif ball.z<=-8 then
 			//ball.z=-8
-			//calc_no_contact()
 			g_mode="after play"
 			
 			if pi_res=="ball" then
@@ -1056,12 +1076,39 @@ end
 
 function calc_pitch()
 	printh("calc pitch")
+	
+	-- calculate how well pitcher
+	-- throws the pitch. rather,
+	-- how hard it is for the 
+	-- batter to read it.
+	
+	-- warm up level
+	local wrm=ptchr.wm_t/ptchr.wm_tm
+	-- fatigue
+	local fat=(ptchr.pi_m-ptchr.fat)/ptchr.pi_m
+	-- stat
+	local stt=1-(ptchr.stt/10)
+	-- pitch eff
+	local eff=pi_type[2]/100
+	
+	local tot=wrm*fat*stt*eff
+
+	loga({
+		"ptchr--",
+		"wrm:",wrm,
+		"fat:",fat,
+		"stt:",stt,
+		"eff:",eff,
+		"tot:",tot
+		})
 
 	-- zone w = 16"
 	-- zone h = 30"
 	-- outr w = 20"
 	-- outr h = 34"
 	
+	//todo, should above calc
+	// affect position?
 	local rx=rnd()*30-15
 	local ry=rnd()*37-15
 	pi_loc=pt(rx,ry,0)
@@ -1072,12 +1119,62 @@ function calc_pitch()
 		pi_in=false
 	end
 	
+	//todo, use batter era to
+	// influence if they will
+	// read the pitch.
 	will_sw=false
 	did_cont=false
-	if(rnd()>0.5)will_sw=true
-	if will_sw and rnd()>0.5 then
-		did_cont=true
+	local avg=bttr.stt/1000
+	
+	loga({
+		"bttr--",
+		"avg",avg,avg*0.5,
+	})
+	
+	local read=false
+	local read_ch=rnd()
+	
+	-- use avg to bias read
+	local rcb=read_ch+avg*0.5		
+	if(rcb>tot)read=true
+	
+	loga({
+		"read",
+		read_ch,rcb,read})
+
+	if read then
+		if pi_in then
+			printh("pitch read in zone")
+			will_sw=true
+			local cnch=avg*1.5
+			local rc=rnd()
+			if(rc>cnch)did_cont=true
+			loga({"  rnd:",rc,cnch})
+		else
+			printh("pitch read out zone, wont swing")
+		end
+	else
+		printh("pitch not read")
+		local swch=avg*1.5
+		local src=rnd()
+		
+		local cnch=avg*1.5
+		local crc=rnd()
+		loga({
+			"  swing:",src,swch,
+			"cont:",crc,cnch
+		})
+		if swch>src then
+			will_sw=true
+			if cnch>crc then
+				did_cont=true
+			end
+		end
 	end
+	
+	//if will_sw then
+	//	if(rnd()>0.5)did_cont=true
+	//end
 	
 	pi_res="cont"
 	if not did_cont then
@@ -1094,10 +1191,16 @@ function calc_pitch()
 		end
 	end
 	
+	ptchr.pi_num+=1
+	-- fatigue is variable
+	// todo, make this more
+	// complex
+	ptchr.fat+=rand(1,2)
+	
 	//test
-	will_sw=true
-	did_cont=true
-	pi_res="cont"
+	//will_sw=true
+	//did_cont=true
+	//pi_res="cont"
 	
 	loga({
 		"pr",
@@ -1107,11 +1210,10 @@ function calc_pitch()
 	})	
 end
 
-function calc_no_contact()
-end
-
 function calc_contact()
 	printh("==contact==")
+	bals,stks=0,0
+	
 	local rx=rand(-100,100)
 	local rz=rand(-20,300) //todo 
 	
@@ -1268,18 +1370,17 @@ function update_pitch_select()
 	elseif btnp(⬇️) then
 		mn_idx=min(
 			mn_idx+1,
-			#test_pis+1)
+			#ptchr.ptchs+1)
 	end
 	
 	if btnp(❎) then
-		if mn_idx==#test_pis+1 then
+		if mn_idx==#ptchr.ptchs+1 then
 			g_mode="manage"
 			mn_idx=0
 		else
 			g_mode="pitch"
-			pi_type=test_pis[mn_idx]
+			pi_type=ptchr.ptchs[mn_idx]
 			calc_pitch()
-			ptchr.pi_num+=1
 			
 			// todo, make this only
 			// players team
@@ -1378,14 +1479,16 @@ end
 
 function create_runner()
 	//local r=plyr("0,0",home)
-	local r=bat_tm.plyrs[6+bat_tm.bat_idx]
-	r.pos=pt("0,0")
+	//local r=bat_tm.plyrs[6+bat_tm.bat_idx]
+	local r={
+		pos=pt("0,0"),
+		tgidx=1,
+		trg=frst,
+		bs=frst,
+		spd=bttr.spd,
+		out=false,
+	}
 	r.run=true
-	r.tgidx=1
-	r.trg=frst
-	r.bs=frst
-	//r.spd=21
-	r.out=false
 	add(rnnrs,r)
 	
 	bat_tm.bat_idx+=1
@@ -1796,48 +1899,48 @@ d_teams={
 		plyrs={
 			//f in;lname;hand;pos;stat;spd;tspd;pi_max;wrm up t
 			// start pitcher
-			"f;lastnamee;r;rhp;0.123;21;100;90;1",
+			"f;pitcherr;r;rhp;1.5;21;100;90;1;1,99 3,96, 5,85 7,56",
 			//bullpen
-			"f;lastnamee;r;rhp;0.123;21;100;20;10",
-			"f;lastnamee;l;lhp;0.123;21;100;20;10",
-			"f;lastnamee;r;rhp;0.123;21;100;20;10",
-			"f;lastnamee;l;lhp;0.123;21;100;20;10",
-			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			"f;lastnamee;r;rhp;2;21;100;20;10",
+			"f;lastnamee;l;lhp;2.5;21;100;20;10",
+			"f;lastnamee;r;rhp;4.4;21;100;20;10",
+			"f;lastnamee;l;lhp;8.1;21;100;20;10",
+			"f;lastnamee;r;rhp;3.4;21;100;20;10",
 			// pos players
-			"f;lastnamee;r;lf;0.123;21;100",
-			"f;lastnamee;r;ct;0.123;21;100",
-			"f;lastnamee;r;cf;0.123;21;100",
-			"f;lastnamee;l;b1;0.123;21;100",
-			"f;lastnamee;r;dh;0.123;21;100",
-			"f;lastnamee;r;b3;0.123;21;100",
-			"f;lastnamee;l;rf;0.123;21;100",
-			"f;lastnamee;l;ss;0.123;21;100",
-			"f;lastnamee;l;b2;0.123;21;100",
+			"f;lastnamee;r;lf;123;21;100",
+			"f;lastnamee;r;ct;123;21;100",
+			"f;lastnamee;r;cf;123;21;100",
+			"f;lastnamee;l;b1;123;21;100",
+			"f;lastnamee;r;dh;123;21;100",
+			"f;lastnamee;r;b3;123;21;100",
+			"f;lastnamee;l;rf;123;21;100",
+			"f;lastnamee;l;ss;123;21;100",
+			"f;lastnamee;l;b2;123;21;100",
 		}
 	},
 	awy={
 		name="bananas",
 		cols={12,14},
 		plyrs={
-			//f in;lname;hand;pos;stat;spd;tspd;fat;wrm up t
+			//f in;lname;hand;pos;stat;spd;tspd;pi_max;wrm up t
 			// start pitcher
-			"f;lastnamee;r;rhp;0.123;21;100;90;1",
+			"f;pitcherr;r;rhp;1.5;21;100;90;1;1,99 3,96, 5,85 7,56",
 			//bullpen
-			"f;lastnamee;r;rhp;0.123;21;100;20;10",
-			"f;lastnamee;l;lhp;0.123;21;100;20;10",
-			"f;lastnamee;r;rhp;0.123;21;100;20;10",
-			"f;lastnamee;l;lhp;0.123;21;100;20;10",
-			"f;lastnamee;r;rhp;0.123;21;100;20;10",
+			"f;lastnamee;r;rhp;2;21;100;20;10",
+			"f;lastnamee;l;lhp;2.5;21;100;20;10",
+			"f;lastnamee;r;rhp;4.4;21;100;20;10",
+			"f;lastnamee;l;lhp;8.1;21;100;20;10",
+			"f;lastnamee;r;rhp;3.4;21;100;20;10",
 			// pos players
-			"f;lastnamee;r;lf;0.123;21;100",
-			"f;lastnamee;r;ct;0.123;21;100",
-			"f;lastnamee;r;cf;0.123;21;100",
-			"f;lastnamee;l;b1;0.123;21;100",
-			"f;lastnamee;r;dh;0.123;21;100",
-			"f;lastnamee;r;b3;0.123;21;100",
-			"f;lastnamee;l;rf;0.123;21;100",
-			"f;lastnamee;l;ss;0.123;21;100",
-			"f;lastnamee;l;b2;0.123;21;100",
+			"f;lastnamee;r;lf;123;21;100",
+			"f;lastnamee;r;ct;123;21;100",
+			"f;lastnamee;r;cf;123;21;100",
+			"f;lastnamee;l;b1;123;21;100",
+			"f;lastnamee;r;dh;123;21;100",
+			"f;lastnamee;r;b3;123;21;100",
+			"f;lastnamee;l;rf;123;21;100",
+			"f;lastnamee;l;ss;123;21;100",
+			"f;lastnamee;l;b2;123;21;100",
 		}
 	},
 }
