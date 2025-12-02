@@ -4,8 +4,8 @@ __lua__
 -- set
 
 -- constants
-card_off_x=1
-card_off_y=30
+//card_off_x=1
+//card_off_y=10
 card_w=29
 card_h=17
 card_f_tm=15
@@ -66,6 +66,10 @@ function _draw()
 	elseif mode=="game" then
 		draw_game()
 		draw_effs()
+	elseif mode=="tutorial" then
+		draw_tut()
+	elseif mode=="about" then
+		draw_about()
 	end
 	
 	if(is_m)draw_mouse()
@@ -82,7 +86,7 @@ function _update()
 		if btnp(❎) then
 			if logo_t<30 then
 				logo_t=30
-			else
+			elseif logo_t<75 then
 				logo_t=75
 			end
 		end
@@ -105,6 +109,9 @@ function _update()
 	elseif mode=="game" then
 		update_game()
 		update_effs()
+	elseif mode=="tutorial" or
+								mode=="about" then
+		update_tut_ab()
 	end
 end
 
@@ -143,27 +150,32 @@ function draw_title()
 	if s_idx!=nil then
 		draw_settings()
 	else
-		print(
+		t2(
 			"play",
 			57,80,
-			tit_idx==0 and 15 or 1)
-		print(
+			tit_idx==0 and 15 or 1,0)
+		t2(
 			"settings",
 			49,90,
-			tit_idx==1 and 15 or 1)
-		print(
+			tit_idx==1 and 15 or 1,0)
+		t2(
 			"tutorial",
 			49,100,
-			tit_idx==2 and 15 or 1)
-		print(
+			tit_idx==2 and 15 or 1,0)
+		t2(
 			"about",
 			55,110,
-			tit_idx==3 and 15 or 1)
+			tit_idx==3 and 15 or 1,0)
 		if not is_m then
-			spr(
+			//ospr(
+			//	1,
+			//	38+uits%2,
+			//79+tit_idx*10)
+			dhand(
 				1,
 				38+uits%2,
-				79+tit_idx*10)
+				79+tit_idx*10
+			)
 		end
 	end
 end
@@ -198,56 +210,60 @@ function update_title()
 	if click() then
 		if(tit_idx==0)init_game()
 		if(tit_idx==1)s_idx=1
+		if(tit_idx==2)mode="tutorial"
+		if(tit_idx==3)mode="about"
 	end
 end
 
 function draw_settings()
 	if mode=="game" then
-		print(
+		t2(
 			"go back",
 			51,40,
-			s_idx==-1 and 15 or 1)
+			s_idx==-2 and 15 or 1,0)
 
-		print(
+		t2(
 			"get hint",
 			49,50,
-			s_idx==0 and 15 or 1)
+			s_idx==-1 and 15 or 1,0)
+		
+		t2(
+			"end game",
+			49,60,
+			s_idx==0 and 15 or 1,0)
 	end
 		
-	print(
+	t2(
 		"show time",
 		25,70,
-		s_idx==1 and 15 or 1)
-	print(
+		s_idx==1 and 15 or 1,0)
+	t2(
 		s_time and "yes" or "no",
-		90,70,
-		s_idx==1 and 15 or 1)
+		90,70, 
+		s_time and 11 or 3,0)
 		
-	print(
+	t2(
 		"show possible\n         sets",
 		10,80,
-		s_idx==2 and 15 or 1)
-	print(
+		s_idx==2 and 15 or 1,0)
+	t2(
 		s_posb and "yes" or "no",
-		90,80,
-		s_idx==2 and 15 or 1)
+		90,80, 
+		s_posb and 11 or 3,0)
 		
-	print(
+	t2(
 		"return to title",
 		35,107,
-		s_idx==3 and 15 or 1)
+		s_idx==3 and 15 or 1,0)
 	
 	if not is_m then
 		local hx,hy=41,39
 		if(s_idx==0)hx,hy=39,49
+		if(s_idx==0)hx,hy=39,59
 		if(s_idx==1)hx,hy=15,69
 		if(s_idx==2)hx,hy=0,79
 		if(s_idx==3)hx,hy=25,106
-		spr(
-			1,
-			hx+uits%2,
-			hy
-		)
+		dhand(1,hx+uits%2,hy)
 	end
 end
 
@@ -263,11 +279,13 @@ function update_settings()
 	
 	-- mouse hover
 	if is_m then
-		s_idx=-2
+		s_idx=-3
 		if mode=="game" then
 			if pt_m(51,40,28,5)then
-				s_idx=-1
+				s_idx=-2
 			elseif pt_m(49,50,32,5)then
+				s_idx=-1
+			elseif pt_m(49,60,32,5)then
 				s_idx=0
 			end
 		end
@@ -281,11 +299,14 @@ function update_settings()
 	end
 	
 	if click() then
-		if s_idx==-1 then
+		if s_idx==-2 then
 			s_idx=nil
-		elseif s_idx==0 then
+		elseif s_idx==-1 then
 			s_idx=nil
 			check_cards(true)
+		elseif s_idx==0 then
+			s_idx=nil
+			//check_cards(true)
 		elseif s_idx==1 then
 			s_time=not s_time
 		elseif s_idx==2 then
@@ -294,6 +315,42 @@ function update_settings()
 			mode="title"
 			s_idx=nil
 		end
+	end
+end
+
+function draw_tut()
+	//rect(0,0,127,127,1)
+	t2(
+		"return to title",
+		35,122,
+		1,0)
+	if not is_m then
+		dhand(1,25+uits%2,121)
+	end
+	
+	for i=0,#d_tut-1 do
+		t2(d_tut[i+1],1,i*6+1,13,0)
+	end
+end
+
+function draw_about()
+	t2(
+		"return to title",
+		35,122,
+		1,0)
+	if not is_m then
+		dhand(1,25+uits%2,121)
+	end
+	
+	for i=0,#d_ab-1 do
+		t2(d_ab[i+1],1,i*6+1,13,0)
+	end
+end
+
+function update_tut_ab()
+	if click() then
+		mode="title"
+		return
 	end
 end
 -->8
@@ -318,9 +375,11 @@ function init_game()
 	deck={}
 	n_set=0	--num sets made
 	n_sel=0 --num selected
+	card_off_y=30
 	
 	sh_tm=0 --shake time
 	n_av_set=0 --available sets
+	p_win=false
 	
 	for n=1,3 do
 	for s in all({5,6,7}) do
@@ -375,10 +434,11 @@ function draw_game()
 		print(ts,64-(#ts*4)/2,3)
 	end
 	
-	if s_posb then
-		print(
+	if s_posb and #cards<21 and 
+				not p_win then
+		t2(
 			"possible sets:"..n_av_set,
-			1,23,1)
+			1,card_off_y-7,1,0)
 	end
 	
 	if s_idx==nil then
@@ -392,33 +452,36 @@ function draw_game()
 	end
 	
 	
-	if is_m then
-		print(
-			"mouse:move         mouse:toggle",
-			1,122,
-			1
-		) 
-	else
-		local hx,hy=5,10
-		if g_idx==1 then
-			hx,hy=102,10
-		elseif g_idx>1 then
-			local i=(g_idx-2)%4
-			local j=flr((g_idx-2)/4)
-			hx=i*card_w+i*3+14
-			hy=j*card_h+j*3+45
-		end
-		pal(7,0)
-		pal(6,0)
-		ospr(2,hx,hy+uits%2)
-		pal()
-		spr(2,hx,hy+uits%2)
+	if #cards<21 then
+		if is_m then
+			print(
+				"mouse:move         mouse:toggle",
+				1,122,
+				1
+			) 
+		else
+			local hx,hy=5,10
+			if g_idx==1 then
+				hx,hy=102,10
+			elseif g_idx>1 then
+				local i=(g_idx-2)%4
+				local j=flr((g_idx-2)/4)
+				hx=i*card_w+i*3+14
+				hy=j*card_h+j*3+45
+			end
+
+			dhand(2,hx,hy+uits%2)
 	
-		print(
-			"⬆️⬇️⬅️➡️:move         ❎:toggle",
-			1,122,
-			1
-		) 
+			print(
+				"⬆️⬇️⬅️➡️:move         ❎:toggle",
+				1,122,
+				1
+			) 
+		end
+	end
+	
+	if p_win and #effs==0 then
+		t2("you win",51,60,1,0)
 	end
 end
 
@@ -485,10 +548,15 @@ function draw_card(c)
 			cx+card_w-7+o,
 			cy+card_h-7+o)
 	end
+	
+	print(c.idx,cx,cy,12)
 end
 
 function update_game()
-	game_tm=time()-game_st_tm
+	if not p_win then
+		game_tm=time()-game_st_tm
+	end
+	
 	-- update cards
 	for c in all(cards)do
 		if c!="dead" then
@@ -537,7 +605,8 @@ function update_game()
 	end
 	
 	-- click deck
-	if g_idx==0 and click() then
+	if g_idx==0 and #cards<21 and
+				#deck>0 and click() then
 		for i=0,2 do
 			add(cards,get_card(i*5))
 			add_f_card(
@@ -575,6 +644,9 @@ function update_game()
 	if n_sel==3 and can_check then
 		check_sel()
 		g_idx=min(g_idx,#cards+1)
+		if n_set==27 then
+			p_win=true
+		end
 	end
 end
 
@@ -597,12 +669,19 @@ function get_card(toff)
 end
 
 function move_cards()
+	card_off_y=30
+	if #cards==18 then
+		card_off_y=20
+	elseif #cards==21 then
+		card_off_y=10
+	end
+	
 	for n=0,#cards-1 do
 		local c=cards[n+1]
 		if c!="dead" then
 			local i=n%4
 			local j=flr(n/4)
-			c.x=i*card_w+i*3+card_off_x
+			c.x=i*card_w+i*3+1
 			c.y=j*card_h+j*3+card_off_y
 			c.idx=n
 		end
@@ -635,7 +714,6 @@ function check_sel()
 				0
 			)
 		end
-	
 	
 		if #cards>12 then
 			for i=#sel,1,-1 do
@@ -674,6 +752,12 @@ function check_sel()
 end
 
 function check_set(c1,c2,c3)
+	if c1=="dead" or
+				c2=="dead" or
+				c3=="dead" then
+		return false
+	end
+	
 	local is_set=true
 	for k in all({"n","s","f","c"})do
 		//loga({"checking key",k})
@@ -707,23 +791,32 @@ function check_cards(show)
 	for i in all(g) do
 		//loga({i,unpack(g[i])})
 		if check_set(
-			cards[i[1]],
-			cards[i[2]],
-			cards[i[3]]
+						cards[i[1]],
+						cards[i[2]],
+						cards[i[3]]
 		) then
 			n+=1
 			add(f,cards[i[1]])
 			add(f,cards[i[2]])
 			add(f,cards[i[3]])
+			
+			//debugging
+			loga({
+				"  set",
+				cards[i[1]].idx,
+				cards[i[2]].idx,
+				cards[i[3]].idx
+			})
 		end
 	end
 	n_av_set=n
-	loga({"checked all",n})
+	//loga({"checked all",n})
 	
 	if show then
 		local c=f[rand(1,#f)]
 		c.ht_tm=90
 	end
+	//loga({"nnnn",#g})
 end
 -->8
 -- effects
@@ -944,6 +1037,24 @@ function ospr(s,x,y,w,h,fh,fv)
 	end end
 end
 
+function dhand(s,x,y)
+	pal(7,0)
+	pal(6,0)
+	ospr(s,x,y)
+	pal()
+	spr(s,x,y)
+end
+
+function t2(s,x,y,c1,c2)
+	for j in all({-1,1})do
+		print(s,x,y+j,c2)
+	end
+	for i in all({-1,1})do
+		print(s,x+i,y,c2)
+	end
+	print(s,x,y,c1)
+end
+
 function loga(arr)
 	printh(a_to_s(arr))
 end
@@ -955,6 +1066,47 @@ function a_to_s(arr)
 	end
 	return s
 end
+-->8
+-- data
+d_tut={
+"the goal of 'set' is to identify",
+"groups of 3 cards, called a",
+"'set'.",
+"",
+"each card has four features:",
+"-color: red, green, or purple",
+"-shade: open, solid, or stripe", 
+"-symbol: pill, diamond, or sqig",
+"-number of symbols:1, 2, or 3",
+"",
+"a set is valid if the features",
+"for each card are all the same,",
+"or all different.",
+"",
+"12 cards are drawn initially.",
+"click the deck to draw more if",
+"you need. clear all 81 cards",
+"in the deck to win."
+}
+
+d_ab={
+"zen set is a single player",
+"interpretation of the card game",
+"'set'.",
+"",
+"it is meant to be a relaxing",
+"experience, and to help hone",
+"your skills at 'set'.",
+"",
+"'set' was designed by marsha",
+"falco in 1974 and published by",
+"set enterprises in 1991.",
+"zen set is not affiliated with",
+"set enterprises, inc. or the",
+"'set' card game. please consider",
+"buying the phsyical `set`",
+"card game."
+}
 __gfx__
 00000000077700000660000001000000a00000000000000000000000000000000000000000000000000000000000000000000000000000009999900000099999
 0000000077667776076000001a100000aa0000000007700000770000007777000007700000770000007777000007700000770000007777009000000000000009
@@ -973,12 +1125,12 @@ __gfx__
 066665500ffff9900111155000000000000000000007700000007700007777000007700000007700007777000007700000007700007777009000000000000009
 00055000000990000005500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009999900000099999
 07777770000070000000000000070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070700000
-07000070000707007777777700707000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007000000
-07000070007000707000000707000700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070700000
-07000070070000077000000770000070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-07000070700000707000000707000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-07000070070007007000000700700070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-07000070007070007777777700070700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+07000070000707007777777700707000000000000888880000000000000000000000000000000000000000000000000000000000000000000000000007000000
+07000070007000707000000707000700000000000880008000000000000000000000000000000000000000000000000000000000000000000000000070700000
+07000070070000077000000770000070000000000808888000000000000000000000000000000000000000000000000000000000000000000000000000000000
+07000070700000707000000707000007000000008888800800000000000000000000000000000000000000000000000000000000000000000000000000000000
+07000070070007007000000700700070000000008800888000000000000000000000000000000000000000000000000000000000000000000000000000000000
+07000070007070007777777700070700000000000000880000000000000000000000000000000000000000000000000000000000000000000000000000000000
 07777770000700000000000000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1054,7 +1206,7 @@ b000000000000030b0000000000000307000000000000030b0000000000000307000000000000030
 16666661551000001515551515511151555151515155151500000000000300010001000000000000000000000000000000000000220222202222266000000000
 __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000a0b10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-a0a100a0a0a10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000009c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000a0b100898a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+a0a100a0a0a100999a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 b0b0a1b0b0a10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

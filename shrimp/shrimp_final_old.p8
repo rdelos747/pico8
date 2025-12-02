@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- shrimp
-ver="020"
+ver="019"
 
 acx=0.2 --x accel
 p_x_max=1.5 --x speed max
@@ -39,12 +39,6 @@ p_taps={}
 function _init()
 	printh("=======start=======")
 	//reset_lvl()
-	menuitem(
-		1,
-		"restart level",
-		menu_lvl_retry
-	)
-	
 	reset_cam()
 	for i=1,#lvls do
 		p_scrs[i]=0
@@ -55,12 +49,6 @@ function _init()
 	
 	for i=1,6 do
 		logo_sms3[i]=1+rnd()
-	end
-end
-
-function menu_lvl_retry()
-	if crl<9 then
-		init_lvl()
 	end
 end
 
