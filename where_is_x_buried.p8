@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 32
+version 42
 __lua__
 px,py=64,64
 
@@ -26,9 +26,9 @@ function _draw()
 	})
 	
 	if mode==1 then
-	for o in all(objs)do
-		draw_obj_w_shadow(o)
-	end
+		for o in all(objs)do
+			draw_obj_w_shadow(o)
+		end
 	end
 	
 	--[[
@@ -42,7 +42,7 @@ function _draw()
 			if sc!=0 then
 				apply_shadow(s.x+x,s.y+y)
 			end
-			--[[
+		
 			if(sc==0)goto continue
 			wx,wy=s.x+x,s.y+y
 			if pget(wx ,wy)==11 then
@@ -50,9 +50,8 @@ function _draw()
 			end
 			
 			::continue::
-			]]--
-		end end
-	end
+		//end end
+	//end
 	]]--
 end
 
