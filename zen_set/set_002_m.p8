@@ -3,7 +3,7 @@ version 42
 __lua__
 -- set
 -- 2025-12-09
-ver="0.0.3"
+ver="0.0.2"
 
 -- constants
 card_w=29
@@ -22,7 +22,6 @@ c_pals={
 }
 
 mode="title"
-g_idx=0
 
 -- settings
 s_idx=nil
@@ -38,7 +37,7 @@ is_m=false
 
 tit_idx=0
 tit_tm=-10
-tit_l_tm=-1 -- load time
+g_idx=0
 
 effs={}
 leafs={}
@@ -148,16 +147,6 @@ function draw_mouse()
 	spr(3,mx,my)
 end
 
-function init_title()
-	if mode=="game" or 
-				mode=="garden" then
-		music(0)
-	end
-	mode="title"
-	s_idx=nil
-	tit_l_tm=-1
-end
-
 function draw_title()
 	print(ver,1,1,1)
 	//line(64,0,64,127,1)
@@ -178,44 +167,37 @@ function draw_title()
 	if s_idx!=nil then
 		draw_settings()
 	else
-		if tit_l_tm==-1 or 
-					flr(uits)%2==0 then
 		t2(
 			"play",
 			57,80,
 			tit_idx==0 and 15 or 1,0)
-		end
-		if tit_l_tm==-1 then
-			t2(
-				"settings",
-				49,90,
-				tit_idx==1 and 15 or 1,0)
-			t2(
-				"tutorial",
-				49,100,
-				tit_idx==2 and 15 or 1,0)
-			t2(
-				"about",
-				55,110,
-				tit_idx==3 and 15 or 1,0)
-			if not is_m then
-				dhand(
-					1,
-					38+uits%2,
-					79+tit_idx*10
-				)
-			end
+		t2(
+			"settings",
+			49,90,
+			tit_idx==1 and 15 or 1,0)
+		t2(
+			"tutorial",
+			49,100,
+			tit_idx==2 and 15 or 1,0)
+		t2(
+			"about",
+			55,110,
+			tit_idx==3 and 15 or 1,0)
+		if not is_m then
+			//ospr(
+			//	1,
+			//	38+uits%2,
+			//79+tit_idx*10)
+			dhand(
+				1,
+				38+uits%2,
+				79+tit_idx*10
+			)
 		end
 	end
 end
 
-function update_title()
-	if tit_l_tm>0 then
-		tit_l_tm-=1
-		if(tit_l_tm==0)init_game()
-		return
-	end
-	
+function update_title()	
 	tut_idx=0
 	
 	if tit_tm<7 then
@@ -245,12 +227,8 @@ function update_title()
 	end
 	
 	if click() then
-		if tit_idx==0 then
-			sfx(24)
-		else
-			sfx(3,-1,8,8)
-		end
-		if(tit_idx==0)tit_l_tm=45
+		sfx(3,-1,8,8)
+		if(tit_idx==0)init_game()
 		if(tit_idx==1)s_idx=1
 		if(tit_idx==2)mode="tutorial"
 		if(tit_idx==3)mode="about"
@@ -392,8 +370,9 @@ function update_settings()
 			s_afin=not s_afin
 		elseif s_idx==4 then 
 				s_aest=not s_aest
-		elseif s_idx==5 then
-			init_title()
+		elseif s_idx==5 then 
+			mode="title"
+			s_idx=nil
 		end
 	end
 end
@@ -479,7 +458,6 @@ end
 -- game
 
 function init_game()
-	music(50) --todo: game music
 	for e in all(effs)do
 		del(effs,e)
 	end
@@ -494,8 +472,6 @@ function init_game()
 	game_st_tm=time()
 	game_tm=game_st_tm
 	
-	g_idx=0 -- game idx
-	r_idx=0 -- garden idx
 	cards={}
 	deck={}
 	hint_sets={} -- hints
@@ -506,7 +482,7 @@ function init_game()
 	sh_tm=0 -- shake time
 	n_av_set=0 -- available sets
 	p_over=false
-	p_over_t=60
+	d_p_over=false
 	
 	for n=1,3 do
 	for s in all({5,6,7}) do
@@ -697,8 +673,6 @@ end
 function update_game()
 	if not p_over then
 		game_tm=time()-game_st_tm
-	else
-		goto after_auto
 	end
 	
 	-- update cards
@@ -761,29 +735,22 @@ function update_game()
 		end
 	end
 	
-	::after_auto::
-	
 	if p_over then
-		g_idx=2
 		//g_idx=min(g_idx,1)
-		//g_idx=min(g_idx,2)
-		if p_over_t==60 then
+		g_idx=1
+		if not d_p_over then
+			d_p_over=true
 			-- consider a delay
 			-- before this runs
-			if n_set==27 or 
-					(#deck==0 and n_av_set==0) then
-				sfx(5) 
-			end
-		elseif p_over_t==0 then
-			mode="garden"
+			sfx(5) 
 		end
-		p_over_t-=1
-		return
 	end
+	
+	::after_auto::
 	
 	-- click deck
 	if g_idx==0 and #cards<21 and
-				#deck>0  and click() then
+				#deck>0 and click() then
 		for i=0,2 do
 			add(cards,get_deck_card(i*5))
 			add_f_card(
@@ -1230,10 +1197,7 @@ end
 function draw_garden()
 	//line(64,0,64,127,1)
 	//rect(0,0,127,127,1)
-	t2(
-		p_over and "return to title" or "go back",
-		12,120,
-		r_idx==0 and 15 or 1,0)
+	t2("go back",12,120,1,0)
 	dhand(1,1+flr(uits)%2,119)
 	
 	//rect(40,40,87,87,1)
@@ -1292,29 +1256,13 @@ function draw_flower()
 end
 
 function update_garden()
-	if is_m then
-		if pt_m(12,120,20,5)then
-			r_idx=0
-		end
-	end
-	if click() then
-		if r_idx==0 then 
-			if p_over then
-				init_title()
-			else
-				mode="game"
-			end
-		end
-	end
 end
 -->8
 -- helpers
 
 l_click=false
 function click()
-	if auto_clk and not p_over then
-		return true
-	end
+	if(auto_clk)return true
 	
 	if(btnp(❎))return true
 	if stat(34)>0 then
