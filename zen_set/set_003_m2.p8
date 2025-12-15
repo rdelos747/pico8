@@ -2,8 +2,8 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- set
--- 2025-12-14
-ver="0.0.4"
+-- 2025-12-09
+ver="0.0.3"
 
 -- constants
 card_w=29
@@ -29,7 +29,7 @@ s_idx=nil
 s_time=true
 s_posb=true
 s_aest=true
-//s_afin=false
+s_afin=false
 
 logo_t=0
 uits,uitf=0,0
@@ -149,8 +149,8 @@ function draw_mouse()
 end
 
 function init_title()
-	if mode=="game" then //or 
-				//mode=="garden" then
+	if mode=="game" or 
+				mode=="garden" then
 		music(0)
 	end
 	mode="title"
@@ -224,10 +224,6 @@ function update_title()
 		tit_tm=rand(30,90)*-1
 	end
 	
-	if btnp() then
-		tit_idx=max(tit_idx,0)
-	end
-	
 	if btnp(⬇️) then
 		tit_idx=min(tit_idx+1,3)
 	elseif btnp(⬆️) then
@@ -248,10 +244,9 @@ function update_title()
 		end
 	end
 	
-	if click() and tit_idx>=0 then
+	if click() then
 		if tit_idx==0 then
 			sfx(24)
-			music(-1)
 		else
 			sfx(3,-1,8,8)
 		end
@@ -266,46 +261,53 @@ function draw_settings()
 	if mode=="game" then
 		t2(
 			"go back",
-			51,40,
-			s_idx==-1 and 15 or 1,0)
+			51,30,
+			s_idx==-2 and 15 or 1,0)
 
 		t2(
 			"get hint",
-			49,50,
-			s_idx==0 and 15 or 1,0)
+			49,40,
+			s_idx==-1 and 15 or 1,0)
 		
-		--[[
 		if not p_over then
 			t2(
 				"end game",
 				49,50,
 				s_idx==0 and 15 or 1,0)
 		end
-		]]--
 	end
 		
 	t2(
 		"show time",
-		25,70,
+		25,60,
 		s_idx==1 and 15 or 1,0)
 	t2(
 		s_time and "yes" or "no",
-		90,70, 
+		90,60, 
 		s_time and 11 or 3,0)
 		
 	t2(
 		"show possible\n         sets",
-		9,80,
+		9,70,
 		s_idx==2 and 15 or 1,0)
 	t2(
 		s_posb and "yes" or "no",
-		90,80, 
+		90,70, 
 		s_posb and 11 or 3,0)
 		
 	t2(
+		"auto finish",
+		17,85,
+		s_idx==3 and 15 or 1,0)
+	t2(
+		s_afin and "yes" or "no",
+		90,85, 
+		s_afin and 11 or 3,0)
+	
+	t2(
 		"card style",
 		21,95,
-		s_idx==3 and 15 or 1,0)
+		s_idx==4 and 15 or 1,0)
 	t2(
 		s_aest and "pretty" or "norm",
 		90,95, 
@@ -314,37 +316,31 @@ function draw_settings()
 	t2(
 		"return to title",
 		35,107,
-		s_idx==4 and 15 or 1,0)
+		s_idx==5 and 15 or 1,0)
 	
 	if not is_m then
-		local hx,hy=39,39
-		//if(s_idx==-1)hx,hy=39,39
+		local hx,hy=41,29
+		if(s_idx==-1)hx,hy=39,39
 		if(s_idx==0)hx,hy=39,49
-		//if(s_idx==1)hx,hy=15,59
-		if(s_idx==1)hx,hy=15,69
-		if(s_idx==2)hx,hy=-1,79
-		if(s_idx==3)hx,hy=11,94
-		if(s_idx==4)hx,hy=25,106
+		if(s_idx==1)hx,hy=15,59
+		if(s_idx==2)hx,hy=-1,69
+		if(s_idx==3)hx,hy=7,84
+		if(s_idx==4)hx,hy=11,94
+		if(s_idx==5)hx,hy=25,106
 		dhand(1,hx+uits%2,hy)
 	end
 end
 
 function update_settings()
-	if btnp() then
-		s_idx=max(
-			s_idx,
-			mode=="game" and -1 or 1
-		)
-	end
 	if btnp(⬇️) then
-		s_idx=min(s_idx+1,4)
+		s_idx=min(s_idx+1,5)
 		if p_over and s_idx==0 then
 			s_idx=1
 		end
 	elseif btnp(⬆️) then
 		s_idx=max(
 			s_idx-1,
-			mode=="game" and -1 or 1
+			mode=="game" and -2 or 1
 		)
 		if p_over and s_idx==0 then
 			s_idx=-1
@@ -355,37 +351,48 @@ function update_settings()
 	if is_m then
 		s_idx=-3
 		if mode=="game" then
-			if pt_m(49,40,32,5)then
+			if pt_m(51,30,28,5) or
+						pt_m(97,1,109,9) then
+				s_idx=-2
+			elseif pt_m(49,40,32,5)then
 				s_idx=-1
-			elseif pt_m(49,50,32,5) then
+			elseif pt_m(49,50,32,5) and
+										not p_over then
 				s_idx=0
 			end
 		end
-		if pt_m(22,70,80,5)then
+		if pt_m(27,60,73,5)then
 			s_idx=1
-		elseif pt_m(10,80,96,11)then
+		elseif pt_m(10,70,90,11)then
 			s_idx=2
-		elseif pt_m(21,95,91,5)then
+		elseif pt_m(17,85,86,5)then
 			s_idx=3
-		elseif pt_m(35,107,60,5)then
+		elseif pt_m(21,95,91,5)then
 			s_idx=4
+		elseif pt_m(35,107,60,5)then
+			s_idx=5
 		end
 	end
 	
-	if click() and s_idx>=-2 then
+	if click() then
 		sfx(3,-1,16,8)
-		if s_idx==-1 then
-			s_idx=nil	
-		elseif s_idx==0 then
+		if s_idx==-2 then
+			s_idx=nil
+		elseif s_idx==-1 then
 			s_idx=nil
 			check_cards(true)
+		elseif s_idx==0 then
+			s_idx=nil
+			p_over=true
 		elseif s_idx==1 then
 			s_time=not s_time
 		elseif s_idx==2 then
 			s_posb=not s_posb
-		elseif s_idx==3 then 
+		elseif s_idx==3 then
+			s_afin=not s_afin
+		elseif s_idx==4 then 
 				s_aest=not s_aest
-		elseif s_idx==4 then
+		elseif s_idx==5 then
 			init_title()
 		end
 	end
@@ -472,7 +479,7 @@ end
 -- game
 
 function init_game()
-	music(16)
+	music(16) --todo: game music
 	for e in all(effs)do
 		del(effs,e)
 	end
@@ -528,20 +535,12 @@ function draw_game()
 	//rect(0,0,127,127,1)
 	
 	-- deck
-	local dw=#deck>0 and 12 or 20
 	if(g_idx==0)pal(7,15)
-	rect(3,3,3+dw,11,7)
-	rectfill(1,1,1+dw,9,0)
-	rect(1,1,1+dw,9,7)
-	if #deck>0 then
-		print(#deck,4,3,7)
-	else
-		print("fin?",4,3,7)
-	end
+	rect(3,3,15,11,7)
+	rectfill(1,1,13,9,0)
+	rect(1,1,13,9,7)
+	print(#deck,4,3,7)
 	pal()
-	
-	//-- fin button
-	//spr(48,30,2,2,1)
 	
 	-- settings gear
 	spr(
@@ -742,7 +741,7 @@ function update_game()
 	-- mouse hovering
 	if is_m then
 		g_idx=-1
-		if pt_m(1,1,20,9) then
+		if pt_m(1,1,13,9) then
 			g_idx=0
 		elseif pt_m(97,1,8,8) then
 			g_idx=1
@@ -773,39 +772,30 @@ function update_game()
 			-- before this runs
 			if n_set==27 or 
 					(#deck==0 and n_av_set==0) then
-				sfx(5)
-				music(-1)
-			else
-				sfx(6)
-				music(-1)
+				sfx(5) 
 			end
 		elseif p_over_t==0 then
 			mode="garden"
-			music(0)
 		end
 		p_over_t-=1
 		return
 	end
 	
 	-- click deck
-	if g_idx==0 and click() then
-		if #deck==0 then
-			p_over=true
-		elseif #effs==0 and 
-									#cards<21 then
-			for i=0,2 do
-				add(cards,get_deck_card(i*5))
-					add_f_card(
-					5,5,
-					(i%4)*card_w+(i%4)*3+card_w/2,
-					4*card_h+card_off_y,
-					i*5
-				)
-			end
-			move_cards()
-			check_cards(false)
-			sfx(3,-1,8,8)
+	if g_idx==0 and #cards<21 and
+				#deck>0  and click() then
+		for i=0,2 do
+			add(cards,get_deck_card(i*5))
+			add_f_card(
+				5,5,
+				(i%4)*card_w+(i%4)*3+card_w/2,
+				4*card_h+card_off_y,
+				i*5
+			)
 		end
+		move_cards()
+		check_cards(false)
+		sfx(3,-1,8,8)
 	end
 	
 	-- click settings
@@ -843,8 +833,8 @@ function update_game()
 		check_sel()
 		g_idx=min(g_idx,#cards+2)
 		if n_set==27 or 
-					(#deck==0 and
-						n_av_set==0) then
+					(s_afin and #deck==0 
+					and n_av_set==0) then
 			p_over=true
 		end
 	end
@@ -1428,8 +1418,7 @@ d_tut={
 "each card has four features:",
 "-color: red, green, or purple",
 "-shade: open, solid, or stripe", 
-"-symbol: pill, diamond, or",
-"         squiggle",
+"-symbol: pill, diamond, or sqig",
 "-number of symbols: 1, 2, or 3",
 "",
 "a set is valid if each feature",
