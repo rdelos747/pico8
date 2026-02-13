@@ -32,14 +32,12 @@ zfar=500
 znear=-14
 lam=zfar/(zfar-znear)
 
-sec_s_a=0.11
-sec_s_n=7
-sec_d=8
-
-secr=50
-secr2=100
-
+//secs={}
+//areas={}
+secsz=100
 sex,sez=0,0
+//secr=2 --render radius for sectors
+secm=9 --map width in sectors
 
 d_mode=0
 mode=0
@@ -60,7 +58,7 @@ function _init()
 	end)
 	
 	for t in all(hand_tris)do
-		add(t,5)
+		add(t,{5,nil})
 	end
 	hand=obj(
 		hand_tris,
@@ -71,25 +69,18 @@ function _init()
 		
 	srand(2)
 
-	//areas={}
-	//secs={}
-	lvl={}
+	areas={}
 	//add_me_area(500,500,2)
-	//add_st_area(0,500)
-	//add_cn_area(0,0)
+	add_st_area(0,500)
+	add_cn_area(0,0)
 	
 	//add_me_area(-111,-700,2)
-	add_me_area(0,0,2)
-	add_me_area(0,9,2)
-	//add_me_area(0,-400,2)
 	
 	srand(time())
-	
-	//d_mode=1
 end
 
 function _draw()
-	secr_ren=2
+	secr=2
 	//if l_num_o>25 then
 		//secr=1
 	//end
@@ -105,9 +96,6 @@ function _draw()
 	t_sorted_ll=nil
 	n_t_sorted=0
 	n_o_proj=0
-	
-	n_sec_chk=0
-	n_sec_fnd=0
 	
 	if mode==0 then
 		draw_pov()
@@ -139,10 +127,10 @@ function draw_pov()
 		)
 	)
 	
-	proj_secs("sp",sec_d) //spikes
-	proj_secs("sh",2) //shadows
-	proj_secs("sy",5) //symbols
-	proj_secs("tr",3) //terms
+	proj_secs(secr,"sp")
+	proj_secs(1,"sh")
+	proj_secs(1,"sy")
+	proj_secs(1,"tr")
 	
 	draw_sorted()
 	
@@ -200,529 +188,148 @@ function draw_pov()
 			0)
 	end
 	
-	pria({n_sec_chk},0,0,5)
-	pria({n_sec_fnd},0,6,5)
-	
-	pria({n_t_sorted},0,12,5)
-	pria({n_t_sorted_d},0,18,5)
-	pria({n_o_proj},0,24,5)
-	pria({ppx,ppz},0,32,5)
+	pria({n_t_sorted},0,0,5)
+	pria({n_t_sorted_d},0,6,5)
+	pria({n_o_proj},0,12,5)
+	pria({ppx,ppz},0,18,5)
 	//print(pp_ya,0,12,5)
 	//print(num_o,0,18,8)
 	//pria({"rp",pp_rp},0,24,3)
 	//pria({"rp2",pp_rp2},0,30,3)
 end
 
-function proj_secs(k,r)	
-	//loga({"checking"})
-	local chkd={}
-	for ai=0,sec_s_n-1 do
-		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
-		for n=0,r do
-			n_sec_chk+=1
-			
-			local i=round(
-				sex+sin(pp_ya+a)*n)
-			local j=round(
-				sez+cos(pp_ya+a)*n)
-		
-			local id=(j>>8)+i
-			local sec=get_sec(i,j)
-			if chkd[id] then
-				//loga({"checked",i,j,id})
-			elseif sec then
-				//loga({"found",i,j,id})
-				n_sec_fnd+=1
-				//loga({dtb2(i)})
-				//loga({dtb2(j)})
-				//loga({dtb2(id)})
-				chkd[id]=true
-			
-				//local x=(i*secr2)-secr
-				//local z=(j*secr2)-secr
-			
-				for o in all(sec[k]) do
-					sx,sy,dz=proj(o.x,o.y,o.z)
-
-					if on_scr_x(sx) then
-						proj_obj(o)
-					end
-				end
-			end
+function proj_secs(r,k)
+	for a in all(areas)do
+		local asx=flr(a.x/secsz)
+		local asz=flr(a.z/secsz)
+		local povx=round(
+			(sex-asx)+1*sin(pp_ya))
+		local povz=round(
+			(sez-asz)+1*cos(pp_ya))
+	
+		if k!="sp" and 
+					(abs(povx)>r or 
+					abs(povz)>r) then
+			//return
+			goto skip_sec
 		end
+	
+		local jmin=max(0,povz-2)
+		local jmax=min(max(0,povz+2),a.ws)
+		local imin=max(0,povx-2)
+		local imax=min(max(0,povx+2),a.ws)
+	
+		for j=jmin,jmax do
+		for i=imin,imax do
+		for o in all(a.secs[j][i][k]) do
+			sx,sy,dz=proj(o.x,o.y,o.z)
+
+			if on_scr_x(sx) then
+				proj_obj(
+					o,
+					k=="sp" and 
+						i!=sex and 
+						j!=sez
+				)
+			end
+		end end end 
+		::skip_sec::
 	end
 end
 
 function draw_top_down()
 	cls(0)
-	local zm=15
-	local pmx=ppx/zm
-	local pmz=ppz/zm
+	local scz10=secsz/10
+	local nd=0
+	local pmx=ppx/scz10
+	local pmz=ppz/scz10
+
 	camera(pmx-64,pmz-64)
-		
-	for i=0,sec_s_n-1 do
-		local a=sec_s_a*(i/(sec_s_n-1))-(sec_s_a/2)
-		
-		line(
-			pmx,pmz,
-			pmx+sin(pp_ya-a)*64,
-			pmz+cos(pp_ya-a)*64,
-			1)
-	end
-	
-	loga({"checking"})
-	local nchk,nfnd=0,0
-	local chkd={}
-	for ai=0,sec_s_n-1 do
-		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
-		for n=0,sec_d do
-			nchk+=1
-			
-			local i=round(
-				sex+sin(pp_ya+a)*n)
-			local j=round(
-				sez+cos(pp_ya+a)*n)
-		
-			local id=(j>>8)+i
-			local sec=get_sec(i,j)
-			if chkd[id] then
-				loga({"checked",i,j,id})
-			elseif sec then
-				loga({"found",i,j,id})
-				nfnd+=1
-				loga({dtb2(i)})
-				loga({dtb2(j)})
-				loga({dtb2(id)})
-				chkd[id]=true
-			
-				local x=(i*secr2)-secr
-				local z=(j*secr2)-secr
-			
+
+	for a in all(areas)do
+		local asx=flr(a.x/secsz)
+		local asz=flr(a.z/secsz)
+		local povx=round(
+			(sex-asx)+1*sin(pp_ya))
+		local povz=round(
+			(sez-asz)+1*cos(pp_ya))
+			--[[
+		local jmin=max(0,povz-secr)
+		local jmax=mid(1,povz+secr,a.ws)
+		local imin=max(0,povx-secr)
+		local imax=mid(1,povx+secr,a.ws)
+		]]--
+		local jmin=max(0,povz-2)
+		local jmax=min(max(0,povz+2),a.ws)
+		local imin=max(0,povx-2)
+		local imax=min(max(0,povx+2),a.ws)
+		//loga({jmin,jmax,imin,imax})
+		for j=jmin,jmax do
+		for i=imin,imax do
+			rect(
+				i*secsz/scz10+a.x/scz10,
+				j*secsz/scz10+a.z/scz10,
+				i*secsz/scz10+a.x/scz10+scz10,
+				j*secsz/scz10+a.z/scz10+scz10,
+				(i==povx and j==povz)and 13 or 1)
+			for o in all(a.secs[j][i].sp) do
+				local c=6
+				sx,sy,dz=proj(o.x,o.y,o.z)
+			 if on_scr(sx,sy)then
+			 	c=12
+			 	nd+=1
+			 end
 				rect(
-					x/zm,
-					z/zm,
-					(x+secr2)/zm,
-					(z+secr2)/zm,
-					n<3 and 13 or 1)
-		
-				for sp in all(sec.sp)do
-					pset(
-						sp.x/zm,
-						sp.z/zm,
-						5)
-				end
-				for sp in all(sec.tr)do
-					pset(
-						sp.x/zm,
-						sp.z/zm,
-						11)
-				end
-				for sp in all(sec.sy)do
-					pset(
-						sp.x/zm,
-						sp.z/zm,
-						8)
-				end
+					(o.x/scz10)-1,(o.z/scz10)-1,
+					(o.x/scz10)+1,(o.z/scz10)+1,
+					c
+				)
 			end
-		end
+			for r in all(a.secs[j][i].rs) do
+				pset(r.x/scz10,r.z/scz10,11)
+				circ(r.x/scz10,r.z/scz10,r.r/scz10,11)
+			end
+		end end 
 	end
-	
-	//pset(pmx,pmz,8)
-	
+		
+		//spr(1,ppx-4,ppz-4)
+	pset(pmx,pmz,8)
+		
+	line(
+		pmx,pmz,
+		pmx-cos(pp_ya+0.75)*40,
+		pmz+sin(pp_ya+0.75)*40,
+		9)
+		
 	pria({ppx,ppz},
 		pmx-64,pmz-64,8)
 	pria({sex,sez},
 		pmx-64,pmz-58,8)
-	pria({nchk,nfnd},
+	print(
+		"a "..pp_ya,
 		pmx-64,pmz-52,8)
+	pria({"num",nd},
+		pmx-64,pmz-46,8)
+	pria({"rp",pp_rp},
+		pmx-64,pmz-40,3)
+	pria({"rp2",pp_rp2},
+		pmx-64,pmz-34,3)
 end
 
 function draw_full_map()
 	//local w=0
 	//local h=0
-	local zm=50
 	cls()
 	camera(-64,-64)
 	for a in all(areas)do
 		for j=1,a.ws do
 		for i=1,a.ws do
 			for o in all(a.secs[j][i].sp)do
-				pset(o.x/zm,o.z/zm,5)
+				pset(o.x/100,o.z/100,5)
 			end
 		end end
 	end
-	pset(ppx/zm,ppz/zm,7)
 end
-
-function _update()
- alert=nil
- if mode==1 then
- 	update_term1()
- 	return
- elseif mode==2 then
- 	update_term2()
- 	return
- elseif mode==3 then
- 	update_term3()
- 	return
- end
- 
-	//if(btnp(❎))d_mode=(d_mode+1)%3
-	if btnp(❎) then
-		if d_mode==0 then
-			d_mode=1
-		elseif d_mode==1 then
-			d_mode=2
-		elseif d_mode==2 then
-			d_mode=0
-		end
-	end
-	
-	
-	update_player()
-	update_cam()
-	
-	sunx=ppx-1000
-	sunz=ppz
-	suny=-100
-	
-	sex=flr((ppx+secr)/secr2)
-	sez=flr((ppz+secr)/secr2)
-end
--->8
--- pov
-
-function proj_spr(s)
-	n_o_proj+=1
-	local px,py,dz=proj(
-		s.x,s.y,s.z)
-	if px<0 or px>127 or
-				py<0 or py>127 then
-		dz=0
-	end
-	sort_itm({
-		draw=s.tris,
-		pts={{x=px,y=py}},
-		data=s,
-		dz=dz
-	})
-end
-
---[[
-sorting all of the symbol tris
-is causing a huge slow down.
-it should be possible to project
-the symbol tris all at once
-]]--
-
-function proj_obj(o,f)
-	n_o_proj+=1
-	local ts={}
-	//local dz_max_all=-1
-	//local flat_max=-1
-	//loga({#o.tris})
-	for t in all(o.tris)do
-		local pts={} --projected pts
-		local dz_max=-1
-		for p in all(t.pts) do
-			x,y,z=rot3d(
-				p.x,
-				p.y,
-				p.z,
-				0,
-				0,
-				o.ro)
-			x,y,z=rot3d(
-				x,y,z,
-				o.pi,
-				o.ya,
-				0)
-			
-			local px,py,dz=proj(
-				x+o.x,y+o.y,z+o.z)
-			if(not on_scr_y(py))dz=0 
-			dz_max=max(dz_max,dz)
-			//loga({dz_max})
-			add(pts,{x=px,y=py})
-		end
-		
-		local i=1
-		while i<=#ts+1 do
-			if i>#ts or
-						dz_max>ts[i].dz then
-				//loga({dz_max})
-				add(ts,{
-					pts=pts,
-					col=t.c,
-					dz=dz_max
-				},i)
-				i=#ts+2
-			end
-			i+=1
-		end
-	end
-	
-	//printh(#ts)
-	
-	--[[
-	todo:
-	change f to be a number of
-	faces to render. at farther
-	distances render less faces
-	]]--
-
-	//f=false
-	local imin=1
-	//if(f)imin=#ts-1
-	for i=max(1,imin),#ts do
-		//local t=ts[i]
-		sort_itm(ts[i])
-	end
-end
-
-function sort_itm(itm)
-	//loga({itm.dz})
-	if itm.dz>1 then
-		n_t_sorted+=1
-	
-		//local newn={
-		//	tri=tt,
-		//	col=col,
-		//	dz=dz,
-		//	nxt=nil,
-		//	prv=nil
-		//}
-		itm.nxt=nil
-		itm.prv=nil
-		
-		//n_t_sort+=1
-		if t_sorted_ll==nil then
-			t_sorted_ll=itm
-			return
-		end
-		
-		local node=t_sorted_ll
-		while node!=nil do
-			//i+=1
-			if itm.dz>node.dz then
-				if node.prv then
-					node.prv.nxt=itm
-				else
-					t_sorted_ll=itm
-				end
-				itm.prv=node.prv
-				itm.nxt=node
-				node.prv=itm
-				return
-			end
-			if node.nxt==nil then
-				node.nxt=itm
-				itm.prv=node
-				return
-			end
-			node=node.nxt
-		end
-		
-		printh("node not added")
-		alert="oops"
-	end
-end
-
-function proj(x,y,z)
-	z,y,x=rot3d(
-		z-camz,
-		y-camy,
-		x-camx,
-		0,
-		-cam_ya,
-		-cam_pi)
-						
-	local dz=z*lam-lam*znear
-	local dz0=max(1,dz)	
-	
-	local px=mid(
-		-500,
-		(x*fov_c)/dz0,
-		500
-	)
-	local py=mid(
-		-500,
-		(y*fov_c)/dz0,
-		500
-	)
-			
-	px=-64*px+64
-	py=-64*py+64
-
-	return px,py,dz//,pxz,pyz
-end
-
---[[
-	hack for sprites:
-	when creating sprites, we set
-	the "tris" field to its 
-	render function. when the sort
-	function is called, the data
-	is shifted, and t[3] is either
-	the existing tris, or the 
-	render function
-]]--
-
-function draw_sorted()
-	n_t_sorted_d=0
-	local node=t_sorted_ll
-	while node!=nil do
-		
-		if type(node.draw)=="function" then
-			//draw_sprite(t)
-			node.draw(node)
-		else
-			n_t_sorted_d+=1
-			draw_tri(
-				node.pts,
-				node.col,
-				node.dz
-			)
-		end
-		node=node.nxt
-	end
-end
-
---[[
-function draw_sorted()
-	//sortdz(t_sorted)
-	tsa=0
-	for t in all(t_sorted)do
-		if type(t[1])=="function" then
-			//draw_sprite(t)
-			t[1](t)
-		elseif t[#t-1]=="flat" then
-			loga({"xxx",#t})
-			for i=1,#t-2 do
-				//loga({"here",type(tf)})
-				//
-				local tf=t[i]
-				loga({#tf[1],type(tf[2])})
-				draw_tri(tf[1],tf[2][1],nil)
-			end
-		else
-			tsa+=1
-			draw_tri(t,t[4][1],t[4][2])
-			//print(
-			//	t[1],
-			//	t[3][1],
-			//	t[3][2],
-			//	tsa%2==0 and 8 or 11)
-		end
-	end
-end
-]]--
-
-function rot2d(x,y,a)
-	local rx=x*cos(a)-y*sin(a)
-	local ry=x*sin(a)+y*cos(a)
-	return rx,ry,pz
-end
-
-function rot3d(x,y,z,pi,ya,ro)
-	--x axis rotation (pitch) 
-	local y1,z1=rot2d(y,z,pi)
-	--y axis rotation (yaw) 
-	local z2,x1=rot2d(z1,x,ya)
-	--z axis rotation (roll) 
-	local x2,y2=rot2d(x1,y1,ro)
-	
-	return x2,y2,z2
-end
-
-dz_cols={1,13,15`}
-function draw_tri(t,c,dz)
-	local ddz=min(ceil(dz/250),4)
-	pelogen_tri_hvb(
-	 t[1].x,t[1].y,
-	 t[2].x,t[2].y,
-	 t[3].x,t[3].y,
-	 ddz==1 and c or dz_cols[ddz-1],
-	 ddz)
-end
-
-//dz_mm=-30000
-function pelogen_tri_old(l,t,c,m,r,b,col,dzz)
-	//poke(0x5f34, 0x3)
-	color(col)
-	fillp(f)
-	
-	if(t>m) l,t,c,m=c,m,l,t
-	if(t>b) l,t,r,b=r,b,l,t
-	if(m>b) c,m,r,b=r,b,c,m
-	local i,j,k,r=(c-l)/(m-t),(r-l)/(b-t),(r-c)/(b-m),l
-	local cc=0
-	while t~=b do
-		//loga({
-		//	ceil(t),
-		//	min(flr(m),128),
-		//	j,i
-		//})
-		for t=ceil(t),min(flr(m),128),dzz do
-			rectfill(l,t,r,t)
-			r+=j
-			l+=i
-		end
-		l,t,m,i=c,m,b,k
-	end
-end
-
-function pelogen_tri_hvb(l,t,c,m,r,b,col,ddz)
-	color(col)
-	local a=rectfill
-	::_w_::
-	if(t>m)l,t,c,m=c,m,l,t
-	if(m>b)c,m,r,b=r,b,c,m
-	if(t>m)l,t,c,m=c,m,l,t
-
-	local q,p=l,c
-	if (q<c) q=c
-	if (q<r) q=r
-	if (p>l) p=l
-	if (p>r) p=r
-	if b-t>q-p then
-		l,t,c,m,r,b,col=t,l,m,c,b,r
-		goto _w_
-	end
-
-	local e,j,i=l,(r-l)/(b-t)
-	while m do
-		i=(c-l)/(m-t)
-		local f=m\1-1
-		f=f>127 and 127 or f
-		if(t<0)t,l,e=0,l-i*t,b and e-j*t or e
-		if col then
-			for t=t\1,f do
-				a(l,t,e,t)
-				l=i+l
-				e=j+e
-			end
-		else
-			for t=t\1,f,1 do
-				a(t,l,t,e)
-				l=i+l
-				e=j+e
-			end
-		end
-		l,t,m,c,b=c,m,b,r
-	end
-	--[[
-	if i<8 and i>-8 then
-		if col then
-			pset(r,t)
-		else
-			pset(t,r)
-		end
-	end
-	]]--
-end
--->8
--- terminals
 
 function draw_term1()
 	cls(1)
@@ -937,6 +544,397 @@ function draw_term3()
 	
 	srand(time())
 end
+
+function _update()
+ alert=nil
+ if mode==1 then
+ 	update_term1()
+ 	return
+ elseif mode==2 then
+ 	update_term2()
+ 	return
+ elseif mode==3 then
+ 	update_term3()
+ 	return
+ end
+ 
+	//if(btnp(❎))d_mode=(d_mode+1)%3
+	if btnp(❎) then
+		if d_mode==1 then
+			d_mode=2
+		elseif d_mode==2 then
+			d_mode=0
+		end
+	end
+	
+	
+	update_player()
+	update_cam()
+	
+	sunx=ppx-1000
+	sunz=ppz
+	suny=-100
+	
+	sex=flr(ppx/secsz)
+	sez=flr(ppz/secsz)
+end
+-->8
+-- pov
+
+function proj_spr(s)
+	n_o_proj+=1
+	local px,py,dz=proj(
+		s.x,s.y,s.z)
+	if px<0 or px>127 or
+				py<0 or py>127 then
+		dz=0
+	end
+	sort_tri(
+		{s.tris,{px,py}},s,dz)
+	
+	//add(tt,dz,1)
+	//add(tt,col,2)
+	//add(
+	//	t_sorted,
+	//	{dz,nil,s.tris,{px,py}}
+	//)
+end
+
+--[[
+sorting all of the symbol tris
+is causing a huge slow down.
+it should be possible to project
+the symbol tris all at once
+]]--
+
+function proj_obj(o,f)
+	n_o_proj+=1
+	local ts={}
+	//local dz_max_all=-1
+	local flat_max=-1
+	for t in all(o.tris)do
+		local pts={} --projected pts
+		local dz_max=-1
+		for i=1,3 do
+			x,y,z=rot3d(
+				t[i][1],
+				t[i][2],
+				t[i][3],
+				0,
+				0,
+				o.ro)
+			x,y,z=rot3d(
+				x,y,z,
+				o.pi,
+				o.ya,
+				0)
+			
+			local px,py,dz=proj(
+				x+o.x,y+o.y,z+o.z)
+			--[[
+			if px<-20 or px>147 or
+						py<-20 or py>147 then
+				dz=0
+			end
+			]]--
+			if(not on_scr_y(py))dz=0
+			//loga({px,py,dz})
+			//if 
+			dz_max=max(dz_max,dz)
+			add(pts,{px,py})
+		end
+		
+		--[[
+		local i=1
+		while i<#ts do
+			//if dz_max>dz_max_all then
+			//end
+			if i
+			i+=1
+		end
+		]]--
+		//loga({" ",dz_max})
+		local i=1
+		while i<=#ts+1 do
+			//loga({i,#ts})
+			if i>#ts or
+						dz_max>ts[i][3] then
+				add(ts,{pts,t[4],dz_max},i)
+				i=#ts+2
+			end
+			i+=1
+		end
+		
+		//sort_tri(pts,t[4],dz_max)
+	end
+	
+	//printh(#ts)
+	
+	--[[
+	todo:
+	change f to be a number of
+	faces to render. at farther
+	distances render less faces
+	]]--
+
+	//f=false
+	local imin=1
+	//if(f)imin=#ts-1
+	for i=max(1,imin),#ts do
+		local t=ts[i]
+		sort_tri(t[1],t[2],t[3])
+	end
+end
+
+--[[
+	inserts 2 infos:
+	1:z dist (highest of all pts in tri or sprite)
+	2:color (or sprite obj if sprite)
+	3..: existing info shifted
+]]--
+function sort_tri(tt,col,dz)
+	//if dz>1 and dz<zfar then
+	if dz>1 then
+		n_t_sorted+=1
+		//
+		//add(
+		//	tt,
+		//	flat and "flat" or col
+		//)
+		//add(tt,dz)
+		//tt.nxt=nil
+		local newn={
+			tri=tt,
+			col=col,
+			dz=dz,
+			nxt=nil,
+			prv=nil
+		}
+		
+		//n_t_sort+=1
+		if t_sorted_ll==nil then
+			t_sorted_ll=newn
+			return
+		end
+		
+		local node=t_sorted_ll
+		while node!=nil do
+			//i+=1
+			if dz>node.dz then
+				if node.prv then
+					node.prv.nxt=newn
+				else
+					t_sorted_ll=newn
+				end
+				newn.prv=node.prv
+				newn.nxt=node
+				node.prv=newn
+				return
+			end
+			if node.nxt==nil then
+				node.nxt=newn
+				newn.prv=node
+				return
+			end
+			node=node.nxt
+		end
+		
+		printh("node not added")
+		alert="oops"
+	end
+end
+
+function proj(x,y,z)
+	z,y,x=rot3d(
+		z-camz,
+		y-camy,
+		x-camx,
+		0,
+		-cam_ya,
+		-cam_pi)
+						
+	local dz=z*lam-lam*znear
+	local dz0=max(1,dz)	
+	
+	local px=mid(
+		-500,
+		(x*fov_c)/dz0,
+		500
+	)
+	local py=mid(
+		-500,
+		(y*fov_c)/dz0,
+		500
+	)
+			
+	px=-64*px+64
+	py=-64*py+64
+
+	return px,py,dz//,pxz,pyz
+end
+
+--[[
+	hack for sprites:
+	when creating sprites, we set
+	the "tris" field to its 
+	render function. when the sort
+	function is called, the data
+	is shifted, and t[3] is either
+	the existing tris, or the 
+	render function
+]]--
+
+function draw_sorted()
+	n_t_sorted_d=0
+	local node=t_sorted_ll
+	while node!=nil do
+		
+		if type(node.tri[1])=="function" then
+			//draw_sprite(t)
+			node.tri[1](node.tri)
+		else
+			n_t_sorted_d+=1
+			draw_tri(
+				node.tri,
+				node.col[1],
+				node.col[2]
+			)
+		end
+		node=node.nxt
+	end
+end
+
+--[[
+function draw_sorted()
+	//sortdz(t_sorted)
+	tsa=0
+	for t in all(t_sorted)do
+		if type(t[1])=="function" then
+			//draw_sprite(t)
+			t[1](t)
+		elseif t[#t-1]=="flat" then
+			loga({"xxx",#t})
+			for i=1,#t-2 do
+				//loga({"here",type(tf)})
+				//
+				local tf=t[i]
+				loga({#tf[1],type(tf[2])})
+				draw_tri(tf[1],tf[2][1],nil)
+			end
+		else
+			tsa+=1
+			draw_tri(t,t[4][1],t[4][2])
+			//print(
+			//	t[1],
+			//	t[3][1],
+			//	t[3][2],
+			//	tsa%2==0 and 8 or 11)
+		end
+	end
+end
+]]--
+
+function rot2d(x,y,a)
+	local rx=x*cos(a)-y*sin(a)
+	local ry=x*sin(a)+y*cos(a)
+	return rx,ry,pz
+end
+
+function rot3d(x,y,z,pi,ya,ro)
+	--x axis rotation (pitch) 
+	local y1,z1=rot2d(y,z,pi)
+	--y axis rotation (yaw) 
+	local z2,x1=rot2d(z1,x,ya)
+	--z axis rotation (roll) 
+	local x2,y2=rot2d(x1,y1,ro)
+	
+	return x2,y2,z2
+end
+
+function draw_tri(t,c,f)
+	pelogen_tri(
+	 t[1][1],t[1][2],
+	 t[2][1],t[2][2],
+	 t[3][1],t[3][2],
+	 c,f)
+	//p01_335(
+	//	t[3][1],t[3][2],
+	//	t[4][1],t[4][2],
+	//	t[5][1],t[5][2],
+	//	c,f
+	//)
+	//fillp()
+end
+
+function pelogen_tri(l,t,c,m,r,b,col,f)
+	//poke(0x5f34, 0x3)
+	color(col)
+	fillp(f)
+	
+	if(t>m) l,t,c,m=c,m,l,t
+	if(t>b) l,t,r,b=r,b,l,t
+	if(m>b) c,m,r,b=r,b,c,m
+	local i,j,k,r=(c-l)/(m-t),(r-l)/(b-t),(r-c)/(b-m),l
+	while t~=b do
+		for t=ceil(t),min(flr(m),128) do
+			rectfill(l,t,r,t)
+			r+=j
+			l+=i
+		end
+		l,t,m,i=c,m,b,k
+	end
+end
+
+function sortdz(a)
+ for i=1,#a do
+  local j=i
+  while j>1 and a[j-1][1]>a[j][1] do
+   a[j],a[j-1]=a[j-1],a[j]
+   j=j-1
+  end
+ end
+end
+
+--[[
+function p01_335(x0,y0,x1,y1,x2,y2,col)
+ color(col)
+ if(y1<y0)x0,x1,y0,y1=x1,x0,y1,y0
+ if(y2<y0)x0,x2,y0,y2=x2,x0,y2,y0
+ if(y2<y1)x1,x2,y1,y2=x2,x1,y2,y1
+ if max(x2,max(x1,x0))-min(x2,min(x1,x0)) > y2-y0 then
+  col=x0+(x2-x0)/(y2-y0)*(y1-y0)
+  p01_trapeze_h(x0,x0,x1,col,y0,y1)
+  p01_trapeze_h(x1,col,x2,x2,y1,y2)
+ else
+  if(x1<x0)x0,x1,y0,y1=x1,x0,y1,y0
+  if(x2<x0)x0,x2,y0,y2=x2,x0,y2,y0
+  if(x2<x1)x1,x2,y1,y2=x2,x1,y2,y1
+  col=y0+(y2-y0)/(x2-x0)*(x1-x0)
+  p01_trapeze_w(y0,y0,y1,col,x0,x1)
+  p01_trapeze_w(y1,col,y2,y2,x1,x2)
+ end
+end
+function p01_trapeze_h(l,r,lt,rt,y0,y1)
+ lt,rt=(lt-l)/(y1-y0),(rt-r)/(y1-y0)
+ if(y0<0)l,r,y0=l-y0*lt,r-y0*rt,0
+ y1=min(y1,128)
+ for y0=y0,y1 do
+  rectfill(l,y0,r,y0)
+  l+=lt
+  r+=rt
+ end
+end
+function p01_trapeze_w(t,b,tt,bt,x0,x1)
+ tt,bt=(tt-t)/(x1-x0),(bt-b)/(x1-x0)
+ if(x0<0)t,b,x0=t-x0*tt,b-x0*bt,0
+ x1=min(x1,128)
+ for x0=x0,x1 do
+  rectfill(x0,t,x0,b)
+  t+=tt
+  b+=bt
+ end
+end
+--]]
 -->8
 -- player
 
@@ -963,7 +961,7 @@ function update_player()
 	pp_ya=pp_ya%1
 	
 	local ppv=0
-	if btn(🅾️) then
+	if btn(❎) then
 		if btn(⬇️) then
 			pp_pi=max(-0.20,pp_pi-0.01)
 		elseif btn(⬆️) then
@@ -988,23 +986,20 @@ function update_player()
 	local po={x=ppx,z=ppz,w=8,d=8}
 	local can_x,can_z=true,true
 	
-	//for a in all(areas)do
-	//local asx=flr(a.x/secsz)
-	//local asz=flr(a.z/secsz)
-//	local povx=sex-asx
-	//local povz=sez-asz
+	for a in all(areas)do
+	local asx=flr(a.x/secsz)
+	local asz=flr(a.z/secsz)
+	local povx=sex-asx
+	local povz=sez-asz
 		
-	//local jmin=max(0,povz-2)
-	//local jmax=min(max(0,povz+2),a.ws)
-	//local imin=max(0,povx-2)
-	//local imax=min(max(0,povx+2),a.ws)
+	local jmin=max(0,povz-2)
+	local jmax=min(max(0,povz+2),a.ws)
+	local imin=max(0,povx-2)
+	local imax=min(max(0,povx+2),a.ws)
 	
-	for j=sez-1,sez+1 do
-	for i=sex-1,sex+1 do
-		local sec=get_sec(j,i)
-		if sec==nil then
-			goto update_continue
-		end
+	for j=jmin,jmax do
+	for i=imin,imax do
+		local sec=a.secs[j][i]
 		
 		-- check spike collision
 		for o in all(sec.sp)do
@@ -1033,10 +1028,7 @@ function update_player()
 				end
 			end
 		end
-		
-		::update_continue::
-	end end
-	//end end end
+	end end end
 	
 	if touch_r and pp_rp>=100 then
 		pp_rp=100
@@ -1151,16 +1143,8 @@ end
 -- helpers
 
 function obj(tris,x,y,z,ya,pi,ro,w,d,up)
-	//if type
-	local tt=nil
-	if type(tris)=="function" then
-		tt=tris
-	else
-		tt=read_tris(tris)
-	end
-	
 	local o={
-		tris=tt,
+		tris=tris,
 		x=x,y=y,z=z,
 		ya=ya,pi=pi,ro=ro,
 		w=w,d=d, --width/depth
@@ -1168,41 +1152,6 @@ function obj(tris,x,y,z,ya,pi,ro,w,d,up)
 		update=up
 	}
 	return o
-end
-
-function read_tris(tr)
-	local out={}
-	for t in all(tr)do //evry tri
-		//local tt={pts={},c=t[4]}
-		local pts={}
-		for pi=1,3 do //evry pt
-			//local pt={}
-			local sp=split(t[pi],",")
-				//pt.x=sp[1]
-				//pt.y=sp[2]
-				//pt.z=sp[3]
-			//loga({sp[1]})
-			add(pts,{
-				x=sp[1],
-				y=sp[2],
-				z=sp[3]
-			})
-		end
-		add(out,{
-			pts=pts,
-			c=t[4]
-		})
-	end
-	
-	return out
-end
-
-function get_sec(i,j)
-	if lvl[j] and lvl[j][i] then
-		return lvl[j][i]
-	end
-	
-	return nil
 end
 
 function rand(bot,top)
@@ -1248,16 +1197,12 @@ function dist(x1,y1,x2,y2)
  return max(a0,b0)*0.9609+min(a0,b0)*0.3984
 end
 
-function p_to_s(x,y,z)
-	return ""..x..","..y..","..z
-end
-
 --debug functions
 --todo remove
 function a_to_s(arr)
-	local s=tostr(arr[1])
+	local s=arr[1]
 	for i=2,#arr do
-		s=s.." "..tostr(arr[i])
+		s=s.." "..arr[i]
 	end
 	return s
 end
@@ -1269,109 +1214,83 @@ end
 function pria(arr,x,y,c)
 	print(a_to_s(arr),x,y,c)
 end
-
-function dtb2(num)
-	local n1=num
-	local n2=num
- local bin=""
-	
-	n2<<=1
-	for i=1,16 do
-  bin=n2 %2\1 ..bin
-  n2<<=1
-  if i%4==0 and i<32 then
-   bin=" "..bin
-  end
-	end
-	
-	for i=1,16 do
-  bin=n1 %2\1 ..bin
-  n1>>>=1
-  if i%4==0 and i<32 then
-   bin=" "..bin
-  end
-	end
- 
- return bin
-end
 -->8
 -- models
-
 hand_tris={
 	{ --arm 1
-		"-1.5,2.5,0",
-		"-1.5,8,0",
-		"1.5,2.5,0"
+		{-1.5,2.5,0},
+		{-1.5,8,0},
+		{1.5,2.5,0}
 	},
 	{ --arm 2
-		"1.5,2.5,0",
-		"-1.5,8,0",
-		"1.5,8,0"
+		{1.5,2.5,0},
+		{-1.5,8,0},
+		{1.5,8,0},
 	},
 	{ --palm 1
-		"-2,0,0",
-		"2,0,0",
-		"-1.5,2.5,0"
+		{-2,0,0},
+		{2,0,0},
+		{-1.5,2.5,0},
 	},
 	{ --palm 2
-		"2,0,0",
-		"1.5,2.5,0",
-		"-1.5,2.5,0"
+		{2,0,0},
+		{1.5,2.5,0},
+		{-1.5,2.5,0},
 	},
 	{ --thumb 1
-		"-1.5,2.5,0",
-		"-1.5,1,0",
-		"-2.5,-1,0"
+		{-1.5,2.5,0},
+		{-1.5,1,0},
+		{-2.5,-1,0},
 	},
 	{ --thumb 2
-		"-1.5,2.5,0",
-		"-2.5,-1,0",
-		"-2.8,0.5,0"
+		{-1.5,2.5,0},
+		{-2.5,-1,0},
+		{-2.8,0.5,0},
 	},
 	{ --index 1
-		"-2,0,0",
-		"-2.2,-2,0",
-		"-1.2,-2,0"
+		{-2,0,0},
+		{-2.2,-2,0},
+		{-1.2,-2,0},
 	},
 	{ --index 2
-		"-2,0,0",
-		"-1.2,-2,0",
-		"-1.2,0,0"
+		{-2,0,0},
+		{-1.2,-2,0},
+		{-1.2,0,0},
 	},
 	{ --index 3
-		"-2.2,-2,0",
-		"-1.2,-2,0",
-		"-1.7,-4.5,1"
+		{-2.2,-2,0},
+		{-1.2,-2,0},
+		{-1.7,-4.5,1},
 	},
 	{ --middle 1
-		"-1,0,0",
-		"-1,-2,0",
-		"0,-2,0"
+		{-1,0,0},
+		{-1,-2,0},
+		{0,-2,0}
 	},
 	{ --middle 2
-		"-1,0,0",
-		"0,-2,0",
-		"0,0,0"
+		{-1,0,0},
+		{0,-2,0},
+		{0,0,0}
 	},
 	{ --ring 1
-		"0,0,0",
-		"0.2,-1.8,0",
-		"1,-1.8,0"
+		{0,0,0},
+		{0.2,-1.8,0},
+		{1,-1.8,0}
 	},
 	{ --ring 2
-		"0,0,0",
-		"1,-1.8,0",
-		"1,0,0"
+		{0,0,0},
+		{1,-1.8,0},
+		{1,0,0}
 	},
 	{ --pinky 1
-		"1,0,0",
-		"1.2,-1.6,0",
-		"2,-1.6,0"
+		{1,0,0},
+		{1.2,-1.6,0},
+		{2,-1.6,0}
 	},
 	{ --pinky 2
-		"1,0,0",
-		"2,-1.6,0",
-		"2,0,0"
+		{1,0,0},
+		{2,-1.6,0},
+		{2,0,0}
 	}
 }
 
@@ -1399,43 +1318,38 @@ function spike(x,z,s_num,dr)
 		s.ya=sya
 	end
 	
-	-- before
-	-- 5015
-	-- after
-	-- ??
-	
 	local sp_tris={
 		{ -- west face
-			"-10,0,-10",
-			"-10,0,10",
-			p_to_s(rx-0.1,-100,rz),
-			1
+			{-10,0,-10},
+			{-10,0,10},
+			{rx-0.1,-100,rz},
+			{1}
 		},
 		{ -- east face
-			"10,0,10",
-			"10,0,-10",
-			p_to_s(rx+0.1,-100,rz),
-			0
+			{10,0,10},
+			{10,0,-10},
+			{rx+0.1,-100,rz},
+			{0}
 		},
 		{ -- north face
-			"10,0,-10",
-			"-10,0,-10",
-			p_to_s(rx,-100,rz-0.1),
-			0
+			{10,0,-10},
+			{-10,0,-10},
+			{rx,-100,rz-0.1},
+			{0}
 		},
 		{ --south face
-			"-10,0,10",
-			"10,0,10",
-			p_to_s(rx,-100,rz+0.1),
-			1
+			{-10,0,10},
+			{10,0,10},
+			{rx,-100,rz+0.1},
+			{1}
 		}
 	}
 	local sh_tris={
 		{
-			"-50,0,-10",
-			"-50,0,10",
-			"50,0,0",
-			5
+			{-50,0,-10},
+			{-50,0,10},
+			{50,0,0},
+			{5}
 		}
 	}
 	
@@ -1459,72 +1373,52 @@ end
 function term(x,z)
 	local t_tris={
 		{--scr 1
-			"-2,-4,-5",
-			"2,-4,-5",
-			"2,-8,-5",
-			2
+			{-2,-4,-5},{2,-4,-5},{2,-8,-5},
+			{2}
 		},
 		{--scr 2
-			"-2,-4,-5",
-			"-2,-8,-5",
-			"2,-8,-5",
-			2
+			{-2,-4,-5},{-2,-8,-5},{2,-8,-5},
+			{2}
 		},
 		{--front 1
-			"-4,0,-4",
-			"4,0,-4",
-			"4,-10,-4",
-			1
+			{-4,0,-4},{4,0,-4},{4,-10,-4},
+			{1}
 		},
 		{--front 2
-			"-4,0,-4",
-			"-4,-10,-4",
-			"4,-10,-4",
-			1
+			{-4,0,-4},{-4,-10,-4},{4,-10,-4},
+			{1}
 		},
 		{--back 1
-			"-4,0,4",
-			"4,0,4",
-			"4,-10,4",
-			13
+			{-4,0,4},{4,0,4},{4,-10,4},
+			{13}
 		},
 		{--back 2
-			"-4,0,4",
-			"-4,-10,4",
-			"4,-10,4",
-			13
+			{-4,0,4},{-4,-10,4},{4,-10,4},
+			{13}
 		},
 		{--left 1
-			"-4,0,-4",
-			"-4,0,4",
-			"-4,-10,-4",
-			13
+			{-4,0,-4},{-4,0,4},{-4,-10,-4},
+			{13}
 		},
 		{--left 2
-			"-4,0,4",
-			"-4,-10,4",
-			"-4,-10,-4",
-			13
+			{-4,0,4},{-4,-10,4},{-4,-10,-4},
+			{13}
 		},
 		{--right 1
-			"4,0,-4",
-			"4,0,4",
-			"4,-10,-4",
-			1
+			{4,0,-4},{4,0,4},{4,-10,-4},
+			{1}
 		},
 		{--right 2
-			"4,0,4",
-			"4,-10,4",
-			"4,-10,-4",
-			1
+			{4,0,4},{4,-10,4},{4,-10,-4},
+			{1}
 		},
 	}
 	local sh_tri={
 		{
-			"-10,0,-4",
-			"-10,0,4",
-			"10,0,0",
-			5
+			{-10,0,-4},
+			{-10,0,4},
+			{10,0,0},
+			{5}
 		}
 	}
 	local o_sh=obj(
@@ -1546,12 +1440,7 @@ function term(x,z)
 end
 
 function draw_sun(s)
-	circfill(
-		s.pts[1].x,
-		s.pts[1].y,
-		10,
-		9
-	)
+	circfill(s[2][1],s[2][2],10,9)
 end
 
 function symb(x,y,z,n,col)
@@ -1590,22 +1479,18 @@ function symb(x,y,z,n,col)
 end
 
 function symb_tri(a,l,col)
-	local dat={
-		{-1,-4},
-		{1,-4},
-		{0,l and 0 or -2},
-		//{col,nil}
+	local tri={
+		{-1,-4,0},
+		{1,-4,0},
+		{0,l and 0 or -2,0},
+		{col,nil}
 	}
-	local tri={}
 	for i=1,3 do
 		local x,y=rot2d(
-			dat[i][1],dat[i][2],a
-		)
-		//tri[i][1]=x
-		//tri[i][2]=y
-		add(tri,""..x..","..y..",0")
-	end
-	add(tri,col)
+			tri[i][1],tri[i][2],a)
+			tri[i][1]=x
+			tri[i][2]=y
+		end
 	return tri
 end
 
@@ -1674,50 +1559,45 @@ function add_cn_area(x,z)
 	})
 end
 
-function add_me_area(ci,cj,r)
+function add_me_area(x,z,ws)
 	local symbs={}
-	for k=1,3 do
-		symbs[k]={
-			i=rand(-r,r),
-			j=rand(-r,r),
-			n=rand(1,9)
+	for i=1,3 do
+		symbs[i]={
+			rand(0,ws),
+			rand(0,ws),
+			rand(1,9)
 		}
 		loga({
 			"symb",
-			symbs[k].i,
-			symbs[k].j,
-			symbs[k].n,
+			symbs[i][1],
+			symbs[i][2],
+			symbs[i][3],
 		})
 	end
 	
-	//local secs={}
-	for j=cj-r,cj+r do
-		//secs[j+jj]={}
-		lvl[j]={}
-		for i=ci-r,ci+r do
-			//secs[j][i]={
-			//	sp={},sh={},rs={},sy={},tr={}
-			//}
-			local sec={
+	local secs={}
+	for j=0,ws do
+		secs[j]={}
+		for i=0,ws do
+			secs[j][i]={
 				sp={},sh={},rs={},sy={},tr={}
 			}
-			local symb_n=-1
-			for sm in all(symbs)do
-				if j==sm.j and i==sm.i then
-					symb_n=sm.n
+			for k=1,1 do
+				local symb_n=-1
+				for sm in all(symbs)do
+					if j==sm[2] and i==sm[1] then
+						symb_n=sm[3]
+					end
 				end
+				
+				local rx=rand(0,secsz)+i*secsz+x
+				local rz=rand(0,secsz)+j*secsz+z
+				local sp,sh,sy=spike(rx,rz,symb_n)
+				add(secs[j][i].sp,sp)
+				add(secs[j][i].sh,sh)
+				//local symb=symb(rx-10,-10,rz,1)
+				add(secs[j][i].sy,sy)
 			end
-		
-			local sx=i*secr2
-			local sy=j*secr2
-			local rx=rand(-secr,secr)+sx
-			local rz=rand(-secr,secr)+sy
-			local sp,sh,sy=spike(rx,rz,symb_n)
-			add(sec.sp,sp)
-			add(sec.sh,sh)
-			add(sec.sy,sy)
-			
-			--add radiation
 			local nrs=rand(1,3)
 			for k=1,nrs do
 			//temp removed for test
@@ -1730,19 +1610,15 @@ function add_me_area(ci,cj,r)
 					})
 				]]--
 			end
-			
-			lvl[j][i]=sec
-			loga({"adding",i,j})
 		end
 	end
 	
-	//add(areas,{
-	//	x=x,z=z,
-	//	ws=ws, --width of area in sectors
-	//	secs=secs
-	//})
+	add(areas,{
+		x=x,z=z,
+		ws=ws, --width of area in sectors
+		secs=secs
+	})
 end
-
 __gfx__
 00000000009999000000000000000000000000000000005555500000000000555550000000000000000000000000000000000000000000000000000000000000
 00000000090000900000000000000000000000000000555555550000000055555555000000009000000900000000000000000000000000000000900000090000

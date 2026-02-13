@@ -100,7 +100,7 @@ sunx,suny,sunz=0,0,0
 
 
 function _init()
-	printh("====== start ======")
+printh("====== start ======")
 	
 	menuitem(1,"flip cam",
 		function() 
