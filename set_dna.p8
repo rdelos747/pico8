@@ -3,7 +3,7 @@ version 42
 __lua__
 -- set
 -- 2026-02-02
-ver="0.0.8"
+ver="0.0.9 dna"
 
 -- constants
 card_w=29
@@ -26,7 +26,7 @@ g_seed=-29
 
 g_idx=0
 
-allow_skip=false
+allow_skip=true
 
 -- settings
 s_idx=nil
@@ -59,7 +59,7 @@ function _init()
 	music(0)
 	
 	//testing
-	--[[
+
 	init_game()
 	for i=1,27 do
 	add(n_sets,{
@@ -69,7 +69,7 @@ function _init()
 		})
 	end
 	init_garden()
-	]]--
+
 end
 
 function _draw()
@@ -1292,6 +1292,7 @@ function draw_garden()
 	//line(64,0,64,127,1)
 	//line(0,64,127,64,1)
 	//rect(0,0,127,127,1)
+	print(ver,1,1,1)
 	
 	t2(
 		p_over and "return to title" or "go back",

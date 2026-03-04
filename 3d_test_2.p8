@@ -29,7 +29,7 @@ end
 function __draw()
 	// setfog(0)
 	if needredraw then
-		if sheight<128 then
+    if sheight<128 then
 			cls()
 			sspr(40,0,8,8,0,sheight,128,8)
 		end
