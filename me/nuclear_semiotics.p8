@@ -14,7 +14,7 @@ works:
 		- 
 ]]--
 
-ppx,ppy,ppz=0,-8,-12
+ppx,ppy,ppz=0,-8,-420
 pp_pi,pp_ya=0,0
 pp_rp=0 --rad poisoning temp
 pp_rp2=0 --rad poisoning perm
@@ -32,12 +32,17 @@ zfar=500
 znear=-14
 lam=zfar/(zfar-znear)
 
-sec_s_a=0.11
-sec_s_n=7
-sec_d=8
+sec_s_a=0.11 //sec search ang
+sec_s_n=7 //sec search slices
+sec_d={ //sec layer rend dists
+	sp=20,
+	sh=2,
+	sy=5,
+	tr=5
+}
 
-secr=50
-secr2=100
+secr=25
+secr2=50
 
 sex,sez=0,0
 
@@ -56,7 +61,7 @@ function _init()
 	printh("====== init ======")
 	
 	menuitem(1,"map",function()
-		d_mode=1
+		d_mode=(d_mode+1)%3
 	end)
 	
 	for t in all(hand_tris)do
@@ -71,16 +76,25 @@ function _init()
 		
 	srand(2)
 
-	//areas={}
-	//secs={}
 	lvl={}
-	//add_me_area(500,500,2)
-	//add_st_area(0,500)
+	add_me_area(0,6,2)
+	add_me_area(-6,0,2)
+	add_me_area(6,0,2)
+	add_st_area(0,-5)
 	//add_cn_area(0,0)
+	//add_st_area(0,3)
+	--[[
+	for k,v in pairs(lvl) do
+		loga({k})
+		for kk,vv in pairs(v) do
+			loga({"  ",kk})
+		end
+	end
+	]]--
 	
 	//add_me_area(-111,-700,2)
-	add_me_area(0,0,2)
-	add_me_area(0,9,2)
+	//add_me_area(0,0,2)
+	//add_me_area(0,9,2)
 	//add_me_area(0,-400,2)
 	
 	srand(time())
@@ -88,11 +102,13 @@ function _init()
 	//d_mode=1
 end
 
-function _draw()
-	secr_ren=2
-	//if l_num_o>25 then
-		//secr=1
-	//end
+function _draw()	
+	t_sorted_ll=nil
+	n_t_sorted=0
+	n_o_proj=0
+	
+	n_sec_chk=0
+	n_sec_fnd=0
 	
 	if d_mode==1 then
 		draw_top_down()
@@ -101,13 +117,6 @@ function _draw()
 		draw_full_map()
 		return
 	end
-	
-	t_sorted_ll=nil
-	n_t_sorted=0
-	n_o_proj=0
-	
-	n_sec_chk=0
-	n_sec_fnd=0
 	
 	if mode==0 then
 		draw_pov()
@@ -139,11 +148,7 @@ function draw_pov()
 		)
 	)
 	
-	proj_secs("sp",sec_d) //spikes
-	proj_secs("sh",2) //shadows
-	proj_secs("sy",5) //symbols
-	proj_secs("tr",3) //terms
-	
+	proj_secs()
 	draw_sorted()
 	
 	if alert then
@@ -200,57 +205,58 @@ function draw_pov()
 			0)
 	end
 	
-	pria({n_sec_chk},0,0,5)
-	pria({n_sec_fnd},0,6,5)
+	pria({ppx,ppz},0,0,5)
+	pria({"sc ch",n_sec_chk},0,6,5)
+	pria({"sc fn",n_sec_fnd},0,12,5)
 	
-	pria({n_t_sorted},0,12,5)
-	pria({n_t_sorted_d},0,18,5)
-	pria({n_o_proj},0,24,5)
-	pria({ppx,ppz},0,32,5)
-	//print(pp_ya,0,12,5)
-	//print(num_o,0,18,8)
-	//pria({"rp",pp_rp},0,24,3)
-	//pria({"rp2",pp_rp2},0,30,3)
+	pria({"o prj",n_o_proj},0,18,5)
+	pria({"n t s",n_t_sorted},0,30,8)
+	pria({"n t d",n_t_sorted_d},0,36,5)
 end
 
-function proj_secs(k,r)	
+function proj_secs()	
 	//loga({"checking"})
-	local chkd={}
+	local chkd={}	
+	for n=0,10 do
 	for ai=0,sec_s_n-1 do
 		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
-		for n=0,r do
-			n_sec_chk+=1
+		n_sec_chk+=1
 			
-			local i=round(
-				sex+sin(pp_ya+a)*n)
-			local j=round(
-				sez+cos(pp_ya+a)*n)
+		local i=round(
+			sex+sin(pp_ya+a)*n)
+		local j=round(
+			sez+cos(pp_ya+a)*n)				
 		
-			local id=(j>>8)+i
-			local sec=get_sec(i,j)
-			if chkd[id] then
-				//loga({"checked",i,j,id})
-			elseif sec then
-				//loga({"found",i,j,id})
-				n_sec_fnd+=1
-				//loga({dtb2(i)})
-				//loga({dtb2(j)})
-				//loga({dtb2(id)})
-				chkd[id]=true
-			
-				//local x=(i*secr2)-secr
-				//local z=(j*secr2)-secr
-			
-				for o in all(sec[k]) do
-					sx,sy,dz=proj(o.x,o.y,o.z)
+		local id=(j>>8)+i
+		local sec=get_sec(i,j)
+		if chkd[id] then
 
-					if on_scr_x(sx) then
-						proj_obj(o)
+		elseif sec then
+			//loga({"found",i,j,id})
+			n_sec_fnd+=1
+			//loga({dtb2(i)})
+			//loga({dtb2(j)})
+			//loga({dtb2(id)})
+			chkd[id]=true
+				
+			for k,v in pairs(sec_d) do
+				if n<v then
+					for o in all(sec[k]) do
+						sx,sy,dz=proj(o.x,o.y,o.z)
+
+						if on_scr_x(sx) then
+							proj_obj(o,k=="sp")
+						end
 					end
 				end
 			end
 		end
-	end
+			
+		if n_t_sorted>72 then
+			return
+		end
+		
+	end end
 end
 
 function draw_top_down()
@@ -270,12 +276,12 @@ function draw_top_down()
 			1)
 	end
 	
-	loga({"checking"})
+	//loga({"checking"})
 	local nchk,nfnd=0,0
 	local chkd={}
 	for ai=0,sec_s_n-1 do
 		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
-		for n=0,sec_d do
+		for n=0,10 do
 			nchk+=1
 			
 			local i=round(
@@ -286,13 +292,13 @@ function draw_top_down()
 			local id=(j>>8)+i
 			local sec=get_sec(i,j)
 			if chkd[id] then
-				loga({"checked",i,j,id})
+				//loga({"checked",i,j,id})
 			elseif sec then
-				loga({"found",i,j,id})
+				//loga({"found",i,j,id})
 				nfnd+=1
-				loga({dtb2(i)})
-				loga({dtb2(j)})
-				loga({dtb2(id)})
+				//loga({dtb2(i)})
+				//loga({dtb2(j)})
+				//loga({dtb2(id)})
 				chkd[id]=true
 			
 				local x=(i*secr2)-secr
@@ -368,7 +374,8 @@ function _update()
  end
  
 	//if(btnp(❎))d_mode=(d_mode+1)%3
-	if btnp(❎) then
+	--[[
+	if btn(🅾️) and btnp(❎) then
 		if d_mode==0 then
 			d_mode=1
 		elseif d_mode==1 then
@@ -377,6 +384,7 @@ function _update()
 			d_mode=0
 		end
 	end
+	]]--
 	
 	
 	update_player()
@@ -386,8 +394,8 @@ function _update()
 	sunz=ppz
 	suny=-100
 	
-	sex=flr((ppx+secr)/secr2)
-	sez=flr((ppz+secr)/secr2)
+	sex=round((ppx)/secr2)
+	sez=round((ppz)/secr2)
 end
 -->8
 -- pov
@@ -473,7 +481,7 @@ function proj_obj(o,f)
 
 	//f=false
 	local imin=1
-	//if(f)imin=#ts-1
+	if(f)imin=#ts-1
 	for i=max(1,imin),#ts do
 		//local t=ts[i]
 		sort_itm(ts[i])
@@ -635,7 +643,7 @@ function rot3d(x,y,z,pi,ya,ro)
 	return x2,y2,z2
 end
 
-dz_cols={1,13,15`}
+dz_cols={1,13,15}
 function draw_tri(t,c,dz)
 	local ddz=min(ceil(dz/250),4)
 	pelogen_tri_hvb(
@@ -1001,7 +1009,7 @@ function update_player()
 	
 	for j=sez-1,sez+1 do
 	for i=sex-1,sex+1 do
-		local sec=get_sec(j,i)
+		local sec=get_sec(i,j)
 		if sec==nil then
 			goto update_continue
 		end
@@ -1609,7 +1617,7 @@ function symb_tri(a,l,col)
 	return tri
 end
 
-function add_st_area(x,z)
+function add_st_area(ci,cj)
 	local secs={}
 	secs[0]={}
 	secs[0][0]={
@@ -1626,62 +1634,71 @@ function add_st_area(x,z)
 		{30,0,ansrs[3],3},
 		//{60,0,4,3},
 	}
+	
+	local sec={
+		sp={},sh={},rs={},sy={},tr={}
+	}
+	local x=ci*secr2
+	local z=cj*secr2
 	for pt in all(sps)do
 		local rx=pt[1]+x
 		local rz=pt[2]+z
 		//local symb_n=pt[3]
 		local sp,sh,sy=spike(
 			rx,rz,pt[3],pt[4])
-		add(secs[0][0].sp,sp)
-		add(secs[0][0].sh,sh)
-		add(secs[0][0].sy,sy)
+		add(sec.sp,sp)
+		add(sec.sh,sh)
+		add(sec.sy,sy)
 	end
-	
 	local term,t_sh=term(x,z)
 	term.ansrs=ansrs
 	term.inpt={3,3,3}
 	term.mode=1
-	add(secs[0][0].tr,term)
-	add(secs[0][0].sh,t_sh)
+	add(sec.tr,term)
+	add(sec.sh,t_sh)
 	
-	add(areas,{
-		x=x,z=z,
-		ws=0, --width of area in sectors
-		secs=secs
-	})
+	lvl[cj]={}
+	lvl[cj][ci]=sec
 end
 
-function add_cn_area(x,z)
-	local secs={}
-	secs[0]={}
-	secs[0][0]={
+function add_cn_area(ci,cj)
+	local x=ci*secr2
+	local z=cj*secr2
+	
+	local sec={
 		sp={},sh={},rs={},sy={},tr={}
 	}
 	local term2,t_sh2=term(x-20,z)
 	term2.mode=2
-	add(secs[0][0].tr,term2)
-	add(secs[0][0].sh,t_sh2)
+	add(sec.tr,term2)
+	add(sec.sh,t_sh2)
 	
 	local term3,t_sh3=term(x,z)
 	term3.mode=3
-	add(secs[0][0].tr,term3)
-	add(secs[0][0].sh,t_sh3)
-	
-	add(areas,{
-		x=x,z=z,
-		ws=0, --width of area in sectors
-		secs=secs
-	})
+	add(sec.tr,term3)
+	add(sec.sh,t_sh3)
+
+	lvl[cj]={}
+	lvl[cj][ci]=sec
 end
 
 function add_me_area(ci,cj,r)
+	local imin,imax=ci-r,ci+r
+	local jmin,jmax=cj-r,cj+r
+	
 	local symbs={}
 	for k=1,3 do
+		ri,rj=free_sec(
+			symbs,
+			imin,imax,
+			jmin,jmax
+		)
 		symbs[k]={
-			i=rand(-r,r),
-			j=rand(-r,r),
+			i=ri,
+			j=rj,
 			n=rand(1,9)
 		}
+				
 		loga({
 			"symb",
 			symbs[k].i,
@@ -1690,17 +1707,20 @@ function add_me_area(ci,cj,r)
 		})
 	end
 	
-	//local secs={}
-	for j=cj-r,cj+r do
-		//secs[j+jj]={}
-		lvl[j]={}
-		for i=ci-r,ci+r do
-			//secs[j][i]={
-			//	sp={},sh={},rs={},sy={},tr={}
-			//}
+	ti,tj=free_sec(
+		symbs,
+		imin,imax,
+		jmin,jmax
+	)
+	loga({"term",ti,tj})
+	
+	for j=jmin,jmax do
+		//lvl[j]={}
+		for i=imin,imax do
 			local sec={
 				sp={},sh={},rs={},sy={},tr={}
 			}
+			
 			local symb_n=-1
 			for sm in all(symbs)do
 				if j==sm.j and i==sm.i then
@@ -1712,10 +1732,23 @@ function add_me_area(ci,cj,r)
 			local sy=j*secr2
 			local rx=rand(-secr,secr)+sx
 			local rz=rand(-secr,secr)+sy
-			local sp,sh,sy=spike(rx,rz,symb_n)
-			add(sec.sp,sp)
-			add(sec.sh,sh)
-			add(sec.sy,sy)
+			
+			if j==tj and i==ti then
+				local term,t_sh=term(rx,rz)
+				term.ansrs={}
+				term.inpt={3,3,3}
+				term.mode=1
+				for s in all(symbs)do
+					add(term.ansrs,s.n)
+				end
+				add(sec.tr,term)
+				add(sec.sh,t_sh)
+			else
+				local sp,sh,sy=spike(rx,rz,symb_n)
+				add(sec.sp,sp)
+				add(sec.sh,sh)
+				add(sec.sy,sy)
+			end
 			
 			--add radiation
 			local nrs=rand(1,3)
@@ -1731,16 +1764,29 @@ function add_me_area(ci,cj,r)
 				]]--
 			end
 			
+			if(lvl[j]==nil)lvl[j]={}
 			lvl[j][i]=sec
 			loga({"adding",i,j})
 		end
 	end
-	
-	//add(areas,{
-	//	x=x,z=z,
-	//	ws=ws, --width of area in sectors
-	//	secs=secs
-	//})
+end
+
+function free_sec(arr,imin,imax,jmin,jmax)
+	local f=true
+	while f do
+	local ri=rand(imin,imax)
+	local rj=rand(jmin,jmax)
+		f=false
+		for o in all(arr) do
+			if o.i==ri and o.j==rj then
+				f=true
+			end
+		end
+		
+		if not f then
+			return ri,rj
+		end
+	end
 end
 
 __gfx__
