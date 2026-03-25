@@ -17,6 +17,10 @@ rp1_usb=5 --rad1 up spd boss
 rp1_ds=1 		--rad1 down speed
 rp2_s=1 			--rad2 up speed
 
+hand_d=-3.5 	--hand delay
+hand_up=0.07 --hand up speed
+hand_dn=0.07 --hand down speed
+
 sp_hs=1 	--spike hell speed
 sp_hd=20 --spike hell dist
 
@@ -124,6 +128,7 @@ function _init()
 		0,0,0,
 		0,0,
 		nil)
+	hand_t=hand_d
 	l_hand_t=-1
 	
 	//lvl={}
@@ -150,7 +155,6 @@ function reset_vars()
 	
 	suni=-1
 	sunj=0
-	brkng=false
 end
 
 function init_title()
@@ -226,9 +230,6 @@ function init_story_0()
 	pp_pi,pp_ya=0,0.83
 	mode="game"
 	story=0
-	
-	hand_d=-3.5 	--hand delay
-	hand_t=hand_d
 end
 
 function init_story_1()
@@ -263,9 +264,6 @@ function init_story_1()
 	add(keys,swd)
 	keyi=1
 	set_sun_pos()
-	
-	hand_d=-1 	--hand delay
-	hand_t=hand_d
 end
 
 function init_ending()
@@ -374,7 +372,7 @@ function _update()
 
 	if pp_rp2>=100 then
 		update_dead()
-	elseif atk_n<5 and not brkng then
+	elseif atk_n<5 then
 		update_player()
 	end
 	
@@ -397,12 +395,12 @@ function _update()
 	if ray_pts==0 and
 				key_t==0 and
 				not boss_on then
-		hand_t=max(hand_d,hand_t-0.07)
+		hand_t=max(hand_d,hand_t-hand_dn)
 	elseif ray_pts>2 or 
 								hand_t>hand_d or 
 								key_t>0 or
 								boss_on then
-		hand_t=min(1,hand_t+0.07)
+		hand_t=min(1,hand_t+hand_up)
 	end
 		
 	if story==1 then
@@ -497,7 +495,6 @@ function update_hell()
 end
 
 function update_hand_key_s0()
-	brkng=false
 	local k=keys[keyi]
 	if(not k)return
 	
@@ -526,7 +523,6 @@ function update_hand_key_s0()
 				) or
 				k.key_idx==4) then
 		k.t=k.t+0.001
-		brkng=k.key_idx!=4
 		if l_hand_t!=1 then
 			loop_sfx(37,1)
 		end

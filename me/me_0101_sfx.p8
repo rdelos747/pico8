@@ -3,47 +3,39 @@ version 42
 __lua__
 -- nuclear semiotics
 
-ver="0.2.3"
+ver="0.1.1"
 
 -- constants
-l_sfx={-1,-1,-1,-1}
-l_sfx_cur=nil
-l_sfx_lst=nil
-rpso=-1	
+
+rpso=-1
 walt=0	--walk time
 
 rp1_us=2.4 --rad1 up speed
-rp1_usb=5 --rad1 up spd boss
 rp1_ds=1 		--rad1 down speed
 rp2_s=1 			--rad2 up speed
+
+hand_d=-3.5 	--hand delay
+hand_up=0.07 --hand up speed
+hand_dn=0.07 --hand down speed
 
 sp_hs=1 	--spike hell speed
 sp_hd=20 --spike hell dist
 
---explode dirs
-exp_d={{1,0,0},{0,1,0},{0,0,1}}
-
 --globals
-//tita=rnd()
-tita=0.1
-titt=0
 
 ppx,ppy,ppz=0,-8,-420
 pp_pi,pp_ya=0,0
 pp_rp,pp_rp2=0,0
 pdd=30000
 keys={}
-keyi=-1
 lock_i=nil
 lock_j=nil
-//pchrg=false
 
 camx,camy,camz=0,0,0
 cam_ya,cam_pi=0,0
 cam_d=0
 cam_h=0
 
-suni,sunj=0,0
 sunx,suny,sunz=0,-200,0
 
 fov=0.15
@@ -56,8 +48,8 @@ pov_scr_t=0
 sec_s_a=0.11 //sec search ang
 sec_s_n=11 //sec search slices
 sec_d={ //sec layer rend dists
-	sp=10,
-	sh=2,
+	sp=20,
+	sh=5,
 	ky=5,
 	//sy=5,
 	tr=20
@@ -70,8 +62,7 @@ s_map=false
 mode="title"
 story=0
 alert=nil
-boss,bossr=nil,nil
-term=nil
+
 in_term=false
 t_idx_x=0 	--term idx left/right
 t_idx_y=-1 --term idx up/down
@@ -89,10 +80,6 @@ keys_d={
 	{ --blue key
 		n=0,
 		c={12,13,1}
-	},
-	{ --yellow spike
-		n=-1,
-		c={9,10,7}
 	}
 }
 
@@ -101,8 +88,6 @@ gs_c={6,7,13}
 
 function _init()
 	printh("====== init ======")
-	
-	poke(0x5f5c,255)
 	
 	for t in all(hand_tris)do
 		add(t,5)
@@ -124,46 +109,39 @@ function _init()
 		0,0,0,
 		0,0,
 		nil)
-	l_hand_t=-1
+	hand_t=hand_d
 	
-	//lvl={}
+	lvl={}
 	
-	//init_title()
-	init_story_0()
-	init_title() --hack but w/e
+	init_title()
 end
 
 function reset_vars()
-	pdd=60						--death delay
-	pdt=0							--death time
-	pp_rp=0 				--rad psn temp
-	pp_rp2=0 			--rad psn perm
-	hand_t=-2 		--hand time
-	l_hand_t=-2 --last hand time
-	act_sp=nil 	--active spike
-	key_t=0					--key get time
-	atk_n=0					--num atks on boss
-	b_spd=0.5			--boss speed
+	pdd=60			--death delay
+	pdt=0				--death time
+	pp_rp=0 	--rad psn temp
+	pp_rp2=0 --rad psn perm
+	hand_t=-2 --hand time
+	act_sp=nil --active spike
+	key_t=0				--key get time
 	
-	atk_t=0					--attack time
-	atk_t2=0				--attack time 2
-	
-	suni=-1
-	sunj=0
-	brkng=false
+	keys={}
 end
 
 function init_title()
 	mode="title"
-	ppx=(lock_i+2)*secr2
-	ppy=-30
-	ppz=lock_j*secr2
-	pp_ya,pp_pi=0.2299,0
-	
-	//srand(2)
-	//cur_me_key=0
-	//add_lk_area(0,0)
+	ppx=306.6851
+	ppy=-8
+	ppz=-1.009
+	pp_ya,pp_pi=0.2299,0.06
+	srand(2)
+	cur_me_key=0
+	add_me_area(0,0,2)
 	music(2)
+	
+	menuitem(1,"map",function()
+		s_map=not s_map
+	end)
 end
 
 function init_story_0()
@@ -185,10 +163,7 @@ function init_story_0()
 	assign a key number to each
 	element of keys_d
 	]]--
-	key_ord={}
-	for i=1,3 do
-		add(key_ord,rand(1,3)*2+2)
-	end
+	key_ord=rar({4,6,8})
 	loga({"ko",a_to_s(key_ord)})
 	for i=1,3 do
 		keys_d[i].n=key_ord[i]
@@ -203,18 +178,9 @@ function init_story_0()
 	
 	cur_me_key=1
 	lvl={}	
-	
-	//add_me_area(0,-4,1)
-	//add_me_area(0,4,1)
-	//add_me_area(4,0,1)
-	
 	add_me_area(0,-7,2)
-	add_me_area(4,-19,3)
-	add_me_area(14,-24,3)
 	add_lk_area(4,-12)
 	add_me_sp(2,1)
-	add_me_sp(0,1)
-	add_me_sp(2,-2)
 	
 	srand(time())
 	music(0)
@@ -222,19 +188,16 @@ function init_story_0()
 	reset_vars()
 	
 	ppy=-8
-	ppx,ppz=10,-10
-	pp_pi,pp_ya=0,0.83
+	ppx,ppz=40,5
+	--pp_pi,pp_ya=0,0.25
+	pp_pi,pp_ya=0,0.88
 	mode="game"
 	story=0
-	
-	hand_d=-3.5 	--hand delay
-	hand_t=hand_d
 end
 
 function init_story_1()
-	srand(time())
 	ppx,ppy,ppz=0,-100,0
-	pp_pi,pp_ya=0,0.88
+	pp_pi,pp_ya=0,0
 	mode="game"
 	story=1
 	
@@ -246,35 +209,9 @@ function init_story_1()
 	end)
 	
 	reset_vars()
-	loop_sfx(-1,1)
-	
-	--temp
-	local swd=obj(
-		swd_tris,
-		0,0,0,
-		0,0,0,
-		0,0,
-		nil
-	)
-	swd.ft=1
-	swd.t=0
-	swd.gs=true
-	swd.key_idx=4
-	add(keys,swd)
-	keyi=1
-	set_sun_pos()
-	
-	hand_d=-1 	--hand delay
-	hand_t=hand_d
 end
 
-function init_ending()
-	atk_t2=0
-	init_story_0()
-	init_title()
-end
-
-function _draw()
+function _draw()	
 	t_sorted_ll=nil
 	n_t_sorted=0
 	n_o_proj=0
@@ -293,15 +230,9 @@ function draw_title()
 	proj_pov()
 	draw_sorted()
 	proj_sun_rays()
-
-	//draw_log()
-	if titt>180 then
-		print(ver,1,1,1)
-		print("press ❎ to start",1,7,2)
-	elseif titt>60 then
-		spr(120,32,60,8,1)
-	end
 	
+	print(ver,1,1,1)
+	print("press ❎ to start",1,7,2)
 end
 
 function draw_game()
@@ -314,17 +245,15 @@ function draw_game()
 		proj_term()
 	else
 		proj_pov()
-		if atk_t2>-210 then
-			proj_hand()
-		end
+		proj_hand()
 	end
 	
 	if pdd>0 then
 		draw_sorted()
 	end
-		
-	proj_sun_rays()
-	
+	if story<1 then
+		proj_sun_rays()
+	end
 	if in_term then
 		draw_crt()
 	end
@@ -346,23 +275,305 @@ function draw_game()
 	end
 end
 
+function proj_pov()
+	if pp_rp2<100 then
+		cls(story==0 and 7 or 0)
+	end
+	
+	-- scrolling sky
+	if story==1 then
+		pov_scr_t=(pov_scr_t+1)%8
+		for j=0,16 do
+		for i=0,16 do
+			spr(
+				128,
+				i*8-pov_scr_t,
+				j*8-pov_scr_t)
+		end end
+	end
+	
+	camera(0,0)
+	
+	if pp_rp2<100 then
+		local gh=64+pp_pi*1024
+		gh=mid(0,gh,128)
+		rectfill(
+			0,gh,
+			127,gh+127,
+			story==0 and 15 or 1)
+	end
+	
+	//n_t_sort=0
+	
+	if story<1 then
+	proj_spr(
+		obj(
+			draw_sun,
+			sunx,suny,sunz,
+			0,0,0,0,0,
+			nil
+		)
+	)
+	end
+	
+	proj_secs()
+	//draw_sorted()
+end
+
+function draw_rad()
+	for i=1,pp_rp do
+		pset(
+			rand(0,127),
+			rand(0,127),
+			2)
+	end
+	for i=1,pp_rp2*5 do
+		pset(
+			rand(0,127),
+			rand(0,127),
+			0)
+	end
+end
+
+function draw_log()
+	pria({"x",ppx,"z",ppz,"ya",pp_ya},0,0,5)
+	pria({"sc ch",n_sec_chk},0,6,5)
+	pria({"sc fn",n_sec_fnd},0,12,5)
+	
+	pria({"o prj",n_o_proj},0,18,5)
+	pria({"n t s",n_t_sorted},0,30,8)
+	pria({"n t d",n_t_sorted_d},0,36,5)
+	pria({pp_rp,pp_rp2},0,42,11)
+	pria({#keys},0,48,11)
+end
+
+function proj_sun_rays()
+	ray_pts=0
+	local ray_pts_h=0
+	
+	local sx,sy=proj(sunx,suny,sunz)
+	//printh(sx)
+	if sx>=0 and sx<=127 then
+		//for p in all({
+		//pset(sx-10,sy-10,8)
+		local a=0
+		while a<1 do
+			//local ca,sa=cos(a),sin(a)
+			if pget(
+							sx+cos(a)*9,
+							sy+sin(a)*9
+						)==5 then
+				ray_pts_h+=1
+				//ray_pts+=1
+			elseif pget(
+							sx+cos(a)*9,
+							sy+sin(a)*9
+						)==9 then
+				//pset(sx+ca*9,sy+sa*9,8)
+				ray_pts+=1
+				for j=-5,5 do
+					local aa=a+j*0.002
+					line(
+						sx+cos(aa)*11,
+						sy+sin(aa)*11,
+						sx+cos(aa)*150,
+						sy+sin(aa)*150,
+						7)
+				end
+			end
+			a+=1/10
+		end
+		
+		//loga({ray_pts,ray_pts_h})
+		ray_pts+=ray_pts_h
+		
+		//ray_pts=min(ray_pts,ray_pts_h)
+		//if ray
+		
+		
+		if pget(sx,sy)==9 then
+			local fx=sx-64
+			circ(64+fx/16,55,10,7)
+			circ(64-fx/2,60,30,7)
+		end
+	end
+end
+
+function proj_hand()
+	//printh(hand_t)
+	local ht=max(hand_t,0)
+	hand.x=ppx
+	hand.z=ppz
+	if #keys>0 then
+		hand.y=-2-5*ht+pp_pi*50
+		hand.ro=0.35//0.07+0.08*ht
+		hand.ya=pp_ya-0.1
+		hand.pi=0.65
+		
+		keys[1].y=-2-7*ht+pp_pi*50
+	else
+		hand.y=-2-7*ht+pp_pi*50
+		hand.ro=0.07+0.08*ht
+		hand.ya=pp_ya
+		hand.pi=0//pp_pi
+	end
+		
+	if ht>0 then
+		proj_obj(hand,false)
+		if #keys>0 then
+			proj_obj(keys[1],false)
+		end
+	end
+end
+
+function proj_secs()	
+	//loga({"checking"})
+	local chkd={}	
+	for n=0,10 do
+	for ai=0,sec_s_n-1 do
+		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
+		n_sec_chk+=1
+			
+		local i=round(
+			sex+sin(pp_ya+a)*n)
+		local j=round(
+			sez+cos(pp_ya+a)*n)				
+		
+		local id=(j>>8)+i
+		local sec=get_sec(i,j)
+		if chkd[id] then
+			//lol
+		elseif sec then
+			//loga({"found",i,j,id})
+			n_sec_fnd+=1
+			//loga({dtb2(i)})
+			//loga({dtb2(j)})
+			//loga({dtb2(id)})
+			chkd[id]=true
+				
+			for k,v in pairs(sec_d) do
+				if n<v then
+					for o in all(sec[k]) do
+						sx,sy,dz=proj(o.x,o.y,o.z)
+						if on_scr_x(sx) then
+							proj_obj(o,k=="sp")
+						end
+					end
+				end
+			end
+		end
+			
+		if n_t_sorted>72 then
+			return
+		end
+		
+	end end
+end
+
+function draw_top_down()
+	cls(0)
+	local zm=10
+	local pmx=ppx/zm
+	local pmz=ppz/zm
+	camera(pmx-64,pmz-64)
+		
+	for i=0,sec_s_n-1 do
+		local a=sec_s_a*(i/(sec_s_n-1))-(sec_s_a/2)
+		
+		line(
+			pmx,pmz,
+			pmx+sin(pp_ya-a)*64,
+			pmz+cos(pp_ya-a)*64,
+			1)
+	end
+	
+	//loga({"checking"})
+	local nchk,nfnd=0,0
+	local chkd={}
+	for ai=0,sec_s_n-1 do
+		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
+		for n=0,10 do
+			nchk+=1
+			
+			local i=round(
+				sex+sin(pp_ya+a)*n)
+			local j=round(
+				sez+cos(pp_ya+a)*n)
+		
+			local id=(j>>8)+i
+			local sec=get_sec(i,j)
+			if chkd[id] then
+				//loga({"checked",i,j,id})
+			elseif sec then
+				//loga({"found",i,j,id})
+				nfnd+=1
+				//loga({dtb2(i)})
+				//loga({dtb2(j)})
+				//loga({dtb2(id)})
+				chkd[id]=true
+			
+				local x=(i*secr2)-secr
+				local z=(j*secr2)-secr
+			
+				rect(
+					x/zm,
+					z/zm,
+					(x+secr2)/zm,
+					(z+secr2)/zm,
+					n<3 and 13 or 1)
+		
+				for sp in all(sec.sp)do
+					pset(
+						sp.x/zm,
+						sp.z/zm,
+						5)
+				end
+				
+				for sp in all(sec.ky)do
+					pset(
+						sp.x/zm,
+						sp.z/zm,
+						12)
+				end
+				--[[
+				for sp in all(sec.sy)do
+					pset(
+						sp.x/zm,
+						sp.z/zm,
+						8)
+				end
+				]]--
+				--[[
+				for r in all(sec.rs)do
+					pset(
+						r.x/zm,
+						r.z/zm,
+						14)
+					circ(
+						r.x/zm,
+						r.z/zm,
+						r.r/zm,
+						11)
+				end
+				]]--
+			end
+		end
+	end
+	
+	//pset(pmx,pmz,8)
+	
+	pria({ppx,ppz},
+		pmx-64,pmz-64,8)
+	pria({sex,sez},
+		pmx-64,pmz-58,8)
+	pria({nchk,nfnd},
+		pmx-64,pmz-52,8)
+end
+
 function _update()
 	alert=nil
 	
 	if mode=="title" then
-		tita+=0.0001
-		ppx=(lock_i-1)*secr2
-		ppz=(lock_j)*secr2
-	
-		ppx+=cos(tita)*200
-		ppz+=sin(tita)*200
-		pp_ya=-tita-0.75
-	
-		sex=round((ppx)/secr2)
-		sez=round((ppz)/secr2)
-		update_cam()
-		
-		titt+=1
 		if(btn(❎))init_story_0()
 		return
 	end
@@ -374,35 +585,42 @@ function _update()
 
 	if pp_rp2>=100 then
 		update_dead()
-	elseif atk_n<5 and not brkng then
+	else
 		update_player()
 	end
 	
 	update_cam()
 	
-	sunx=ppx+suni*1000
-	sunz=ppz+sunj*1000
-	
-	boss_on=false
-	if story==1 then
-		local bx,by=proj(
-			boss.x,boss.y,boss.z
-		)
-		if bx>40 and bx<88 then
-			boss_on=true
-		end
-	end
+	sunx=ppx-1000
+	sunz=ppz
 	
 	-- update hand
 	if ray_pts==0 and
-				key_t==0 and
-				not boss_on then
-		hand_t=max(hand_d,hand_t-0.07)
+				key_t==0 then
+		hand_t=max(hand_d,hand_t-hand_dn)
 	elseif ray_pts>2 or 
 								hand_t>hand_d or 
-								key_t>0 or
-								boss_on then
-		hand_t=min(1,hand_t+0.07)
+								key_t>0 then
+		hand_t=min(1,hand_t+hand_up)
+	end
+	
+	if #keys>0 then 
+		if keys[1].gs and 
+					ray_pts>2 and
+					hand_t==1 then
+			keys[1].gs=false
+			set_key_c(
+				keys[1],
+				keys_d[keys[1].key_idx].c
+			)
+		elseif not keys[1].gs and
+									ray_pts<=2 then
+			keys[1].gs=true
+			set_key_c(
+				keys[1],
+				gs_c
+			)
+		end 
 	end
 		
 	if story==1 then
@@ -419,47 +637,37 @@ function _update()
 		if sec!=nil then
 			for k in all(sec.ky)do
 				k.ya+=0.01
-				if term.act_t==0 then
-					k.pi+=0.01 
-					k.ro+=0.01
-				end
+				k.pi+=0.01 
+				k.ro+=0.01
 			end
 		end
 	end end
 	
-	for k in all(keys) do
+	for k in all(keys)do
 		k.x=ppx
 		k.z=ppz
+		if hand_t==1 and 
+					act_sp!=nil and
+					act_sp.lock_n==k.key_idx then
+			k.t=min(1,k.t+0.001)
+		else
+			k.t=max(0,k.t-0.01)
+		end
+		
+		k.ya+=max(0.01,k.t)
+		k.pi+=max(0.01,k.t)
+		k.ro+=mid(0.01,k.t,1)/2
 	end
 	
 	if story==0 then
 		update_story_0()
-		update_hand_key_s0()
-	elseif story==1 and atk_n<5 then
+	elseif story==1 then
 		update_hell()
-		update_hand_key_s1()
 	end
-	
-	if atk_t2>0 or atk_n==5 then
-		atk_t2-=1
-		loga({atk_t2})
-		if atk_t2<=-300 then
-			init_ending()
-		end
-	end
-	
-	if l_hand_t==1 and hand_t!=1 then
-		loop_sfx(-1,1)
-	end
-	
-	l_hand_t=hand_t
 end
 
 function update_story_0()
-	l_sfx_cur="story 0"
 	act_sp=nil
-	
-	-- check if at lock spike
 	for j=lock_j-1,lock_j+1 do
 		local s=lvl[j][lock_i].sp[1]
 		if dist(ppx,ppz,s.x+10,s.z)<20 then
@@ -470,191 +678,17 @@ function update_story_0()
 end
 
 function update_hell()
-	l_sfx_cur="hell"
-	--move boss
-	local a=atan2(
-		ppx-boss.x,
-		ppz-boss.z)
-	boss.x+=cos(a)*b_spd
-	boss.z+=sin(a)*b_spd
-	bossr.x=boss.x
-	bossr.z=boss.z
-	
-
 	for s in all(lvl[0][0].sp)do
 		local a=atan2(s.x,s.z,0,0)
-		--temp comment
-		//s.x-=cos(a)*sp_hs
-		//s.z-=sin(a)*sp_hs
+		s.x-=cos(a)*sp_hs
+		s.z-=sin(a)*sp_hs
 	end
 	
 	for s in all(lvl[0][0].sh)do
 		local a=atan2(s.x,s.z,0,0)
-		--temp comment
-		//s.x-=cos(a)*sp_hs
-		//s.z-=sin(a)*sp_hs
+		s.x-=cos(a)*sp_hs
+		s.z-=sin(a)*sp_hs
 	end
-end
-
-function update_hand_key_s0()
-	brkng=false
-	local k=keys[keyi]
-	if(not k)return
-	
-	-- change key color in
-	-- sunlight
-	if k.gs and 
-				ray_pts>2 and
-				hand_t==1 then
-		k.gs=false
-		set_key_c(
-			k,
-			keys_d[k.key_idx].c
-		)
-	elseif not k.gs and
-								ray_pts<=2 then
-		k.gs=true
-		set_key_c(k,gs_c)
-	end 
-	
-	-- change key spin speed
-	if hand_t==1 and
-				term.act_t>0 and
-				((
-					act_sp!=nil and
-					act_sp.lock_n==k.key_idx
-				) or
-				k.key_idx==4) then
-		k.t=k.t+0.001
-		brkng=k.key_idx!=4
-		if l_hand_t!=1 then
-			loop_sfx(37,1)
-		end
-	else
-		k.t=max(0,k.t-0.01)
-	end
-		
-	-- spin key
-	k.ya+=max(0.01,k.t)
-	if k.key_idx!=4 then
-		k.pi+=max(0.01,k.t)
-		k.ro+=mid(0.01,k.t,1)/2
-	end
-	
-	
-	if k.t>0.13 then
-		deli(keys,keyi)
-		inc_key()
-		hand_t=0
-			
-		-- all keys destroyed,
-		-- add spike
-		if #keys==0 then
-			local swd=obj(
-				swd_tris,
-				term.x,-5,term.z,
-				0,0,0,
-				0,0,
-			nil
-			)
-			swd.ft=1
-			swd.t=0
-			swd.gs=true
-			swd.key_idx=4
-					
-			add(
-				lvl[lock_j][lock_i-1].ky,
-				swd
-			)
-			deli(
-				lvl[lock_j][lock_i-1].tr,
-				1
-			)
-				
-			keyi=1 --idx of spike
-		end
-	elseif k.t>=0.1 then
-		-- explode key
-		if k.key_idx==4 then
-			set_key_c(k,gs_c)
-			init_story_1()
-			return
-		end
-			
-		for ti=1,#k.tris do
-			local d=agw(exp_d,ti)
-			for p in all(k.tris[ti].pts) do
-				p.x+=0.5*d[1]
-				p.y+=0.5*d[2]
-				p.z+=0.5*d[3]
-			end
-		end
-	end
-end
-
-
-function update_hand_key_s1()
-	local k=keys[1]
-	
-	if hand_t==1 and ray_pts>2 then
-		k.t=k.t+0.001
-		
-		if l_hand_t!=1 then
-			loop_sfx(37,1)
-		end
-	elseif k.t<0.13 then
-		k.t=max(0,k.t-0.01)
-		if(k.t==0)key_t=0
-	end
-		
-	-- spin key
-	k.ya+=max(0.01,k.t)
-	
-	if k.t>0.13 then
-		if key_t==0 then
-			loga({"locking charge"})
-			set_key_c(
-				k,
-				keys_d[k.key_idx].c
-			)
-		end
-		key_t=30
-		
-		if boss_on then
-			atk_t+=1
-			if atk_t==30 then
-				loga({"releasing charge"})
-				set_key_c(k,gs_c)
-				k.t=0.12
-				
-				set_sun_pos()
-				atk_n+=1
-				if atk_n==5 then
-					atk_t2=60
-				else
-					atk_t2=60
-				end
-	
-				b_spd+=0.1
-			end
-		else
-			atk_t=0
-		end
-	end
-end
-
-function set_sun_pos()
-	local ni,nj=suni,sunj
-	while (ni==suni and nj==sunj) 
-							or
-							(ni==0 and nj==0)
-							do
-		ni=rand(-1,1)
-		nj=rand(-1,1)
-	end
-	loga({"set sun",ni,nj})
-	suni=ni
-	sunj=nj
 end
 -->8
 -- pov
@@ -674,6 +708,13 @@ function proj_spr(s)
 		dz=dz
 	})
 end
+
+--[[
+sorting all of the symbol tris
+is causing a huge slow down.
+it should be possible to project
+the symbol tris all at once
+]]--
 
 function proj_obj(o,f)
 	n_o_proj+=1
@@ -724,6 +765,14 @@ function proj_obj(o,f)
 	
 	//printh(#ts)
 	
+	--[[
+	todo:
+	change f to be a number of
+	faces to render. at farther
+	distances render less faces
+	]]--
+
+	//f=false
 	local imin=1
 	if(f)imin=#ts-1
 	for i=max(1,imin),#ts do
@@ -840,6 +889,36 @@ function draw_sorted()
 	end
 end
 
+--[[
+function draw_sorted()
+	//sortdz(t_sorted)
+	tsa=0
+	for t in all(t_sorted)do
+		if type(t[1])=="function" then
+			//draw_sprite(t)
+			t[1](t)
+		elseif t[#t-1]=="flat" then
+			loga({"xxx",#t})
+			for i=1,#t-2 do
+				//loga({"here",type(tf)})
+				//
+				local tf=t[i]
+				loga({#tf[1],type(tf[2])})
+				draw_tri(tf[1],tf[2][1],nil)
+			end
+		else
+			tsa+=1
+			draw_tri(t,t[4][1],t[4][2])
+			//print(
+			//	t[1],
+			//	t[3][1],
+			//	t[3][2],
+			//	tsa%2==0 and 8 or 11)
+		end
+	end
+end
+]]--
+
 function rot2d(x,y,a)
 	local rx=x*cos(a)-y*sin(a)
 	local ry=x*sin(a)+y*cos(a)
@@ -859,8 +938,8 @@ end
 
 dz_cols={1,13,15}
 function draw_tri(t,c,dz)
-	local ddz=min(ceil(dz/200),4)
-	if story==0 and ddz>1 then
+	local ddz=min(ceil(dz/250),4)
+	if c<0 and ddz>1 then
 		c=dz_cols[ddz-1]
 	end
 	
@@ -922,365 +1001,6 @@ function pelogen_tri_hvb(l,t,c,m,r,b,col,ddz)
 	]]--
 end
 -->8
--- proj
-
-function proj_pov()
-	if pp_rp2<100 then
-		cls(story==0 and 7 or 0)
-	end
-	
-	-- scrolling sky
-	if story==1 and
-				atk_t2>-90 then
-		pov_scr_t=(pov_scr_t+1)%8
-		for j=0,16 do
-		for i=0,16 do
-			spr(
-				128,
-				i*8-pov_scr_t,
-				j*8-pov_scr_t)
-		end end
-	end
-	
-	camera(0,0)
-	
-	if pp_rp2<100 and 
-				atk_t2>-120 then
-		local gh=64+pp_pi*1024
-		gh=mid(0,gh,128)
-		rectfill(
-			0,gh,
-			127,gh+127,
-			story==0 and 15 or 1)
-	end
-	
-	//n_t_sort=0
-	if atk_t2>-90 then
-		proj_spr(
-			obj(
-				draw_sun,
-				sunx,suny,sunz,
-				0,0,0,0,0,
-				nil
-			)
-		)
-	end
-	
-	if atk_t2>-160 then
-		proj_secs()
-	end
-	//draw_sorted()
-	
-	if atk_t2>0 then
-		if (atk_t2/2)%2==0 then
-			set_key_c(boss,{9})
-		else
-			set_key_c(boss,{0,1,1,0})
-		end
-	
-		local bx,by=proj(
-			boss.x,boss.y,boss.z) 
-		local sx,sy=proj(
-			keys[1].x,
-			keys[1].y-0.5,
-			keys[1].z)
-		
-		for _=1,10 do
-			local rx=sx+rand(-30,30)
-			local ry=sy+rand(-30,30)
-			line(
-				sx+rand(-10,10),
-				sy+rand(-10,10),
-				rx,
-				ry,
-				10)
-			line(
-				rx,
-				ry,
-				bx+rand(-2,2),
-				by+rand(-2,2),
-				10)
-		end
-	end
-end
-
-function proj_secs()	
-	//loga({"checking"})
-	local chkd={}	
-	local dpt=12
-	if(hand_t>0)dpt=8
-	for n=0,dpt do
-	for ai=0,sec_s_n-1 do
-		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
-		n_sec_chk+=1
-			
-		local i=round(
-			sex+sin(pp_ya+a)*n)
-		local j=round(
-			sez+cos(pp_ya+a)*n)				
-		
-		local id=(j>>8)+i
-		local sec=get_sec(i,j)
-		if chkd[id] then
-			//lol
-		elseif sec then
-			//loga({"found",i,j,id})
-			n_sec_fnd+=1
-			//loga({dtb2(i)})
-			//loga({dtb2(j)})
-			//loga({dtb2(id)})
-			chkd[id]=true
-				
-			for k,v in pairs(sec_d) do
-				if n<v then
-					for o in all(sec[k]) do
-						sx,sy,dz=proj(o.x,o.y,o.z)
-						if on_scr_x(sx) then
-							proj_obj(o,k=="sp")
-						end
-					end
-				end
-			end
-		end
-			
-		if n_t_sorted>60 then
-			return
-		end
-		
-	end end
-end
-
-function draw_log()
-	pria({"x",ppx,"z",ppz,"ya",pp_ya},0,0,5)
-	pria({"sc ch",n_sec_chk},0,6,5)
-	pria({"sc fn",n_sec_fnd},0,12,5)
-	
-	pria({"o prj",n_o_proj},0,18,5)
-	pria({"n t s",n_t_sorted},0,30,8)
-	pria({"n t d",n_t_sorted_d},0,36,5)
-	pria({pp_rp,pp_rp2},0,42,11)
-	pria({#keys},0,48,11)
-end
-
-function draw_sun(s)
-	if story==0 then
-		local c=9
-		if term.act_t>0 and
-					act_sp!=nil then
-			c=keys_d[act_sp.lock_n].c[1]
-		end
-		circfill(
-			s.pts[1].x,
-			s.pts[1].y,
-			10,
-			c
-		)
-	else
-		circfill(
-			s.pts[1].x,
-			s.pts[1].y,
-			10,
-			0
-		)
-		spr(7,
-			s.pts[1].x-8,
-			s.pts[1].y-8,
-			2,2
-		)
-	end
-end
-
-function proj_sun_rays()
-	ray_pts=0
-	local ray_pts_h=0
-	
-	local sx,sy=proj(sunx,suny,sunz)
-	//printh(sx)
-	if sx>=0 and sx<=127 then
-		//for p in all({
-		//pset(sx-10,sy-10,8)
-		local a=0
-		while a<1 do
-			//local ca,sa=cos(a),sin(a)
-			local sc=pget(
-				sx+cos(a)*9,
-				sy+sin(a)*9
-			)
-			if story==1 and sc==0 then
-				ray_pts+=1
-			elseif sc==5 then
-				ray_pts_h+=1
-				//ray_pts+=1
-			elseif sc==9 or 
-										sc==3 or
-										sc==8 or
-										sc==12 then
-				//pset(sx+ca*9,sy+sa*9,8)
-				ray_pts+=1
-				for j=-5,5 do
-					local aa=a+j*0.002
-					line(
-						sx+cos(aa)*11,
-						sy+sin(aa)*11,
-						sx+cos(aa)*150,
-						sy+sin(aa)*150,
-						7)
-				end
-			end
-			a+=1/10
-		end
-		
-		ray_pts+=ray_pts_h	
-		
-		if pget(sx,sy)==9 then
-			local fx=sx-64
-			circ(64+fx/16,55,10,7)
-			circ(64-fx/2,60,30,7)
-		end
-	end
-end
-
-function proj_hand()
-	local ht=max(hand_t,0)
-	hand.x=ppx
-	hand.z=ppz
-	if #keys>0 then
-		hand.y=-2-5*ht+pp_pi*50
-		hand.ro=0.35//0.07+0.08*ht
-		hand.ya=pp_ya-0.1
-		hand.pi=0.65
-		
-		keys[keyi].y=-2-7*ht+pp_pi*50
-	else
-		hand.y=-2-7*ht+pp_pi*50
-		hand.ro=0.07+0.08*ht
-		hand.ya=pp_ya
-		hand.pi=0//pp_pi
-	end
-		
-	if ht>0 then
-		proj_obj(hand,false)
-		if #keys>0 then
-			proj_obj(keys[keyi],false)
-		end
-	end
-end
-
-function draw_rad()
-	for i=1,pp_rp do
-		pset(
-			rand(0,127),
-			rand(0,127),
-			2)
-	end
-	for i=1,pp_rp2*5 do
-		pset(
-			rand(0,127),
-			rand(0,127),
-			0)
-	end
-end
-
-function draw_top_down()
-	cls(0)
-	local zm=10
-	local pmx=ppx/zm
-	local pmz=ppz/zm
-	camera(pmx-64,pmz-64)
-		
-	for i=0,sec_s_n-1 do
-		local a=sec_s_a*(i/(sec_s_n-1))-(sec_s_a/2)
-		
-		line(
-			pmx,pmz,
-			pmx+sin(pp_ya-a)*64,
-			pmz+cos(pp_ya-a)*64,
-			1)
-	end
-	
-	//loga({"checking"})
-	local nchk,nfnd=0,0
-	local chkd={}
-	for ai=0,sec_s_n-1 do
-		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
-		for n=0,10 do
-			nchk+=1
-			
-			local i=round(
-				sex+sin(pp_ya+a)*n)
-			local j=round(
-				sez+cos(pp_ya+a)*n)
-		
-			local id=(j>>8)+i
-			local sec=get_sec(i,j)
-			if chkd[id] then
-				//loga({"checked",i,j,id})
-			elseif sec then
-				//loga({"found",i,j,id})
-				nfnd+=1
-				//loga({dtb2(i)})
-				//loga({dtb2(j)})
-				//loga({dtb2(id)})
-				chkd[id]=true
-			
-				local x=(i*secr2)-secr
-				local z=(j*secr2)-secr
-			
-				rect(
-					x/zm,
-					z/zm,
-					(x+secr2)/zm,
-					(z+secr2)/zm,
-					n<3 and 13 or 1)
-		
-				for sp in all(sec.sp)do
-					pset(
-						sp.x/zm,
-						sp.z/zm,
-						5)
-				end
-				
-				for sp in all(sec.ky)do
-					pset(
-						sp.x/zm,
-						sp.z/zm,
-						12)
-				end
-				--[[
-				for sp in all(sec.sy)do
-					pset(
-						sp.x/zm,
-						sp.z/zm,
-						8)
-				end
-				]]--
-				--[[
-				for r in all(sec.rs)do
-					pset(
-						r.x/zm,
-						r.z/zm,
-						14)
-					circ(
-						r.x/zm,
-						r.z/zm,
-						r.r/zm,
-						11)
-				end
-				]]--
-			end
-		end
-	end
-	
-	//pset(pmx,pmz,8)
-	
-	pria({ppx,ppz},
-		pmx-64,pmz-64,8)
-	pria({sex,sez},
-		pmx-64,pmz-58,8)
-	pria({nchk,nfnd},
-		pmx-64,pmz-52,8)
-end
--->8
 -- player
 
 function update_cam()
@@ -1323,14 +1043,6 @@ function update_player()
 		if(btn(➡️))pp_ya-=0.01
 		if(btn(⬅️))pp_ya+=0.01
 		pp_ya=pp_ya%1
-	end
-	
-	if btnp(❎) and
-				story==0 and
-				#keys>0 and
-				ppvs==0 then
-		inc_key()
-		hand_t=0
 	end
 	
 	if ppy<-8 then
@@ -1386,41 +1098,28 @@ function update_player()
 			end
 		end
 		
-		if story==1 then
-			local d=dist(
-				ppx,ppz,
-				bossr.x,bossr.z)
-			if d<=bossr.r then
-				touch_r=true
-				pp_rp+=((bossr.r-d)/bossr.r)*rp1_usb
-			end
-		end
-		
 		-- check term
 		for t in all(sec.tr)do
-			local d=dist(ppx,ppz,t.x-15,t.z)
-			if d<15 and 
-						term.act_t==0 and
-						pp_ya>=0.68 and
-						pp_ya<=0.82 then
+			local d=dist(ppx,ppz,t.x-10,t.z)
+			if d<15 do
 				alert="❎ interact"
 				if btnp(❎) then
+					cur_term=t
+					mode=cur_term.mode
 					init_term()
 				end
 			end
 		end
 		
-		-- check touch map keys
+		-- check keys
 		for k in all(sec.ky)do
 			local d=dist(ppx,ppz,k.x,k.z)
-			if d<10 do
+			if d<5 do
 				//init_story_1()
 				add(keys,k)
 				del(sec.ky,k)
 				key_t=60
 				hand_t=0
-				keyi=#keys
-				music(16)
 			end
 		end
 		
@@ -1431,7 +1130,6 @@ function update_player()
 	if key_t>0 then
 		key_t-=1
 	end
-	//loga({key_t, hand_t})
 	
 	if touch_r and pp_rp>=100 then
 		pp_rp=100
@@ -1440,21 +1138,20 @@ function update_player()
 		pp_rp=max(0,pp_rp-rp1_ds)
 	end
 	
-	l_sfx_cur="rad"
 	local rps=flr(pp_rp/10)
 	local rps2=flr(rps/2)
 	if pp_rp==0 or pp_rp2>=100 then
-		loop_sfx(-1,1)
-		loop_sfx(-1,2)
+		sfx(-1,1)
+		sfx(-1,2)
 		if pp_rp2>=100 then
-			loop_sfx(24,2)
+			sfx(24)
 		end
 	elseif rps!=rpso then
-		loop_sfx(rps+10,1)
+		sfx(rps+10,1)
 		if rps>5 then
-			loop_sfx(rps2+18,2)
+			sfx(rps2+18,2)
 		else
-			loop_sfx(-1,2)
+			sfx(-1,2)
 		end
 	end	
 	
@@ -1474,11 +1171,7 @@ function update_dead()
 	if pdd==0 then
 		if(btnp(❎))pdd=-1
 	elseif pdd<-30 then
-		if story==0 then 
-			init_story_0()
-		else
-			init_story_1()
-		end
+		init_story_0()
 	else
 		pdd-=1
 	end
@@ -1498,7 +1191,7 @@ function proj_term()
 	cls(1)
 	camera(0,0)
 	//spr(41,60,60,2,2)
-	srand(term.seed)
+	srand(cur_term.seed)
 	//fillp(0b0011001111001100)
 	  //fillp(0b1111000000000000)
 	rectfill(10,10,117,50,0)
@@ -1612,7 +1305,7 @@ function proj_term()
 				false,true)
 		end
 		
-		local s=term.inpt[i+2]
+		local s=cur_term.inpt[i+2]
 		local o=symb(
 			10*i,
 			-10,
@@ -1620,14 +1313,35 @@ function proj_term()
 			s,
 			keys_d[term_ord[i+2]].c[1]
 		)
-		if term.act_t==0 or 
-					flr(term.act_t/8)%2==0 then
-			proj_obj(
-				o,
-				false
-			)
-		end
+		proj_obj(
+			o,
+			false
+		)
 	end
+	
+	for i=0,2 do
+		s=rand(0,3)
+		spr(86+s,5,67+i*8)
+		s=rand(0,3)
+		spr(86+s,4,67+i*8,1,1,true)
+	end
+	
+	local actv=true
+	for i=1,#cur_term.inpt do
+		local inpt=cur_term.inpt[i]
+		local ansr=keys_d[term_ord[i]].n
+		if(inpt!=ansr)actv=false
+	end
+	spr(100,4,62,2,1)
+	spr(70,5,62)
+	spr(
+		not actv and t_crt_t<15 and 114 or 115,
+		5,70)
+	spr(
+		actv and t_crt_t<15 and 98 or 99,
+		5,81)
+	spr(100,4,88,2,1,false,true)
+	spr(70,5,89)
 	
 	proj_obj(term_h,false)
 	
@@ -1654,32 +1368,6 @@ function update_term()
 	camx=0
 	camy=0
 	
-	local win=true
-	for i=1,#term.inpt do
-		local inpt=term.inpt[i]
-		local ansr=keys_d[term_ord[i]].n
-		if(inpt!=ansr)win=false
-	end
-	if win then
-		term.act_t+=1
-		if term.act_t==1 then
-			music(17)
-		end
-		if term.act_t>=60 then
-			in_term=false
-			loga({"win"})
-			
-			-- change colors of 
-			-- lock spikes
-			for j=lock_j-1,lock_j+1 do
-				local s=lvl[j][lock_i].sp[1]
-				set_key_c(s,{9})
-			end
-		end
-		
-		return
-	end
-	
 	if(btnp(🅾️))in_term=false
 	if btnp(⬅️) then
 		t_idx_x=max(-1,t_idx_x-1)	
@@ -1695,13 +1383,12 @@ function update_term()
 	
 	if btnp(❎) then
 		t_pr_t=10
-		local val=term.inpt[t_idx_x+2]
+		local val=cur_term.inpt[t_idx_x+2]
 		val=mid(
 			1,
 			9,
 			val+t_idx_y)
-		term.inpt[t_idx_x+2]=val
-		sfx(3)
+		cur_term.inpt[t_idx_x+2]=val
 	end
 	
 	if t_pr_t>0 then
@@ -1732,413 +1419,14 @@ function update_term()
 	end
 end
 
-function inc_key()
-	keyi+=1
-	keyi=(keyi-1)%#keys+1
-end
-
 function set_key_c(k,c)
 	for ti=1,#k.tris do
 		local t=k.tris[ti]
-		t.c=agw(c,flr((ti-1)/k.ft))
+		t.c=agw(c,ti)
 	end
 end
--->8
--- lvl generation
-
-//function spike(x,z,s_num,dr,h,r)
-function spike(x,z,st,h,r,c1,c2)
-	rx,rz=rand(-40,40),rand(-40,40)
-	h=(h==nil and -100 or h)
-	r=(r==nil and 10 or r)
-	c1=(c1==nil and 0 or c1)
-	c2=(c2==nil and 1 or c2)
-	
-	if st then
-		rx,rz=0,0
-	end
-	
-	--[[
-	local s=nil
-	if s_num>-1 then
-		if(dr==nil)dr=rand(1,4)
-		local sya=0
-		if(dr==1)rx,rz,sya=-10,0,-0.25
-		if(dr==2)rx,rz,sya=10,0,0.25
-		if(dr==3)rx,rz=0,-10
-		if(dr==4)rx,rz,sya=0,10,0.5
-		if(dr==5)rx,rz=0,0
-		
-		local sxo,szo=0,0
-		if dr<3 then
-			sxo=2*sgn(rx)
-		else
-			szo=2*sgn(rz)
-		end
-		
-		s=symb(
-			x+rx+sxo,-30,z+rz+szo,s_num,9)
-		s.ya=sya
-	end
-	]]--
-	
-	local sp_tris={
-		{ -- west face
-			"-1,0,-1",
-			"-1,0,1",
-			p_to_s(rx-0.1,h,rz),
-			c1
-		},
-		{ -- east face
-			"1,0,1",
-			"1,0,-1",
-			p_to_s(rx+0.1,h,rz),
-			c2
-		},
-		{ -- north face
-			"1,0,-1",
-			"-1,0,-1",
-			p_to_s(rx,h,rz-0.1),
-			c2
-		},
-		{ --south face
-			"-1,0,1",
-			"1,0,1",
-			p_to_s(rx,h,rz+0.1),
-			c1
-		}
-	}
-	local sh_tris={
-		{
-			p_to_s(h,0,-r),
-			p_to_s(h,0,r),
-			p_to_s(-h,0,0),
-			5
-		}
-	}
-	
-	local o_sp=obj(
-		sp_tris,
-		x,0,z,
-		0,0,0,
-		2*r,2*r,
-		nil
-	)
-	
-	--hack to save tokens
-	for t in all(o_sp.tris) do
-		for i=1,2 do
-			t.pts[i].x*=r
-			t.pts[i].z*=r
-		end	
-	end
-	
-	local o_sh=obj(
-		sh_tris,
-		x-h,0,z,
-		0,0,0,
-		0,0,
-		nil
-	)
-	//return o_sp,o_sh,s
-	return o_sp,o_sh
-end
-
-function symb(x,y,z,n,col)
-	local tris={}
-	for c=1,min(n,4) do
-		add(
-			tris,
-			symb_tri(
-				-0.25*c+0.25,
-				false,
-				col
-			)
-		)
-	end
-	
-	if n>4 then
-	for c=1,4 do
-		add(
-			tris,
-			symb_tri(
-				-0.25*c+0.125,
-				n>=c+5,
-				col
-			)
-		)
-	end end
-	
-	local o=obj(
-		tris,
-		x,y,z,
-		0,0,0,
-		0,0,
-		nil
-	)
-	return o
-end
-
-function symb_tri(a,l,col)
-	local dat={
-		{-1,-4},
-		{1,-4},
-		{0,l and 0 or -2},
-		//{col,nil}
-	}
-	local tri={}
-	for i=1,3 do
-		local x,y=rot2d(
-			dat[i][1],dat[i][2],a
-		)
-		//tri[i][1]=x
-		//tri[i][2]=y
-		add(tri,""..x..","..y..",0")
-	end
-	add(tri,col)
-	return tri
-end
-
-function pyr(x,z)
-	local o_pyr=obj(
-		pyr_tris,
-		x,-5,z,
-		0,0,0,
-		5,5,
-		nil
-	)
-	return o_pyr
-end
-
-
-function add_me_area(ci,cj,r)
-	local imin,imax=ci-r,ci+r
-	local jmin,jmax=cj-r,cj+r
-	
-	local kr=max(0,r-2)
-	local ki=ci+rand(-kr,kr)
-	local kj=cj+rand(-kr,kr)
-	
-	//local symbs={}
-	--temp, key goes in center
-	//symbs[0]={i=ci,j=cj,n=-1}
-	--[[
-	for k=1,3 do
-		ri,rj=free_sec(
-			symbs,
-			imin,imax,
-			jmin,jmax
-		)
-		symbs[k]={
-			i=ri,
-			j=rj,
-			n=rand(1,9)
-		}
-				
-		loga({
-			"symb",
-			symbs[k].i,
-			symbs[k].j,
-			symbs[k].n,
-		})
-	end
-	]]--
-	--[[
-	ti,tj=free_sec(
-		symbs,
-		imin,imax,
-		jmin,jmax
-	)
-	loga({"term",ti,tj})
-	]]--
-	
-	
-	for j=jmin,jmax do
-		for i=imin,imax do
-			local sec=nsec()
-			
-			--[[
-			local symb_n=-1
-			for sm in all(symbs)do
-				if j==sm.j and i==sm.i then
-					symb_n=sm.n
-				end
-			end
-			]]--
-		
-			local sx=i*secr2
-			local sy=j*secr2
-			local rx=rand(-secr,secr)+sx
-			local rz=rand(-secr,secr)+sy
-			
-			if j==kj and i==ki then
-				if cur_me_key>0 then
-					local kidx=area_ord[cur_me_key]
-					local lk=keys_d[kidx]
-					loga({"lk",i,j,lk.n})
-					local t=nil
-					if(lk.n==4)t=pyr_tris
-					if(lk.n==6)t=cube_tris
-					if(lk.n==8)t=diam_tris
-					local o_key=obj(
-						t,
-						rx,-5,rz,
-						0,0,0,
-						5,5,
-						nil
-					)
-					o_key.ft=lk.n==6 and 2 or 1
-					o_key.key_idx=kidx
-					o_key.t=0
-					o_key.gs=true
-					
-					add(sec.ky,o_key)
-					cur_me_key+=1
-				end
-			else
-				local sp,sh=spike(rx,rz)
-				add(sec.sp,sp)
-				add(sec.sh,sh)
-			end
-			
-			add(sec.rs,{
-				x=rx,z=rz,
-				r=rand(20,30)
-			})
-			
-			if(lvl[j]==nil)lvl[j]={}
-			lvl[j][i]=sec
-		end
-	end
-end
-
-function add_me_sp(i,j)
-	local sx=i*secr2
-	local sy=j*secr2
-	local rx=rand(-secr,secr)+sx
-	local rz=rand(-secr,secr)+sy
-	local sec=nsec()
-	local sp,sh=spike(rx,rz,true)
-	add(sec.sp,sp)
-	add(sec.sh,sh)
-	add(sec.rs,{
-		x=rx,z=rz,
-		r=rand(20,30)
-	})
-	if(lvl[j]==nil)lvl[j]={}
-	lvl[j][i]=sec
-end
-
-function add_lk_area(ci,cj)
-	lock_i=ci
-	lock_j=cj
-	
-	local secs={{-1,0},{0,0},{1,0}}
-	for c=1,3 do
-		local s=secs[c]
-		local j,i=s[1]+cj,s[2]+ci
-		local sec=nsec()
-		local sp,sh,sy=spike(
-			i*secr2,j*secr2,true,-10,2)
-		sp.lock_n=lock_ord[c]
-		sp.ft=1
-		add(sec.sp,sp)
-		add(sec.sh,sh)
-		lvl[j]={}
-		lvl[j][i]=sec
-	end
-	
-	-- add terminal
-	local sec=nsec()
-	term=obj(
-		tr_tris,
-		(ci-1)*secr2,0,cj*secr2,
-		0.75,0,0,
-		5,5,
-		nil
-	)
-	term.inpt={3,3,3}
-	term.act_t=0
-	add(sec.tr,term)
-	
-	add(sec.sh,obj(
-		tr_sh_tri,
-		(ci-1)*secr2+14,0,cj*secr2,
-		0,0,0,
-		0,0,
-		nil
-	))
-	lvl[cj][ci-1]=sec
-end
-
-function add_hell_area()
-	local sec=nsec()
-	
-	local bp,bs=spike(
-		100,100,
-		true
-	)
-	add(sec.sp,bp)
-	boss=bp
-	boss.ft=1
-	bossr={
-		x=bp.x,z=bp.z,
-		r=80
-	}
-	
-	for i=0,29 do
-		local a=i/30
-		local sx,sz=cos(a),sin(a)
-		local sp,sh=spike(
-			sx*secr2*sp_hd,
-			sz*secr2*sp_hd,
-			true,
-			nil,nil,
-			8,2)
-		add(sec.sp,sp)
-		add(sec.sh,sh)
-	end
-	
-	
-	
-	lvl[0]={}
-	lvl[0][0]=sec
-end
-
---[[
-function free_sec(arr,imin,imax,jmin,jmax)
-	local f=true
-	while f do
-	local ri=rand(imin,imax)
-	local rj=rand(jmin,jmax)
-		f=false
-		for o in all(arr) do
-			if o.i==ri and o.j==rj then
-				f=true
-			end
-		end
-		
-		if not f then
-			return ri,rj
-		end
-	end
-end
-]]--
 -->8
 -- helpers
-
-function loop_sfx(n,c)
-	if n>-1 then
-		l_sfx_lst=l_sfx_cur
-	elseif l_sfx_lst!=l_sfx_cur then
-		return
-	end
-	
-	if l_sfx[c+1]!=n then
-		l_sfx[c+1]=n
-		sfx(n,c)
-	end
-end
 
 function nsec()
 	return {
@@ -2173,9 +1461,15 @@ end
 function read_tris(tr)
 	local out={}
 	for t in all(tr)do //evry tri
+		//local tt={pts={},c=t[4]}
 		local pts={}
 		for pi=1,3 do //evry pt
+			//local pt={}
 			local sp=split(t[pi],",")
+				//pt.x=sp[1]
+				//pt.y=sp[2]
+				//pt.z=sp[3]
+			//loga({sp[1]})
 			add(pts,{
 				x=sp[1],
 				y=sp[2],
@@ -2399,6 +1693,33 @@ hand_tris={
 	},
 }
 
+pyr_tris={
+	{
+		"-1,-1,1",
+		"0,-1,-1",
+		"1,-1,1",
+		6
+	},
+	{
+		"-1,-1,1",
+		"0,-1,-1",
+		"0,1,0",
+		7
+	},
+	{
+		"0,-1,-1",
+		"1,-1,1",
+		"0,1,0",
+		13
+	},
+	{
+		"-1,-1,1",
+		"1,-1,1",
+		"0,1,0",
+		6
+	},
+}
+
 tr_tris={
 	{--scr 1
 		"-2,-4,-5",
@@ -2471,156 +1792,841 @@ tr_sh_tri={
 	}
 }
 
-pyr_tris={
-	{
-		"-1,-1,1",
-		"0,-1,-1",
-		"1,-1,1",
-		6
-	},
-	{
-		"-1,-1,1",
-		"0,-1,-1",
-		"0,1,0",
-		7
-	},
-	{
-		"0,-1,-1",
-		"1,-1,1",
-		"0,1,0",
-		13
-	},
-	{
-		"-1,-1,1",
-		"1,-1,1",
-		"0,1,0",
-		6
-	},
-}
-
-cube_tris={
-	{--front 1
-		"-1,1,-1",
-		"1,1,-1",
-		"1,-1,-1",
-		6
-	},
-	{--front 2
-		"-1,1,-1",
-		"-1,-1,-1",
-		"1,-1,-1",
-		6
-	},
-	{--back 1
-		"-1,1,1",
-		"1,1,1",
-		"1,-1,1",
-		7
-	},
-	{--back 2
-		"-1,1,1",
-		"-1,-1,1",
-		"1,-1,1",
-		7
-	},
-	{--left 1
-		"-1,1,-1",
-		"-1,1,1",
-		"-1,-1,-1",
-		13
-	},
-	{--left 2
-		"-1,1,1",
-		"-1,-1,1",
-		"-1,-1,-1",
-		13
-	},
-	{--right 1
-		"1,1,-1",
-		"1,1,1",
-		"1,-1,-1",
-		6
-	},
-	{--right 2
-		"1,1,1",
-		"1,-1,1",
-		"1,-1,-1",
-		6
+//function spike(x,z,s_num,dr,h,r)
+function spike(x,z,st,h,r,c1,c2)
+	rx,rz=rand(-40,40),rand(-40,40)
+	h=(h==nil and -100 or h)
+	r=(r==nil and 10 or r)
+	c1=(c1==nil and 0 or c1)
+	c2=(c2==nil and 1 or c2)
+	
+	if st then
+		rx,rz=0,0
+	end
+	
+	--[[
+	local s=nil
+	if s_num>-1 then
+		if(dr==nil)dr=rand(1,4)
+		local sya=0
+		if(dr==1)rx,rz,sya=-10,0,-0.25
+		if(dr==2)rx,rz,sya=10,0,0.25
+		if(dr==3)rx,rz=0,-10
+		if(dr==4)rx,rz,sya=0,10,0.5
+		if(dr==5)rx,rz=0,0
+		
+		local sxo,szo=0,0
+		if dr<3 then
+			sxo=2*sgn(rx)
+		else
+			szo=2*sgn(rz)
+		end
+		
+		s=symb(
+			x+rx+sxo,-30,z+rz+szo,s_num,9)
+		s.ya=sya
+	end
+	]]--
+	
+	local sp_tris={
+		{ -- west face
+			"-1,0,-1",
+			"-1,0,1",
+			p_to_s(rx-0.1,h,rz),
+			c1
+		},
+		{ -- east face
+			"1,0,1",
+			"1,0,-1",
+			p_to_s(rx+0.1,h,rz),
+			c2
+		},
+		{ -- north face
+			"1,0,-1",
+			"-1,0,-1",
+			p_to_s(rx,h,rz-0.1),
+			c2
+		},
+		{ --south face
+			"-1,0,1",
+			"1,0,1",
+			p_to_s(rx,h,rz+0.1),
+			c1
+		}
 	}
-}
+	local sh_tris={
+		{
+			p_to_s(h,0,-r),
+			p_to_s(h,0,r),
+			p_to_s(-h,0,0),
+			5
+		}
+	}
+	
+	local o_sp=obj(
+		sp_tris,
+		x,0,z,
+		0,0,0,
+		20,20,
+		nil
+	)
+	
+	--hack to save tokens
+	for t in all(o_sp.tris) do
+		for i=1,2 do
+			t.pts[i].x*=r
+			t.pts[i].z*=r
+		end	
+	end
+	
+	local o_sh=obj(
+		sh_tris,
+		x-h,0,z,
+		0,0,0,
+		0,0,
+		nil
+	)
+	//return o_sp,o_sh,s
+	return o_sp,o_sh
+end
 
-diam_tris={
-	{
-		"-1,0,-1",
-		"1,0,-1",
-		"0,-1,0",
-		6
-	},
-	{
-		"1,0,-1",
-		"1,0,1",
-		"0,-1,0",
-		7
-	},
-	{
-		"1,0,1",
-		"-1,0,1",
-		"0,-1,0",
-		13
-	},
-	{
-		"-1,0,1",
-		"-1,0,-1",
-		"0,-1,0",
-		6
-	},
-	{
-		"-1,0,-1",
-		"1,0,-1",
-		"0,1,0",
-		6
-	},
-	{
-		"1,0,-1",
-		"1,0,1",
-		"0,1,0",
-		7
-	},
-	{
-		"1,0,1",
-		"-1,0,1",
-		"0,1,0",
-		13
-	},
-	{
-		"-1,0,1",
-		"-1,0,-1",
-		"0,1,0",
-		6
-	},
-}
+function draw_sun(s)
+	circfill(
+		s.pts[1].x,
+		s.pts[1].y,
+		10,
+		9
+	)
+end
 
-swd_tris={
-	{
-		"-0.5,0,0.5",
-		"0,0,-0.5",
-		"0,-4,0",
-		7
-	},
-	{
-		"0,0,-0.5",
-		"0.5,0,0.5",
-		"0,-4,0",
-		13
-	},
-	{
-		"-0.5,0,0.5",
-		"0.5,0,0.5",
-		"0,-4,0",
-		6
-	},
-}
+function symb(x,y,z,n,col)
+	local tris={}
+	for c=1,min(n,4) do
+		add(
+			tris,
+			symb_tri(
+				-0.25*c+0.25,
+				false,
+				col
+			)
+		)
+	end
+	
+	if n>4 then
+	for c=1,4 do
+		add(
+			tris,
+			symb_tri(
+				-0.25*c+0.125,
+				n>=c+5,
+				col
+			)
+		)
+	end end
+	
+	local o=obj(
+		tris,
+		x,y,z,
+		0,0,0,
+		0,0,
+		nil
+	)
+	return o
+end
 
+function symb_tri(a,l,col)
+	local dat={
+		{-1,-4},
+		{1,-4},
+		{0,l and 0 or -2},
+		//{col,nil}
+	}
+	local tri={}
+	for i=1,3 do
+		local x,y=rot2d(
+			dat[i][1],dat[i][2],a
+		)
+		//tri[i][1]=x
+		//tri[i][2]=y
+		add(tri,""..x..","..y..",0")
+	end
+	add(tri,col)
+	return tri
+end
+
+function pyr(x,z)
+	local o_pyr=obj(
+		pyr_tris,
+		x,-5,z,
+		0,0,0,
+		5,5,
+		nil
+	)
+	return o_pyr
+end
+
+
+function add_me_area(ci,cj,r)
+	local imin,imax=ci-r,ci+r
+	local jmin,jmax=cj-r,cj+r
+	
+	//local symbs={}
+	--temp, key goes in center
+	//symbs[0]={i=ci,j=cj,n=-1}
+	--[[
+	for k=1,3 do
+		ri,rj=free_sec(
+			symbs,
+			imin,imax,
+			jmin,jmax
+		)
+		symbs[k]={
+			i=ri,
+			j=rj,
+			n=rand(1,9)
+		}
+				
+		loga({
+			"symb",
+			symbs[k].i,
+			symbs[k].j,
+			symbs[k].n,
+		})
+	end
+	]]--
+	--[[
+	ti,tj=free_sec(
+		symbs,
+		imin,imax,
+		jmin,jmax
+	)
+	loga({"term",ti,tj})
+	]]--
+	
+	
+	for j=jmin,jmax do
+		for i=imin,imax do
+			local sec=nsec()
+			
+			--[[
+			local symb_n=-1
+			for sm in all(symbs)do
+				if j==sm.j and i==sm.i then
+					symb_n=sm.n
+				end
+			end
+			]]--
+		
+			local sx=i*secr2
+			local sy=j*secr2
+			local rx=rand(-secr,secr)+sx
+			local rz=rand(-secr,secr)+sy
+			
+			--[[
+			if j==tj and i==ti then
+				local term,t_sh=term(rx,rz)
+				term.ansrs={}
+				term.inpt={3,3,3}
+				term.mode=1
+				for s in all(symbs)do
+					add(term.ansrs,s.n)
+				end
+				add(sec.tr,term)
+				add(sec.sh,t_sh)
+			]]--
+			if j==cj and i==ci then
+				if cur_me_key>0 then
+					local kidx=area_ord[cur_me_key]
+					local lk=keys_d[kidx]
+					loga({"lk",lk.n})
+					local o_key=obj(
+						pyr_tris,
+						rx,-5,rz,
+						0,0,0,
+						5,5,
+						nil
+					)
+					o_key.key_idx=kidx
+					o_key.key_n=4
+					o_key.t=0
+					o_key.gs=true
+					
+					add(sec.ky,o_key)
+					cur_me_key+=1
+				end
+			else
+				local sp,sh=spike(rx,rz)
+				add(sec.sp,sp)
+				add(sec.sh,sh)
+			end
+			
+			add(sec.rs,{
+				x=rx,z=rz,
+				r=rand(20,30)
+			})
+			
+			if(lvl[j]==nil)lvl[j]={}
+			lvl[j][i]=sec
+		end
+	end
+end
+
+function add_me_sp(i,j)
+	local sx=i*secr2
+	local sy=j*secr2
+	local rx=rand(-secr,secr)+sx
+	local rz=rand(-secr,secr)+sy
+	local sec=nsec()
+	local sp,sh=spike(rx,rz,true)
+	add(sec.sp,sp)
+	add(sec.sh,sh)
+	add(sec.rs,{
+		x=rx,z=rz,
+		r=rand(20,30)
+	})
+	if(lvl[j]==nil)lvl[j]={}
+	lvl[j][i]=sec
+end
+
+function add_lk_area(ci,cj)
+	lock_i=ci
+	lock_j=cj
+	
+	local secs={{-1,0},{0,0},{1,0}}
+	for c=1,3 do
+		local s=secs[c]
+		local j,i=s[1]+cj,s[2]+ci
+		local sec=nsec()
+		local sp,sh,sy=spike(
+			i*secr2,j*secr2,true,-10,2)
+		sp.lock_n=lock_ord[c]
+		add(sec.sp,sp)
+		add(sec.sh,sh)
+		lvl[j]={}
+		lvl[j][i]=sec
+	end
+	
+	-- add terminal
+	local sec=nsec()
+	local term=obj(
+		tr_tris,
+		(ci-1)*secr2,0,cj*secr2,
+		0.75,0,0,
+		5,5,
+		nil
+	)
+	term.inpt={3,3,3}
+	add(sec.tr,term)
+	
+	add(sec.sh,obj(
+		tr_sh_tri,
+		(ci-1)*secr2+14,0,cj*secr2,
+		0,0,0,
+		0,0,
+		nil
+	))
+	lvl[cj][ci-1]=sec
+end
+
+function add_hell_area()
+	local sec=nsec()
+	
+	for i=0,29 do
+		local a=i/30
+		local sx,sz=cos(a),sin(a)
+		local sp,sh,sy=spike(
+			sx*secr2*sp_hd,
+			sz*secr2*sp_hd,
+			true,
+			8,2)
+		add(sec.sp,sp)
+		add(sec.sh,sh)
+		add(sec.sy,sy)
+	end
+	
+	lvl[0]={}
+	lvl[0][0]=sec
+end
+
+function free_sec(arr,imin,imax,jmin,jmax)
+	local f=true
+	while f do
+	local ri=rand(imin,imax)
+	local rj=rand(jmin,jmax)
+		f=false
+		for o in all(arr) do
+			if o.i==ri and o.j==rj then
+				f=true
+			end
+		end
+		
+		if not f then
+			return ri,rj
+		end
+	end
+end
+
+-->8
+-- old temp delete
+
+-- terminals
+
+--[[
+cur_term=nil
+t_idx_x=0 	--term idx left/right
+t_idx_y=-1 --term idx up/down
+t_pr_t=0 --term press time
+]]--
+
+--[[
+function draw_term1()
+	cls(1)
+	camera(0,0)
+	//spr(41,60,60,2,2)
+	srand(cur_term.seed)
+	//fillp(0b0011001111001100)
+	  //fillp(0b1111000000000000)
+	rectfill(10,10,117,50,0)
+	//fillp()
+	
+	for j=0,4 do
+	for i=0,1 do
+		s=rand(0,3)
+		spr(
+			86+s,
+			2+i*116,
+			13+j*8,
+			1,1,
+			i==1)
+	end
+	end
+	
+	for j=0,1 do
+	for i=0,1 do
+		s=rand(0,3)
+		spr(
+			66+s,
+			5+110*i,
+			5+43*j,
+			1,1,
+			i==1,j==1)
+		s=rand(0,3)
+		spr(70+s,5+111*i,5+44*j)
+	end end
+	
+	for j=0,1 do
+	for i=0,12 do
+		s=rand(0,3)
+		spr(
+			82+s,
+			13+i*8,
+			5+43*j,
+			1,1,
+			false,j==1)
+	end end
+	
+	local s //idk if this is really necessary, but it makes me feel better
+	for i=-1,1 do
+		for j=0,1 do	
+			for ii=0,1 do
+				--top corners
+				s=rand(0,3)
+				spr(66+s,
+					52+34*i+16*ii,
+					60+23*j,
+					1,1,
+					ii==1)
+				
+				--top screws
+				s=rand(0,3)
+				spr(70+s,
+					52+34*i+17*ii,
+					60+23*j)
+			end
+		
+			--top button metal
+			s=rand(0,3)
+			spr(82+s,
+				60+34*i,
+				60+23*j)
+		
+			--side button metal
+			rectfill(
+				52+34*i,68+22*j,
+				75+34*i,70+23*j,
+				5)
+			
+			local off=0
+			if i==t_idx_x and
+						(
+							(j==0 and t_idx_y==-1) or
+							(j==1 and t_idx_y==1)
+						)then
+				off=(1-abs(t_pr_t-5)/5)*2
+			end
+			
+			--button
+			spr(
+				64+32*j,
+				56+34*i,
+				60+23*j+off,
+				2,2)
+			
+			for ii=0,1 do
+				--bottom corner
+				s=rand(0,3)
+				spr(66+s,
+					52+34*i+16*ii,
+					71+23*j,
+					1,1,
+					ii==1,
+					true)
+				--bottom screws
+				s=rand(0,3)
+				spr(70+s,
+					52+34*i+17*ii,
+					72+23*j)
+			end
+			
+			--bottom metal
+			s=rand(0,3)
+			spr(82+s,
+				60+34*i,
+				71+23*j,
+				1,1,
+				false,true)
+		end
+		
+		local s=cur_term.inpt[i+2]
+		local o=symb(10*i,-10,40,s,3)
+		proj_obj(
+			o,
+			false
+		)
+	end
+	
+	for i=0,2 do
+		s=rand(0,3)
+		spr(86+s,5,67+i*8)
+		s=rand(0,3)
+		spr(86+s,4,67+i*8,1,1,true)
+	end
+	
+	local actv=true
+	for i=1,#cur_term.inpt do
+		local inpt=cur_term.inpt[i]
+		local ansr=cur_term.ansrs[i]
+		if(inpt!=ansr)actv=false
+	end
+	spr(100,4,62,2,1)
+	spr(70,5,62)
+	spr(
+		not actv and t_crt_t<15 and 114 or 115,
+		5,70)
+	spr(
+		actv and t_crt_t<15 and 98 or 99,
+		5,81)
+	spr(100,4,88,2,1,false,true)
+	spr(70,5,89)
+	
+	
+	proj_obj(hand,false)
+	
+	//draw_sorted()
+	
+	--scan lines
+	for l in all(t_crt_l)do
+		//line(10,l.y+10,117,l.y+10,6)
+		for i=10,117 do
+		for j=-1,1do
+			local c=pget(i,l.y+10+j)
+			if c!=0 then
+				pset(i-2,l.y+10+j,c)
+			end
+		end end
+	end
+	srand(time())
+end
+
+function draw_term2()
+	cls(1)
+	camera(0,0)
+	//spr(41,60,60,2,2)
+	srand(cur_term.seed)
+	
+	circ(64,64,5,7)
+	
+	spr(99,64,5)
+	spr(114,72,5)
+	line(64,15,64,57,5)
+	
+	
+	srand(time())
+end
+
+function draw_term3()
+	cls(1)
+	camera(0,0)
+	//spr(41,60,60,2,2)
+	srand(cur_term.seed)
+	
+	for i=0,3 do
+		spr(101,5,20+i*10)
+		rect(
+			5,20+i*10,12,28+i*10,7)
+		spr(101,5,20+i*10)
+	end
+	
+	//these represent tries.
+	//if the player guesses
+	//incorrect, a light goes out.
+	//if all go out game over.
+	
+	spr(98,120,20)
+	for i=1,2 do
+		spr(101,120,20+i*10)
+		spr(114,120,20+(i+2)*10)
+	end
+	
+	
+	srand(time())
+end
+]]--
+
+--[[
+function update_term2()
+	if(btnp(🅾️))mode=0
+end
+
+function update_term3()
+	if(btnp(🅾️))mode=0
+end
+]]--
+
+--[[
+function init_term()
+	t_crt_t=0
+	t_crt_l={}
+	
+	cam_ya=0
+	cam_pi=0
+	
+	//dcy,dcz=rot2d(
+	//	cam_h,cam_d,-cam_pi)
+	//dcz,dcx=rot2d(
+	//	dcz,0,-cam_ya)
+	
+	camz=0
+	camx=0
+	camy=0
+	
+	hand.ro=0.1
+	hand.ya=0.05
+	hand.pi=0.05
+end
+]]--
+
+--[[
+function update_term1()
+	//cam_ya=0
+	//cam_pi=0
+	
+	////dcy,dcz=rot2d(
+	////	cam_h,cam_d,-cam_pi)
+	////dcz,dcx=rot2d(
+	////	dcz,0,-cam_ya)
+	
+	//camz=0
+	//camx=0
+	//camy=0
+	//
+	//hand.ro=0.1
+	//hand.ya=0.05
+	//hand.pi=0.05
+	
+	
+	if(btnp(🅾️))mode=0
+	if btnp(⬅️) then
+		t_idx_x=max(-1,t_idx_x-1)	
+	elseif btnp(➡️) then
+		t_idx_x=min(1,t_idx_x+1)
+	end
+	
+	if btnp(⬆️) then
+		t_idx_y=-1
+	elseif btnp(⬇️) then
+		t_idx_y=1
+	end
+	
+	if btnp(❎) then
+		t_pr_t=10
+		local val=cur_term.inpt[t_idx_x+2]
+		val=mid(
+			1,
+			9,
+			val+t_idx_y)
+		cur_term.inpt[t_idx_x+2]=val
+	end
+	
+	if t_pr_t>0 then
+		t_pr_t-=1
+	end
+	
+	hand.x=2.7*t_idx_x+4.2
+	local off=1-abs(t_pr_t-5)/5
+	hand.y=t_idx_y+3+0.5*off
+	
+	--scan lines
+	if t_crt_t==0 then
+		if rnd()>0.2 then
+			local s=rnd(0.3)+0.5
+			add(t_crt_l,{y=0,s=s})
+		end
+		t_crt_t=30
+	else
+		t_crt_t-=1
+	end
+	
+	for l in all(t_crt_l)do
+		l.y+=l.s
+		if l.y>35 then
+			del(t_crt_l,l)
+		end
+	end
+end
+]]--
+
+--[[
+function term(x,z)
+	local t_tris={
+		{--scr 1
+			"-2,-4,-5",
+			"2,-4,-5",
+			"2,-8,-5",
+			2
+		},
+		{--scr 2
+			"-2,-4,-5",
+			"-2,-8,-5",
+			"2,-8,-5",
+			2
+		},
+		{--front 1
+			"-4,0,-4",
+			"4,0,-4",
+			"4,-10,-4",
+			1
+		},
+		{--front 2
+			"-4,0,-4",
+			"-4,-10,-4",
+			"4,-10,-4",
+			1
+		},
+		{--back 1
+			"-4,0,4",
+			"4,0,4",
+			"4,-10,4",
+			13
+		},
+		{--back 2
+			"-4,0,4",
+			"-4,-10,4",
+			"4,-10,4",
+			13
+		},
+		{--left 1
+			"-4,0,-4",
+			"-4,0,4",
+			"-4,-10,-4",
+			13
+		},
+		{--left 2
+			"-4,0,4",
+			"-4,-10,4",
+			"-4,-10,-4",
+			13
+		},
+		{--right 1
+			"4,0,-4",
+			"4,0,4",
+			"4,-10,-4",
+			1
+		},
+		{--right 2
+			"4,0,4",
+			"4,-10,4",
+			"4,-10,-4",
+			1
+		},
+	}
+	local sh_tri={
+		{
+			"-10,0,-4",
+			"-10,0,4",
+			"10,0,0",
+			5
+		}
+	}
+	local o_sh=obj(
+		sh_tri,
+		x+14,0,z,
+		0,0,0,
+		0,0,
+		nilx
+	)
+	local o_term=obj(
+		t_tris,
+		x,0,z,
+		0,0,0,
+		5,5,
+		nil
+	)
+	o_term.seed=rand(1,30000)
+	return o_term,o_sh
+end
+]]--
+
+--[[
+//dz_mm=-30000
+function pelogen_tri_old(l,t,c,m,r,b,col,dzz)
+	//poke(0x5f34, 0x3)
+	color(col)
+	fillp(f)
+	
+	if(t>m) l,t,c,m=c,m,l,t
+	if(t>b) l,t,r,b=r,b,l,t
+	if(m>b) c,m,r,b=r,b,c,m
+	local i,j,k,r=(c-l)/(m-t),(r-l)/(b-t),(r-c)/(b-m),l
+	local cc=0
+	while t~=b do
+		//loga({
+		//	ceil(t),
+		//	min(flr(m),128),
+		//	j,i
+		//})
+		for t=ceil(t),min(flr(m),128),dzz do
+			rectfill(l,t,r,t)
+			r+=j
+			l+=i
+		end
+		l,t,m,i=c,m,b,k
+	end
+end
+]]--
+
+-- in _darw
+--[[
+	if mode==0 then
+		draw_pov()
+	elseif mode==1 then
+		draw_term1()
+	elseif mode==2 then
+		draw_term2()
+	elseif mode==3 then
+		draw_term3()
+	end
+]]--
 __gfx__
 00000000009999000000000000000000000000000000005555500000000000555550000000000000000000000000000000000000000000000000000000000000
 00000000090000900000000000000000000000000000555555550000000055555555000000009000000900000000000000000000000000000000900000090000
@@ -2654,38 +2660,38 @@ __gfx__
 00000000000000000000000000000000000000000700070000000000000007000700070007000700000000007000070700007000000700000700070000000000
 00000000000000000000000000070000000700000007000000070000000700000007000000070000000000000700007000000700007000000077700000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000077770770000077770000000000000000000000
-00000000000000000055555500500555004555550055151500000000000000000000000000000000000000000000000000000000000000000222222222222220
-0002222222222000055555550550555504555555055555550066d0000066d0000066d000004440000066d0000000000000000002200000000d222222222222d0
-0022222222222200555555555555555555555555155555510661dd0006161d0006614d00041114000661dd000000000000000022220000005dd2222222222dd5
-02222222222222205555555555555555455555554555555406111d000661dd0006141d000111110006111d000000000000555222222555005ddd22222222ddd5
-0222222ee2222220555555555555555545555454455555450661dd00061d1d0006414d000111110006611d0000000000055522222222555055ddd222222ddd55
-022222e22e2222205555555055555550555554405555555000ddd00000ddd00000dd40000011100000ddd000000000005552222222222555555ddd2222ddd555
-02222e2222e222205555550005555500555544005555550000000000000000000000000000000000000000000000000055222222222222555555ddd22ddd5555
-0222e222222e222055555000505550005554400055454000000000000000000000000000000000000000000000000000522222222222222555555dddddd55555
-0222eeeeeeee2220555555555055500555555555500050050005555500055555000555540005555500000000000000005dddddddddddddd5555555dddd555555
-0222222222222220555555555555550555555555500555550005555500005555000555440005554400000000000000005dddddddddddddd50555555dd5555550
-0d222222222222105555555555555555554554555555545500055555000505550005555500055514000000000000000005555555555555500055555555555500
+00000000000000000055555500500555004555550055151500000000000000000000000000000000000000000000000000000000000000000000000000000000
+0002222222222000055555550550555504555555055555550066d0000066d0000066d000004440000066d0000000000000000002200000000000000000000000
+0022222222222200555555555555555555555555155555510661dd0006161d0006614d00041114000661dd000000000000000022220000000000000000000000
+02222222222222205555555555555555455555554555555406111d000661dd0006141d000111110006111d000000000000555222222555000000000000000000
+0222222ee2222220555555555555555545555454455555450661dd00061d1d0006414d000111110006611d000000000005552222222255500000000000000000
+022222e22e2222205555555055555550555554405555555000ddd00000ddd00000dd40000011100000ddd0000000000055522222222225550000000000000000
+02222e2222e222205555550005555500555544005555550000000000000000000000000000000000000000000000000055222222222222550000000000000000
+0222e222222e22205555500050555000555440005545400000000000000000000000000000000000000000000000000052222222222222250000000000000000
+0222eeeeeeee2220555555555055500555555555500050050005555500055555000555540005555500000000000000005dddddddddddddd50000000000000000
+0222222222222220555555555555550555555555500555550005555500005555000555440005554400000000000000005dddddddddddddd50000000000000000
+0d222222222222105555555555555555554554555555545500055555000505550005555500055514000000000000000005555555555555500000000000000000
 0dd22222222221105555555555555555555454555555555400055555000555550005555500055551000000000000000000000000000000000000000000000000
 00ddddd1d11d11005555555555555555454454445545545400055555000055550005544500055455000000000000000000000000000000000000000000000000
 000dddd1d11d10000000000000000000000000000000000000055555000555550005555400055554000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000055555000555550005555500055544000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000055555000005550005554400055555000000000000000000000000000000000000000000000000
-000000000000000000ddd00000ddd000005555500000000000ddd00000ddd00000aaaaa000aaaaa000aaa0000aaaaa00aaaaaaaaaaaaaaaa00aaaaa00aaaaaa0
-00022222222220000dbbbd000d333d0005555555000000000d666d000dcccd000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa
-0022222222222200dbbbbbd0d33333d05555555550000000d66666d0dcccccd0aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa
-0222222222222220dbbb7bd0d33353d05555555550000000d66656d0dccc7cd0aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa
-0222eeeeeeee2220dbb77bd0d33553d05555555550000000d66556d0dcc77cd0aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa
-0222e222222e22200dbbbd000d333d0000000000000000000d666d000dcccd00aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa
-02222e2222e2222000ddd00000ddd000000000000000000000ddd00000ddd000aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa
-022222e22e2222200000000000000000000000000000000000000000000000000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa
-0222222ee222222000ddd00000ddd0000000000000000000000000000000000000aaaaa000aaaaa000aaa0000aaaaa00aaaaaaaaaaaaaaaa00aaaaa00aaaaaa0
-02222222222222200d888d000d222d00000000000000000000000000000000000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa
-0d22222222222210d88888d0d22222d000000000000000000000000000000000aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa
-0dd2222222222110d88878d0d22252d000000000000000000000000000000000aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa
-00ddddd1d11d1100d88778d0d22552d000000000000000000000000000000000aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa
-000dddd1d11d10000d888d000d222d0000000000000000000000000000000000aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa
-000000000000000000ddd00000ddd00000000000000000000000000000000000aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa
-00000000000000000000000000000000000000000000000000000000000000000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa
+000000000000000000ddd00000ddd000005555500000000000ddd00000ddd0000000000000000000000000000000000002222222222222200000000000000000
+00022222222220000dbbbd000d333d0005555555000000000d666d000dcccd00000000000000000000000000000000000d222222222222d00000000000000000
+0022222222222200dbbbbbd0d33333d05555555550000000d66666d0dcccccd0000000000000000000000000000000005dd2222222222dd50000000000000000
+0222222222222220dbbb7bd0d33353d05555555550000000d66656d0dccc7cd0000000000000000000000000000000005ddd22222222ddd50000000000000000
+0222eeeeeeee2220dbb77bd0d33553d05555555550000000d66556d0dcc77cd00000000000000000000000000000000055ddd222222ddd550000000000000000
+0222e222222e22200dbbbd000d333d0000000000000000000d666d000dcccd0000000000000000000000000000000000555ddd2222ddd5550000000000000000
+02222e2222e2222000ddd00000ddd000000000000000000000ddd00000ddd000000000000000000000000000000000005555ddd22ddd55550000000000000000
+022222e22e2222200000000000000000000000000000000000000000000000000000000000000000000000000000000055555dddddd555550000000000000000
+0222222ee222222000ddd00000ddd0000000000000000000000000000000000000000000000000000000000000000000555555dddd5555550000000000000000
+02222222222222200d888d000d222d0000000000000000000000000000000000000000000000000000000000000000000555555dd55555500000000000000000
+0d22222222222210d88888d0d22222d0000000000000000000000000000000000000000000000000000000000000000000555555555555000000000000000000
+0dd2222222222110d88878d0d22252d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00ddddd1d11d1100d88778d0d22552d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000dddd1d11d10000d888d000d222d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000ddd00000ddd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
