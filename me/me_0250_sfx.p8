@@ -3,7 +3,7 @@ version 43
 __lua__
 -- nuclear semiotics
 
-ver="0.2.6"
+ver="0.2.5"
 
 -- constants
 l_sfx={-1,-1,-1,-1}
@@ -162,7 +162,6 @@ function init_title()
 	ppz=lock_j*secr2
 	pp_ya,pp_pi=0.2299,0
 	tit_idx=0
-	trn=0
 	show_c=false
 	//srand(2)
 	//cur_me_key=0
@@ -248,11 +247,11 @@ function init_story_1()
 	pp_pi,pp_ya=0,0.88
 	mode="game"
 	story=1
-	epl,epl_t=-1,0
 	
 	lvl={}
 	add_hell_area(0,0,2)
 
+	
 	reset_vars()
 	loop_sfx(-1,1)
 	
@@ -277,17 +276,11 @@ function init_story_1()
 end
 
 function init_ending()
-	mode="ending"
 	atk_t2=0
-	ppx=0
-	ppy=-30
-	ppz=0
-	pp_ya,pp_pi=0.2299,0
-	epl,epl_t=3,0
-	
-	add_me_area(0,-7,2)
-	
-	music(2)
+	init_story_0()
+	init_title()
+	mode="ending"
+	music(48) //hack w/e
 end
 
 function _draw()
@@ -298,11 +291,6 @@ function _draw()
 	n_sec_chk=0
 	n_sec_fnd=0
 	
-	if trn>0 then
-		draw_trn()
-		return
-	end
-	
 	if mode=="title" then
 		draw_title()
 	elseif mode=="ending" then
@@ -310,27 +298,14 @@ function _draw()
 	else
 		draw_game()
 	end
-	
-	if epl!=-1 then
-		draw_epl()
-	end
-end
-
-function draw_trn()
-	cls(0)
-	if trn>60 then
-		local i=flr((trn-60)/90)+1
-		t2(
-			epls[i],
-			10,60,15,1)
-	end
 end
 
 function draw_title()
 	proj_pov()
 	draw_sorted()
 	proj_sun_rays()
-	
+
+	//draw_log()
 	if titt>=180 then
 		if show_c then
 			t2(
@@ -427,41 +402,10 @@ function _update()
 		sh_t=0
 	end
 	
-	if trn>0 then
-		trn+=1
-		if trn>330 then
-			//init_story_0()
-			trn=0
-			if mode=="title" then
-				init_story_1()
-			end
-		end
+	if mode=="title" then
+		update_title()
 		return
-	end
-	
-	//if epl!=-1 then
-	//	epl_t+=0.1
-	//end
-	
-	if mode!="game" then
-		tita+=0.0001
-		ppx=(lock_i-1)*secr2
-		ppz=(lock_j)*secr2
-	
-		ppx+=cos(tita)*200
-		ppz+=sin(tita)*200
-		pp_ya=-tita-0.75
-
-		sex=round((ppx)/secr2)
-		sez=round((ppz)/secr2)
-		update_cam()
-		
-		if mode=="title" then
-			update_title()
-		elseif mode=="ending" then
-			update_ending()
-		end
-		
+	elseif mode=="ending" then
 		return
 	end
  
@@ -552,6 +496,18 @@ function _update()
 end
 
 function update_title()
+	tita+=0.0001
+	ppx=(lock_i-1)*secr2
+	ppz=(lock_j)*secr2
+	
+	ppx+=cos(tita)*200
+	ppz+=sin(tita)*200
+	pp_ya=-tita-0.75
+	
+	sex=round((ppx)/secr2)
+	sez=round((ppz)/secr2)
+	update_cam()
+		
 	titt+=1
 	if btnp(❎) then
 		if titt<60 then
@@ -560,7 +516,7 @@ function update_title()
 			titt=180
 		else
 			if tit_idx==0 then 
-				trn=1
+				init_story_0()	
 			else
 				show_c=true
 			end
@@ -699,8 +655,8 @@ function update_hand_key_s0()
 			keyi=1 --idx of spike
 		end
 	elseif k.t>=0.1 then
-		-- explode key
 		loop_sfx(2,0)
+		-- explode key
 		if k.key_idx==4 then
 			set_key_c(k,gs_c)
 			init_story_1()
@@ -770,7 +726,6 @@ function update_hand_key_s1()
 				if atk_n==5 then
 					music(-1)
 					clear_sfx()
-					sfx(1)
 				end
 	
 				b_spd+=0.1
@@ -793,12 +748,6 @@ function set_sun_pos()
 	loga({"set sun",ni,nj})
 	suni=ni
 	sunj=nj
-end
-
-function draw_epl()
-	for i,v in ipairs(epls[epl])do
-	t2(v,1,128+i*6-epl_t,1,0)
-	end
 end
 -->8
 -- pov
@@ -2804,15 +2753,6 @@ swd_tris={
 	},
 }
 
-epls={
-	"this place is a message...",
-	"and part of a system\nof messages...",
-	"pay attention to it.",
-	" ",
-	"some more text text\nending\ntext",
-	"ending text\nending\ntext",
-	"ending text\nending\ntext",
-}
 __gfx__
 00000000009999000000800000000000000000000000005555500000000000555550000000000000000000000000000000000000000000000000000000000000
 00000000090000900000880000000000000000000000555555550000000055555555000000009000000900000000000000000000000000000000900000090000
