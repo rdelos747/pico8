@@ -3,7 +3,7 @@ version 43
 __lua__
 -- nuclear semiotics
 
-ver="0.2.7"
+ver="0.2.6"
 
 -- constants
 l_sfx={-1,-1,-1,-1}
@@ -248,6 +248,7 @@ function init_story_1()
 	pp_pi,pp_ya=0,0.88
 	mode="game"
 	story=1
+	epl,epl_t=-1,0
 	
 	lvl={}
 	add_hell_area(0,0,2)
@@ -277,16 +278,16 @@ end
 
 function init_ending()
 	mode="ending"
-	story=2
 	atk_t2=0
 	ppx=0
 	ppy=-30
 	ppz=0
 	pp_ya,pp_pi=0.2299,0
-	edt=0
+	epl,epl_t=3,0
+	
 	add_me_area(0,-7,2)
 	
-	music(48)
+	music(2)
 end
 
 function _draw()
@@ -309,15 +310,18 @@ function _draw()
 	else
 		draw_game()
 	end
+	
+	if epl!=-1 then
+		draw_epl()
+	end
 end
 
 function draw_trn()
 	cls(0)
-	local of=mode=="story" and 0 or 7
 	if trn>60 then
 		local i=flr((trn-60)/90)+1
 		t2(
-			epls[i+of],
+			epls[i],
 			10,60,15,1)
 	end
 end
@@ -369,17 +373,7 @@ function draw_title()
 end
 
 function draw_ending()
-	proj_pov()
-	draw_sorted()
-	proj_sun_rays()
 	
-	local of=0
-	for i,v in ipairs(epls)do
-		t2(v,1,128+(i+of)*6-edt,2,0)
-		local ns=split(v,"\n")
-		//loga({v,#ns})
-		of+=#ns
-	end
 end
 
 function draw_game()
@@ -436,16 +430,18 @@ function _update()
 	if trn>0 then
 		trn+=1
 		if trn>330 then
+			init_story_0()
 			trn=0
 			if mode=="title" then
-				///init_story_1()
-				init_ending()
-			else
 				init_story_1()
 			end
 		end
 		return
 	end
+	
+	//if epl!=-1 then
+	//	epl_t+=0.1
+	//end
 	
 	if mode!="game" then
 		tita+=0.0001
@@ -557,15 +553,6 @@ end
 
 function update_title()
 	titt+=1
-	if titt>=180 then
-		if btnp()>0 then
-			sfx(7,-1,0,8)
-			titt=180
-		end
-		if(btnp(⬆️))tit_idx=0
-		if(btnp(⬇️))tit_idx=1
-	end
-	
 	if btnp(❎) then
 		if titt<60 then
 			titt=60
@@ -574,14 +561,21 @@ function update_title()
 		else
 			if tit_idx==0 then 
 				trn=1
-				music(-1)
-				sfx(7,-1,8,27)
 			else
 				show_c=true
 			end
 		end
 	elseif btnp(🅾️) and show_c then
 		show_c=false
+	end
+	
+	if titt>=180 then
+		if btnp()>0 then
+			sfx(7)
+			titt=180
+		end
+		if(btnp(⬆️))tit_idx=0
+		if(btnp(⬇️))tit_idx=1
 	end
 end
 
@@ -709,10 +703,7 @@ function update_hand_key_s0()
 		loop_sfx(2,0)
 		if k.key_idx==4 then
 			set_key_c(k,gs_c)
-			//init_story_1()
-			trn=1
-			clear_sfx()
-			sfx(7,-1,8,27)
+			init_story_1()
 			return
 		end
 			
@@ -804,8 +795,10 @@ function set_sun_pos()
 	sunj=nj
 end
 
-function update_ending()
-	edt+=0.2
+function draw_epl()
+	for i,v in ipairs(epls[epl])do
+	t2(v,1,128+i*6-epl_t,1,0)
+	end
 end
 -->8
 -- pov
@@ -1103,13 +1096,10 @@ function proj_pov()
 				atk_t2>-120 then
 		local gh=64+pp_pi*1024
 		gh=mid(0,gh,128)
-		local c=15
-		if(story==1)c=1
-		if(story==2)c=5
 		rectfill(
 			-10,gh,
 			137,gh+127,
-			c)
+			story==0 and 15 or 1)
 	end
 	
 	//n_t_sort=0
@@ -1167,6 +1157,7 @@ function proj_secs()
 	local chkd={}	
 	local dpt=12
 	if(hand_t>0)dpt=8
+	loga("start")
 	for n=0,dpt do
 		//local n=nn*1
 		if n<2 then
@@ -1183,7 +1174,7 @@ function proj_secs()
 		local j=round(
 			sez+cos(pp_ya+a)*n)
 			
-		//loga({"chk",i,j})				
+		loga({"chk",i,j})				
 		
 		local id=(j>>8)+i
 		local sec=get_sec(i,j)
@@ -1196,6 +1187,7 @@ function proj_secs()
 			//loga({dtb2(j)})
 			//loga({dtb2(id)})
 			chkd[id]=true
+			loga("**")
 				
 			for k,v in pairs(sec_d) do
 				if n<v then
@@ -2138,27 +2130,25 @@ function add_me_area(ci,cj,r)
 				if cur_me_key>0 then
 					local kidx=area_ord[cur_me_key]
 					local lk=keys_d[kidx]
-					//loga({"lk",i,j,lk.n})
+					loga({"lk",i,j,lk.n})
 					local t=nil
-					if lk then
-						if(lk.n==4)t=pyr_tris
-						if(lk.n==6)t=cube_tris
-						if(lk.n==8)t=diam_tris
-						local o_key=obj(
-							t,
-							rx,-5,rz,
-							0,0,0,
-							5,5,
-							nil
-						)
-						o_key.ft=lk.n==6 and 2 or 1
-						o_key.key_idx=kidx
-						o_key.t=0
-						o_key.gs=true
+					if(lk.n==4)t=pyr_tris
+					if(lk.n==6)t=cube_tris
+					if(lk.n==8)t=diam_tris
+					local o_key=obj(
+						t,
+						rx,-5,rz,
+						0,0,0,
+						5,5,
+						nil
+					)
+					o_key.ft=lk.n==6 and 2 or 1
+					o_key.key_idx=kidx
+					o_key.t=0
+					o_key.gs=true
 					
-						add(sec.ky,o_key)
-						cur_me_key+=1
-					end
+					add(sec.ky,o_key)
+					cur_me_key+=1
 				end
 			else
 				local sp,sh=spike(rx,rz)
@@ -2818,31 +2808,10 @@ epls={
 	"this place is a message...",
 	"and part of a system\nof messages...",
 	"pay attention to it.",
-	"",
-	"sending this message was\nimportant to us.",
-	"we considered ourselves to\nbe a powerful culture.",
-	"", 
-	"this place is not a place\nof honor...",
-	"no highly esteemed deed is\ncommemorated here...",
-	"nothing valued is here.",
-	"",
-	"what is here was dangerous\nand repulsive to us.",
-	"this message is a warning\nabout danger.", 
-	"",
-	"the danger is in a particular\nlocation...",
-	"it increases towards a\ncenter...",
-	"the center of\ndanger is here...",
-	"of a particular size and shape,\nand below us.",
-	"",
-	"the danger is still present\nin your time, as it was\nin ours.",
-	"",
-	"the danger is to the body,\nand it can kill.",
-	"",
-	"the form of the danger is\nan emanation of energy.",
-	"",
-	"the danger is unleashed\nonly if you substantially\ndisturb this place physically.",
-	"",
-	"this place is best shunned\nand left uninhabited."
+	" ",
+	"some more text text\nending\ntext",
+	"ending text\nending\ntext",
+	"ending text\nending\ntext",
 }
 __gfx__
 00000000009999000000800000000000000000000000005555500000000000555550000000000000000000000000000000000000000000000000000000000000
@@ -3055,7 +3024,7 @@ __sfx__
 9005000023624236302d6302d6253960039600000000000021624216302b6302b625376000000000000000001f6241f6302d6302d625000000000000000000001d6241d6302b6302b62500000000000000000000
 950c00002321423220232302324023250232502325023250232502325023250232502324023230232202321023210232102321023210232102321023210232102321023210232102321523200232002320023200
 150c00000a8000a8000a8000a80009844098400985009850098600986009860098600986009860098600986009850098500984009840098300983009820098200981009810098100981009810098100981009815
-a9060000003750034500325003150c3053630537305363050c8700c8700b8610b8610a8610a861098510985108851088510784107831068210681105821048110381102811018110081000800008000080000800
+a8060000003750034500325003150c3053630537305363050c8700c8700b8610b8610a8610a861098510985108851088510784107831068210681105821048110381102811018110081000800008000080000800
 910c00000060000600006000060000620006200062000620006200062000620006200062000620006200062000620006200062000620006200062000620006200062000620006200062000610006100061000615
 5d0c00001c0001c0001c0001c00010014100201002010020100201002010020100201002010020100201001010010100101001010010100101001010010100101001010010100101001510000100002300023000
 010c00000785007850078500785007840078400784007840078300782007820078200781007810078100781509800098000980009800098000980009800098000980009800098000980009800098000980009800
