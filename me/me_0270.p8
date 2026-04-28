@@ -1,9 +1,9 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
--- menacing earthworks
+-- nuclear semiotics
 
-ver="0.3.4"
+ver="0.2.7"
 
 -- constants
 l_sfx={-1,-1,-1,-1}
@@ -17,13 +17,14 @@ rp1_usb=5 	--rad1 up spd boss
 rp1_ds=1 		--rad1 down speed
 rp2_s=1 			--rad2 up speed
 
-sp_hs=0.112 	--spike hell speed
-sp_hd=20 				--spike hell dist
+sp_hs=1 	--spike hell speed
+sp_hd=20 --spike hell dist
 
 --explode dirs
 exp_d={{1,0,0},{0,1,0},{0,0,1}}
 
 --globals
+//tita=rnd()
 tita=0.1
 titt=0
 
@@ -33,6 +34,9 @@ pp_rp,pp_rp2=0,0
 pdd=30000
 keys={}
 keyi=-1
+lock_i=nil
+lock_j=nil
+//pchrg=false
 
 camx,camy,camz=0,0,0
 cam_ya,cam_pi=0,0
@@ -40,7 +44,7 @@ cam_d=0
 cam_h=0
 sh_t=0
 
-suna=0
+suni,sunj=0,0
 sunx,suny,sunz=0,-200,0
 
 fov=0.15
@@ -50,22 +54,18 @@ znear=-14
 lam=zfar/(zfar-znear)
 pov_scr_t=0
 
-src_dp=20				--search depth
-src_ns=10				--search num slices
-src_ag=0.1 		--search angle
-src_sd=0.5			--search slice depth
-
+sec_s_a=0.15 //sec search ang
+sec_s_n=11 //sec search slices
 sec_d={ //sec layer rend dists
-	sp=17,
-	sh=1,
-	ky=10,
-	tr=20,
-	db=10
+	sp=10,
+	sh=2,
+	ky=5,
+	//sy=5,
+	tr=20
 }
 
-pltr,pltr2=25,50 -- plot size
-secsz=2
-
+secr=25
+secr2=50
 sex,sez=0,0
 s_map=false
 mode="title"
@@ -108,10 +108,6 @@ function _init()
 	for t in all(hand_tris)do
 		add(t,5)
 	end
-	for i=1,#body_tris-1 do
-		add(body_tris[i],0)
-	end
-	//loga({"aaa",#body_tris})
 	
 	term_h=obj(
 		hand_tris,
@@ -131,6 +127,9 @@ function _init()
 		nil)
 	l_hand_t=-1
 	
+	//lvl={}
+	
+	//init_title()
 	init_story_0()
 	init_title() --hack but w/e
 end
@@ -150,29 +149,32 @@ function reset_vars()
 	atk_t=0					--attack time
 	atk_t2=0				--attack time 2
 	
-	spk_t=0					--spike time
-	
-	//suni=-1
-	//sunj=0
-	suna=0.5
+	suni=-1
+	sunj=0
 	brkng=false
-	
-	hell_r=pltr2*sp_hd
-	keys={}
 end
 
 function init_title()
 	mode="title"
-	//loga({lock_i,lock_j})
+	
+	ppx=(lock_i+2)*secr2
 	ppy=-30
+	ppz=lock_j*secr2
 	pp_ya,pp_pi=0.2299,0
 	tit_idx=0
 	trn=0
 	show_c=false
+	//srand(2)
+	//cur_me_key=0
+	//add_lk_area(0,0)
 	music(2)
 end
 
 function init_story_0()
+
+	menuitem(1,"map",function()
+		s_map=not s_map
+	end)
 	srand(time())
 	
 	--[[
@@ -183,10 +185,9 @@ function init_story_0()
 	lock_ord=rar({1,2,3})
 	term_ord=rar({1,2,3})
 	area_ord=rar({1,2,3})
-	add(area_ord,4)
-	//loga({"lo",a_to_s(lock_ord)})
-	//loga({"to",a_to_s(term_ord)})
-	//loga({"ao",a_to_s(area_ord)})
+	loga({"lo",a_to_s(lock_ord)})
+	loga({"to",a_to_s(term_ord)})
+	loga({"ao",a_to_s(area_ord)})
 	
 	--[[
 	assign a key number to each
@@ -196,71 +197,48 @@ function init_story_0()
 	for i=1,3 do
 		add(key_ord,rand(1,3)*2+2)
 	end
-	//loga({"ko",a_to_s(key_ord)})
+	loga({"ko",a_to_s(key_ord)})
 	for i=1,3 do
 		keys_d[i].n=key_ord[i]
-		//loga({
-		//	"d",
-		//	keys_d[i].c[1],
-		//	keys_d[i].n
-		//})
+		loga({
+			"d",
+			keys_d[i].c[1],
+			keys_d[i].n
+		})
 	end
 	
-	//srand(2)
+	srand(2)
 	
 	cur_me_key=1
-	lvl={}
-	lock_sps={}
+	lvl={}	
+	
+	//add_me_area(0,-4,1)
+	//add_me_area(0,4,1)
+	//add_me_area(4,0,1)
 	
 	add_me_area(0,-7,2)
- add_me_area(-2,-21,3)
- add_me_area(10,-21,3)
+	add_me_area(4,-19,3)
+	add_me_area(14,-24,3)
 	add_lk_area(4,-12)
 	add_me_sp(2,1)
 	add_me_sp(0,1)
 	add_me_sp(2,-2)
 	
-	-- up spikes
-	for i=-10,0 do
-		add_me_sp(i*2,-12,true)
-		add_me_sp(i*2,-13,true)
-	end
-	add_me_area(-22,-12,3,true)
-	
-	add_db(0,-2,0)
-	add_db(-2,-15,0.9)
-	add_db(2,-21,0.1)
-	add_db(8,-16,0.15)
-	add_db(10,-26,0.8)
-	
-	//srand(time())
+	srand(time())
 	music(0)
 	
 	reset_vars()
 	
 	ppy=-8
 	ppx,ppz=10,-10
+	//ppx=75.3866
+	//ppz=24.1935
 	pp_pi,pp_ya=0,0.83
 	mode="game"
 	story=0
 	
-	--testing
-	--ppx,ppz=194,-601
-	--pp_pi,pp_ya=0,0.22
-	
 	hand_d=-3.5 	--hand delay
 	hand_t=hand_d
-	
-	-- shrink the up spikes
-	grow_pts(function(sec,p)
-		for k in all({"x","y","z"})do
-			//p[k]*=0.01
-			local id=k.."2"
-			local v=p[k]
-			p[id]=v -- copy the values for later
-			p[k]=v*0.1
-		end
-	end)
 end
 
 function init_story_1()
@@ -278,7 +256,6 @@ function init_story_1()
 	loop_sfx(-1,1)
 	
 	--temp
-	--[[
 	local swd=obj(
 		swd_tris,
 		0,0,0,
@@ -292,8 +269,6 @@ function init_story_1()
 	swd.key_idx=4
 	add(keys,swd)
 	keyi=1
-	]]--
-	
 	set_sun_pos()
 	
 	hand_d=-1 	--hand delay
@@ -338,7 +313,7 @@ end
 
 function draw_trn()
 	cls(0)
-	local of=mode=="title" and 0 or 7
+	local of=mode=="story" and 0 or 7
 	if trn>60 then
 		local i=flr((trn-60)/90)+1
 		t2(
@@ -347,43 +322,12 @@ function draw_trn()
 	end
 end
 
-titp={6,13,5,1,0}
-fat=8
-function fade_in(st,cb)
-	if(titt<st)return
-	local i=flr((titt-(st-fat))/fat)
-	pal(7,titp[mid(1,i,#titp)])
-	cb()
-	pal()
-end
-
-
 function draw_title()
 	proj_pov()
-	
 	draw_sorted()
 	proj_sun_rays()
 	
 	if titt>=180 then
-		//local i=flr((titt-160)/20)
-		//pal(7,titp[mid(1,i,#titp)])
-		if(titt>=280)spr(130,66,24,7,3)
-		fade_in(180,function()
-			spr(128,56,10,2,3)
-		end)
-		
-		fade_in(210,function()
-			spr(192,12,16,13,2)
-		end)
-		
-		fade_in(240,function()
-			spr(224,12,32,13,2)
-		end)
-		
-		pal()
-	end
-	
-	if titt>=300 then
 		if show_c then
 			t2(
 				"⬆️⬇️⬅️➡️    move",
@@ -419,7 +363,7 @@ function draw_title()
 				5,88,
 				(tit_idx==1 and tm) and 15 or 2)
 		end
-	elseif titt>=60 and titt<150 then
+	elseif titt>=60 then
 		spr(120,32,60,8,1)
 	end
 end
@@ -430,17 +374,11 @@ function draw_ending()
 	proj_sun_rays()
 	
 	local of=0
-	local c1,c2=2,0
 	for i,v in ipairs(epls)do
-		if(i>32)c1,c2=7,13
-		t2(v,2,128+(i+of)*6-edt,c1,c2)
+		t2(v,1,128+(i+of)*6-edt,2,0)
 		local ns=split(v,"\n")
 		//loga({v,#ns})
 		of+=#ns
-	end
-	
-	if edt>=791 then
-		t2("goldteam mmxxvi",66,120,10,1)
 	end
 end
 
@@ -470,13 +408,13 @@ function draw_game()
 	end
 	
 	draw_rad()
-	//draw_log()
+	draw_log()
 	
 	if pdd==0 then
-		t2(
+		print(
 			"press ❎ to retry",
 			1,120,
-			7,0)
+			7)
 	elseif alert then
 		print(
 			alert,
@@ -497,17 +435,11 @@ function _update()
 	
 	if trn>0 then
 		trn+=1
-		
-		// temp for testing
-		// remove after
-		//`if(btnp(❎))trn=331
-		
 		if trn>330 then
 			trn=0
 			if mode=="title" then
-				init_story_0()
-				//init_story_1()
-				//init_ending()
+				///init_story_1()
+				init_ending()
 			else
 				init_story_1()
 			end
@@ -517,15 +449,15 @@ function _update()
 	
 	if mode!="game" then
 		tita+=0.0001
-		ppx=3*pltr2
-		ppz=-12*pltr2
+		ppx=(lock_i-1)*secr2
+		ppz=(lock_j)*secr2
 	
 		ppx+=cos(tita)*200
 		ppz+=sin(tita)*200
 		pp_ya=-tita-0.75
 
-		sex=flr((ppx)/(pltr2*secsz))
-		sez=flr((ppz)/(pltr2*secsz))
+		sex=round((ppx)/secr2)
+		sez=round((ppz)/secr2)
 		update_cam()
 		
 		if mode=="title" then
@@ -549,9 +481,9 @@ function _update()
 	end
 	
 	update_cam()
-	//suna+=0.01
-	sunx=ppx+1000*cos(suna)
-	sunz=ppz+1000*sin(suna)
+	
+	sunx=ppx+suni*1000
+	sunz=ppz+sunj*1000
 	
 	boss_on=false
 	if story==1 then
@@ -565,13 +497,11 @@ function _update()
 	
 	-- update hand
 	if ray_pts==0 and
-				key_t==0 and 
-				atk_t2<=0 then
+				key_t==0 then
 		hand_t=max(hand_d,hand_t-0.07)
 	elseif ray_pts>2 or 
 								hand_t>hand_d or 
-								key_t>0 or 
-								atk_t2>0 then
+								key_t>0 then
 		hand_t=min(1,hand_t+0.07)
 	end
 		
@@ -579,8 +509,8 @@ function _update()
 		sex=0
 		sez=0
 	else
-		sex=flr((ppx)/(pltr2*secsz))
-		sez=flr((ppz)/(pltr2*secsz))
+		sex=round((ppx)/secr2)
+		sez=round((ppz)/secr2)
 	end
 	
 	for j=sez-3,sez+3 do
@@ -605,16 +535,14 @@ function _update()
 	if story==0 then
 		update_story_0()
 		update_hand_key_s0()
-	elseif story==1 and 
-								atk_n<5 and 
-								pdt==0 then
+	elseif story==1 and atk_n<5 then
 		update_hell()
 		update_hand_key_s1()
 	end
 	
 	if atk_t2>0 or atk_n==5 then
 		atk_t2-=1
-		//loga({atk_t2})
+		loga({atk_t2})
 		if atk_t2<=-300 then
 			init_ending()
 		end
@@ -628,19 +556,22 @@ function _update()
 end
 
 function update_title()
-	//if(btnp(❎))titt=180
 	titt+=1
-	if titt>=300 then
+	if titt>=180 then
 		if btnp()>0 then
 			sfx(7,-1,0,8)
-			titt=300
+			titt=180
 		end
-		if not show_c then
-			if(btnp(⬆️))tit_idx=0
-			if(btnp(⬇️))tit_idx=1
-		end
-		
-		if btnp(❎) then
+		if(btnp(⬆️))tit_idx=0
+		if(btnp(⬇️))tit_idx=1
+	end
+	
+	if btnp(❎) then
+		if titt<60 then
+			titt=60
+		elseif titt<180 then
+			titt=180
+		else
 			if tit_idx==0 then 
 				trn=1
 				music(-1)
@@ -648,9 +579,9 @@ function update_title()
 			else
 				show_c=true
 			end
-		elseif btnp(🅾️) and show_c then
-			show_c=false
 		end
+	elseif btnp(🅾️) and show_c then
+		show_c=false
 	end
 end
 
@@ -659,29 +590,17 @@ function update_story_0()
 	act_sp=nil
 	
 	-- check if at lock spike
-	for s in all(lock_sps)do
+	for j=lock_j-1,lock_j+1 do
+		local s=lvl[j][lock_i].sp[1]
 		if dist(ppx,ppz,s.x+10,s.z)<20 then
-			//alert=s.lock_n
+			alert=s.lock_n
 			act_sp=s
 		end
-	end
-	
-	if spk_t>0 and spk_t<150 do
-		spk_t+=0.2
-		
-		grow_pts(function(sec,p)
-			for k in all({"x","y","z"})do
-				local id=k.."2"
-				local per=spk_t/150
-				p[k]=p[id]*per
-			end
-		end)
 	end
 end
 
 function update_hell()
 	l_sfx_cur="hell"
-	
 	--move boss
 	local a=atan2(
 		ppx-boss.x,
@@ -690,37 +609,20 @@ function update_hell()
 	boss.z+=sin(a)*b_spd
 	bossr.x=boss.x
 	bossr.z=boss.z
-	boss.ya=a
-	//loga({boss.ya})
 	
-	-- boss should always be the
-	-- first spike, update all
-	-- others after.
-	//local lv=lvl[0][0]
-	local lv=get_sec(0,0)
-	for i=2,#lv.sp do
-		local s=lv.sp[i]
-		local sh=lv.sh[i-1]
-		local sr=lv.rs[i-1]
+
+	for s in all(lvl[0][0].sp)do
 		local a=atan2(s.x,s.z,0,0)
-		local cx=cos(a)*sp_hs
-		local cz=sin(a)*sp_hs
-		
-		s.x-=cx
-		s.z-=cz
-		sh.x-=cx
-		sh.z-=cz
-		
-		sr.x-=cx
-		sr.z-=cz
+		--temp comment
+		//s.x-=cos(a)*sp_hs
+		//s.z-=sin(a)*sp_hs
 	end
 	
-	hell_r-=sp_hs
-	
-	if atk_n==3 then
-		suna+=0.001
-	elseif atk_n==4 then
-		suna+=0.002
+	for s in all(lvl[0][0].sh)do
+		local a=atan2(s.x,s.z,0,0)
+		--temp comment
+		//s.x-=cos(a)*sp_hs
+		//s.z-=sin(a)*sp_hs
 	end
 end
 
@@ -779,9 +681,6 @@ function update_hand_key_s0()
 		-- all keys destroyed,
 		-- add spike
 		if #keys==0 then
-			spk_t=1
-			
-			--[[
 			local swd=obj(
 				swd_tris,
 				term.x,-5,term.z,
@@ -793,17 +692,21 @@ function update_hand_key_s0()
 			swd.t=0
 			swd.gs=true
 			swd.key_idx=4
-			
-			add(term_sec.ky,swd)
-			deli(term_sec.tr,1)	
-			]]--
+					
+			add(
+				lvl[lock_j][lock_i-1].ky,
+				swd
+			)
+			deli(
+				lvl[lock_j][lock_i-1].tr,
+				1
+			)
 				
 			keyi=1 --idx of spike
 		end
 	elseif k.t>=0.1 then
 		-- explode key
 		loop_sfx(2,0)
-		sh_t=4
 		if k.key_idx==4 then
 			set_key_c(k,gs_c)
 			//init_story_1()
@@ -828,9 +731,7 @@ end
 function update_hand_key_s1()
 	local k=keys[1]
 	
-	if not boss_on and
-				hand_t==1 and 
-				ray_pts>2 then
+	if hand_t==1 and ray_pts>2 then
 		k.t=k.t+0.001
 		
 		if l_hand_t!=1 then
@@ -842,11 +743,11 @@ function update_hand_key_s1()
 	end
 		
 	-- spin key
-	k.ya+=max(0.01,k.t)	
+	k.ya+=max(0.01,k.t)
 	
 	if k.t>0.13 then
 		if key_t==0 then
-			//loga({"locking charge"})
+			loga({"locking charge"})
 			set_key_c(
 				k,
 				keys_d[k.key_idx].c
@@ -854,16 +755,12 @@ function update_hand_key_s1()
 		end
 		key_t=30
 		
-		local bd=dist(
-			ppx,ppz,boss.x,boss.z)
-		//loga({"bd",bd})
-		if boss_on and bd<200 then
-			//atk_t+=1
-			//if atk_t==30 then
-				//loga({"releasing charge"})
+		if boss_on then
+			atk_t+=1
+			if atk_t==30 then
+				loga({"releasing charge"})
 				set_key_c(k,gs_c)
 				k.t=0.12
-				//k.t=0
 				
 				set_sun_pos()
 				atk_n+=1
@@ -871,6 +768,14 @@ function update_hand_key_s1()
 				sh_t=20
 				sfx(1)
 				
+				--[[
+				// what the heck
+				if atk_n==5 then
+					atk_t2=60
+				else
+					atk_t2=60
+				end
+				]]--
 				if atk_n==5 then
 					music(-1)
 					clear_sfx()
@@ -878,17 +783,13 @@ function update_hand_key_s1()
 				end
 	
 				b_spd+=0.1
-			//end
-		//else
-			//atk_t=0
+			end
+		else
+			atk_t=0
 		end
 	end
 end
 
-function set_sun_pos()
-	suna=rnd()
-end
---[[
 function set_sun_pos()
 	local ni,nj=suni,sunj
 	while (ni==suni and nj==sunj) 
@@ -902,34 +803,9 @@ function set_sun_pos()
 	suni=ni
 	sunj=nj
 end
-]]--
 
 function update_ending()
-	if edt<791 then
-		edt+=0.2
-		//if(btn(❎))edt+=3
-		//loga({edt})
-	end
-end
-
-function grow_pts(cb)
-	for _,sec in pairs(lvl)do
-	if sec.up then
-	for k in all({"sp","sh"})do
-	for s in all(sec[k])do
-	for t in all(s.tris)do
-	for p in all(t.pts)do
-		cb(sec,p)
-		--[[
-		if sec.up then
-				//p[k]/=0.99
-			else
-				p[k]*=0.99
-			end
-			
-		end
-		]]--
-	end end end end end end
+	edt+=0.2
 end
 -->8
 -- pov
@@ -950,7 +826,7 @@ function proj_spr(s)
 	})
 end
 
-function proj_obj(o,nf)
+function proj_obj(o,f)
 	n_o_proj+=1
 	local ts={}
 	//local dz_max_all=-1
@@ -981,13 +857,6 @@ function proj_obj(o,nf)
 			add(pts,{x=px,y=py})
 		end
 		
-		add(ts,{
-			pts=pts,
-			col=t.c,
-			dz=dz_max
-		})
-		
-		--[[
 		local i=1
 		while i<=#ts+1 do
 			if i>#ts or
@@ -1002,28 +871,15 @@ function proj_obj(o,nf)
 			end
 			i+=1
 		end
-		]]--
 	end
 	
 	//printh(#ts)
 	
-	--[[
 	local imin=1
 	if(f)imin=#ts-1
-	//if(nf==nil)nf=1
 	for i=max(1,imin),#ts do
 		//local t=ts[i]
 		sort_itm(ts[i])
-	end
-	]]--
-	//if(nf==nil)nf=#ts
-	//for i=#ts+1-nf,#ts do
-		//local t=ts[i]
-	//	sort_itm(ts[i])
-	//end
-	
-	for t in all(ts)do
-		sort_itm(t)
 	end
 end
 
@@ -1042,6 +898,7 @@ function sort_itm(itm)
 		itm.nxt=nil
 		itm.prv=nil
 		
+		//n_t_sort+=1
 		if t_sorted_ll==nil then
 			t_sorted_ll=itm
 			return
@@ -1152,15 +1009,10 @@ function rot3d(x,y,z,pi,ya,ro)
 end
 
 dz_cols={1,13,15}
-dz_cols2={1,6,2}
 function draw_tri(t,c,dz)
 	local ddz=min(ceil(dz/200),4)
 	if story==0 and ddz>1 then
-		if spk_t>0 then
-			c=dz_cols2[ddz-1]
-		else
-			c=dz_cols[ddz-1]
-		end
+		c=dz_cols[ddz-1]
 	end
 	
 	pelogen_tri_hvb(
@@ -1222,15 +1074,10 @@ function pelogen_tri_hvb(l,t,c,m,r,b,col,ddz)
 end
 -->8
 -- proj
+
 function proj_pov()
 	if pp_rp2<100 then
-		local c=7
-		if story>0 then
-			c=0
-		elseif spk_t>0 then
-			c=13
-		end
-		cls(c)
+		cls(story==0 and 7 or 0)
 	end
 	
 	-- scrolling sky
@@ -1240,7 +1087,7 @@ function proj_pov()
 		for j=0,16 do
 		for i=0,16 do
 			spr(
-				3,
+				128,
 				i*8-pov_scr_t,
 				j*8-pov_scr_t)
 		end end
@@ -1263,26 +1110,10 @@ function proj_pov()
 			-10,gh,
 			137,gh+127,
 			c)
-			
-		if story==0 then
-			fillp(0b0111111110100001.1)
-			rectfill(
-				-10,gh-8,
-				137,gh-5,
-				15)
-			fillp()
-		
-			map(
-				0,
-				0,
-				-32+(pp_ya*256)%32,
-				gh-8
-			)
-		end
 	end
 	
-	if atk_t2>-90 and 
-				mode!="ending" then
+	//n_t_sort=0
+	if atk_t2>-90 then
 		proj_spr(
 			obj(
 				draw_sun,
@@ -1331,71 +1162,60 @@ function proj_pov()
 	end
 end
 
-function proj_secs()
-	local fnd={}
-	for j=sez-2,sez+2 do
-	for i=sex-2,sez+2 do
-		local id=i.."+"..j
-		//loga({"id", id, rnd()})
-		fnd[id]=true
-		proj_s(i,j,min(abs(i),abs(j)))
-	end end
-	
-	local sd=pltr2*src_sd
-	for n=0,src_dp do
-		local a=pp_ya-src_ag/2
-		local am=src_ag/src_ns
-		for s=0,src_ns do
-			local aa=a+am*s
-			local d=sd*n
-			local d2=sd*(n+1)
-			local x1=ppx+sin(aa)*d
-			local z1=ppz+cos(aa)*d
-			local x2=x1+sin(aa)*d2
-			local z2=z1+cos(aa)*d2
-			
-			local i=flr(x2/(pltr2*secsz))
-			local j=flr(z2/(pltr2*secsz))
-			local id=i.."+"..j
-			//loga({id})
-			if fnd[id]==nil then
-				fnd[id]=true
-				
-				proj_s(i,j,n)
-			end
-			
-			if stop_rend() then
-				return
-			end
+function proj_secs()	
+	//loga({"checking"})
+	local chkd={}	
+	local dpt=12
+	if(hand_t>0)dpt=8
+	for n=0,dpt do
+		//local n=nn*1
+		if n<2 then
+			sec_s_n=20
+		else
+			sec_s_n=11
 		end
-	end
-end
-
-function proj_s(i,j,n)
-	local sec=get_sec(i,j)
-	if sec then
-		for k,v in pairs(sec_d) do
-			if n<v then
-				for o in all(sec[k]) do
-					sx,sy,dz=proj(o.x,o.y,o.z)
-					if k=="sh" or 
-								on_scr_x(sx) then
-						//proj_obj(o,k=="sp")
-						//proj_obj(o)
-						//`local nf=
-						proj_obj(o)
-					end
-					
-					if stop_rend() then
-						return
+	for ai=0,sec_s_n-1 do
+		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
+		n_sec_chk+=1
+			
+		local i=round(
+			sex+sin(pp_ya+a)*n)
+		local j=round(
+			sez+cos(pp_ya+a)*n)
+			
+		//loga({"chk",i,j})				
+		
+		local id=(j>>8)+i
+		local sec=get_sec(i,j)
+		if chkd[id] then
+			//lol
+		elseif sec then
+			//loga({"found",i,j,id})
+			n_sec_fnd+=1
+			//loga({dtb2(i)})
+			//loga({dtb2(j)})
+			//loga({dtb2(id)})
+			chkd[id]=true
+				
+			for k,v in pairs(sec_d) do
+				if n<v then
+					for o in all(sec[k]) do
+						sx,sy,dz=proj(o.x,o.y,o.z)
+						if on_scr_x(sx) then
+							proj_obj(o,k=="sp")
+						end
 					end
 				end
 			end
 		end
-	end
+			
+		if n_t_sorted>60 then
+			return
+		end
+		
+	end end
 end
 
---[[
 function draw_log()
 	pria({"x",ppx,"z",ppz,"ya",pp_ya},0,0,5)
 	pria({"sc ch",n_sec_chk},0,6,5)
@@ -1407,51 +1227,28 @@ function draw_log()
 	pria({pp_rp,pp_rp2},0,42,11)
 	pria({#keys},0,48,11)
 end
-]]--
 
 function draw_sun(s)
 	if story==0 then
-		if spk_t>0 then
-			circfill(
-				s.pts[1].x,
-				s.pts[1].y,
-				10,
-				9
-			)
-			circfill(
-				s.pts[1].x,
-				s.pts[1].y,
-				8,
-				0
-			)	
-		else
-			c=9
-			if term.act_t>0 and
+		local c=9
+		if term.act_t>0 and
 					act_sp!=nil then
-				c=keys_d[act_sp.lock_n].c[1]
-			end
-			circfill(
-				s.pts[1].x,
-				s.pts[1].y,
-				10,
-				c
-			)
+			c=keys_d[act_sp.lock_n].c[1]
 		end
+		circfill(
+			s.pts[1].x,
+			s.pts[1].y,
+			10,
+			c
+		)
 	else
-		local k=keys[1]
-		local sp=6
-		if k.t<0.13 then
-		sp=4
 		circfill(
 			s.pts[1].x,
 			s.pts[1].y,
 			10,
 			0
 		)
-		end
-		
-		spr(
-			sp,
+		spr(7,
 			s.pts[1].x-8,
 			s.pts[1].y-8,
 			2,2
@@ -1528,9 +1325,9 @@ function proj_hand()
 	end
 		
 	if ht>0 then
-		proj_obj(hand)
+		proj_obj(hand,false)
 		if #keys>0 then
-			proj_obj(keys[keyi])
+			proj_obj(keys[keyi],false)
 		end
 	end
 end
@@ -1540,7 +1337,7 @@ function draw_rad()
 		pset(
 			rand(0,127),
 			rand(0,127),
-			11)
+			2)
 	end
 	for i=1,pp_rp2*5 do
 		pset(
@@ -1548,18 +1345,6 @@ function draw_rad()
 			rand(0,127),
 			0)
 	end
-end
-
-function stop_rend()
-	local tmax=80
-	if hand_t>0 then
-		if story==1 then
-			tmax=40
-		else
-			tmax=60
-		end
-	end
-	return n_t_sorted>tmax
 end
 
 --[[
@@ -1750,11 +1535,10 @@ function update_player()
 		end
 		
 		-- check spike collision
-		if story==0 then
 		for o in all(sec.sp)do
 			if(col_bb(po,o,-dx,0))can_x=false
 			if(col_bb(po,o,0,-dz))can_z=false
-		end end
+		end
 		
 		-- check radiation
 		for r in all(sec.rs)do
@@ -1772,11 +1556,6 @@ function update_player()
 			if d<=bossr.r then
 				touch_r=true
 				pp_rp+=((bossr.r-d)/bossr.r)*rp1_usb
-			end
-			
-			if dist(ppx,ppz,0,0)>hell_r then
-				touch_r=true
-				pp_rp+=1
 			end
 		end
 		
@@ -1798,14 +1577,13 @@ function update_player()
 		for k in all(sec.ky)do
 			local d=dist(ppx,ppz,k.x,k.z)
 			if d<10 do
+				//init_story_1()
 				add(keys,k)
 				del(sec.ky,k)
 				key_t=60
 				hand_t=0
 				keyi=#keys
-				if k.key_idx!=4 then
-					music(16)
-				end
+				music(16)
 			end
 		end
 		
@@ -2007,11 +1785,14 @@ function proj_term()
 		)
 		if term.act_t==0 or 
 					flr(term.act_t/8)%2==0 then
-			proj_obj(o)
+			proj_obj(
+				o,
+				false
+			)
 		end
 	end
 	
-	proj_obj(term_h)
+	proj_obj(term_h,false)
 	
 	srand(time())
 end
@@ -2049,11 +1830,12 @@ function update_term()
 		end
 		if term.act_t>=60 then
 			in_term=false
-			//loga({"win"})
+			loga({"win"})
 			
 			-- change colors of 
 			-- lock spikes
-			for s in all(lock_sps)do
+			for j=lock_j-1,lock_j+1 do
+				local s=lvl[j][lock_i].sp[1]
 				set_key_c(s,{9})
 			end
 		end
@@ -2127,9 +1909,10 @@ end
 -->8
 -- lvl generation
 
+//function spike(x,z,s_num,dr,h,r)
 function spike(x,z,st,h,r,c1,c2)
 	rx,rz=rand(-40,40),rand(-40,40)
-	h=(h==nil and rand(-150,-80) or h)
+	h=(h==nil and -100 or h)
 	r=(r==nil and 10 or r)
 	c1=(c1==nil and 0 or c1)
 	c2=(c2==nil and 1 or c2)
@@ -2137,6 +1920,30 @@ function spike(x,z,st,h,r,c1,c2)
 	if st then
 		rx,rz=0,0
 	end
+	
+	--[[
+	local s=nil
+	if s_num>-1 then
+		if(dr==nil)dr=rand(1,4)
+		local sya=0
+		if(dr==1)rx,rz,sya=-10,0,-0.25
+		if(dr==2)rx,rz,sya=10,0,0.25
+		if(dr==3)rx,rz=0,-10
+		if(dr==4)rx,rz,sya=0,10,0.5
+		if(dr==5)rx,rz=0,0
+		
+		local sxo,szo=0,0
+		if dr<3 then
+			sxo=2*sgn(rx)
+		else
+			szo=2*sgn(rz)
+		end
+		
+		s=symb(
+			x+rx+sxo,-30,z+rz+szo,s_num,9)
+		s.ya=sya
+	end
+	]]--
 	
 	local sp_tris={
 		{ -- west face
@@ -2166,8 +1973,8 @@ function spike(x,z,st,h,r,c1,c2)
 	}
 	local sh_tris={
 		{
-			p_to_s(0,0,-r),
-			p_to_s(0,0,r),
+			p_to_s(h,0,-r),
+			p_to_s(h,0,r),
 			p_to_s(-h,0,0),
 			5
 		}
@@ -2176,7 +1983,7 @@ function spike(x,z,st,h,r,c1,c2)
 	local o_sp=obj(
 		sp_tris,
 		x,0,z,
-		0.75,0,0,
+		0,0,0,
 		2*r,2*r,
 		nil
 	)
@@ -2191,12 +1998,11 @@ function spike(x,z,st,h,r,c1,c2)
 	
 	local o_sh=obj(
 		sh_tris,
-		x+r,0,z,
+		x-h,0,z,
 		0,0,0,
 		0,0,
 		nil
 	)
-	o_sh.h=h
 	//return o_sp,o_sh,s
 	return o_sp,o_sh
 end
@@ -2248,13 +2054,27 @@ function symb_tri(a,l,col)
 		local x,y=rot2d(
 			dat[i][1],dat[i][2],a
 		)
+		//tri[i][1]=x
+		//tri[i][2]=y
 		add(tri,""..x..","..y..",0")
 	end
 	add(tri,col)
 	return tri
 end
 
-function add_me_area(ci,cj,r,up)
+function pyr(x,z)
+	local o_pyr=obj(
+		pyr_tris,
+		x,-5,z,
+		0,0,0,
+		5,5,
+		nil
+	)
+	return o_pyr
+end
+
+
+function add_me_area(ci,cj,r)
 	local imin,imax=ci-r,ci+r
 	local jmin,jmax=cj-r,cj+r
 	
@@ -2262,14 +2082,57 @@ function add_me_area(ci,cj,r,up)
 	local ki=ci+rand(-kr,kr)
 	local kj=cj+rand(-kr,kr)
 	
+	//local symbs={}
+	--temp, key goes in center
+	//symbs[0]={i=ci,j=cj,n=-1}
+	--[[
+	for k=1,3 do
+		ri,rj=free_sec(
+			symbs,
+			imin,imax,
+			jmin,jmax
+		)
+		symbs[k]={
+			i=ri,
+			j=rj,
+			n=rand(1,9)
+		}
+				
+		loga({
+			"symb",
+			symbs[k].i,
+			symbs[k].j,
+			symbs[k].n,
+		})
+	end
+	]]--
+	--[[
+	ti,tj=free_sec(
+		symbs,
+		imin,imax,
+		jmin,jmax
+	)
+	loga({"term",ti,tj})
+	]]--
+	
+	
 	for j=jmin,jmax do
 		for i=imin,imax do
-			//local sec=nsec()
+			local sec=nsec()
+			
+			--[[
+			local symb_n=-1
+			for sm in all(symbs)do
+				if j==sm.j and i==sm.i then
+					symb_n=sm.n
+				end
+			end
+			]]--
 		
-			local sx=i*pltr2
-			local sy=j*pltr2
-			local rx=rand(-pltr,pltr)+sx+pltr
-			local rz=rand(-pltr,pltr)+sy+pltr
+			local sx=i*secr2
+			local sy=j*secr2
+			local rx=rand(-secr,secr)+sx
+			local rz=rand(-secr,secr)+sy
 			
 			if j==kj and i==ki then
 				if cur_me_key>0 then
@@ -2281,7 +2144,6 @@ function add_me_area(ci,cj,r,up)
 						if(lk.n==4)t=pyr_tris
 						if(lk.n==6)t=cube_tris
 						if(lk.n==8)t=diam_tris
-						if(lk.n==-1)t=swd_tris
 						local o_key=obj(
 							t,
 							rx,-5,rz,
@@ -2294,102 +2156,84 @@ function add_me_area(ci,cj,r,up)
 						o_key.t=0
 						o_key.gs=true
 					
-						//add(sec.ky,o_key)
-						place(i,j,"ky",o_key)
+						add(sec.ky,o_key)
 						cur_me_key+=1
 					end
 				end
 			else
 				local sp,sh=spike(rx,rz)
-				sp.per=1
-				sh.per=1
-				if up==true then
-					sp.per=0
-					sh.per=0
-				end
-				//add(sec.sp,sp)
-				//add(sec.sh,sh)
-				place(i,j,"sp",sp,up)
-				place(i,j,"sh",sh)
+				add(sec.sp,sp)
+				add(sec.sh,sh)
 			end
 			
-			//add(sec.rs,{
-			//	x=rx,z=rz,
-			//	r=rand(20,30)
-			//})
-			place(i,j,"rs",{
+			add(sec.rs,{
 				x=rx,z=rz,
 				r=rand(20,30)
 			})
 			
-			//if(lvl[j]==nil)lvl[j]={}
-			//lvl[j][i]=sec
+			if(lvl[j]==nil)lvl[j]={}
+			lvl[j][i]=sec
 		end
 	end
 end
 
-function add_me_sp(i,j,up)
-	local rx=i*pltr2+pltr
-	local rz=j*pltr2+pltr
-	if up!=true then
-		rx+=rand(-pltr,pltr)
-		rz+=rand(-pltr,pltr)
-	end
-	//local sec=nsec()
+function add_me_sp(i,j)
+	local sx=i*secr2
+	local sy=j*secr2
+	local rx=rand(-secr,secr)+sx
+	local rz=rand(-secr,secr)+sy
+	local sec=nsec()
 	local sp,sh=spike(rx,rz,true)
-	if up==true then
-		sp.per=0
-		sh.per=0
-	end
-	place(i,j,"sp",sp,up)
-	place(i,j,"sh",sh)
-	place(i,j,"rs",{
+	add(sec.sp,sp)
+	add(sec.sh,sh)
+	add(sec.rs,{
 		x=rx,z=rz,
 		r=rand(20,30)
 	})
+	if(lvl[j]==nil)lvl[j]={}
+	lvl[j][i]=sec
 end
 
-function add_lk_area(ci,cj)	
+function add_lk_area(ci,cj)
+	lock_i=ci
+	lock_j=cj
+	
 	local secs={{-1,0},{0,0},{1,0}}
 	for c=1,3 do
 		local s=secs[c]
 		local j,i=s[1]+cj,s[2]+ci
-		//local sec=nsec()
+		local sec=nsec()
 		local sp,sh,sy=spike(
-			i*pltr2+pltr,
-			j*pltr2+pltr,
-			true,-10,2)
+			i*secr2,j*secr2,true,-10,2)
 		sp.lock_n=lock_ord[c]
 		sp.ft=1
-		place(i,j,"sp",sp)
-		place(i,j,"sh",sh)
-		add(lock_sps,sp)
+		add(sec.sp,sp)
+		add(sec.sh,sh)
+		lvl[j]={}
+		lvl[j][i]=sec
 	end
 	
 	-- add terminal
+	local sec=nsec()
 	term=obj(
 		tr_tris,
-		(ci-1)*pltr2,0,cj*pltr2,
+		(ci-1)*secr2,0,cj*secr2,
 		0.75,0,0,
 		5,5,
 		nil
 	)
 	term.inpt={3,3,3}
 	term.act_t=0
-	sec=place(
-		ci-1,
-		cj,
-		"tr",
-		term
-	)
+	add(sec.tr,term)
 	
-	place(ci-1,cj,"tr",obj(
+	add(sec.sh,obj(
 		tr_sh_tri,
-		(ci-1)*pltr2+14,0,cj*pltr2,
+		(ci-1)*secr2+14,0,cj*secr2,
 		0,0,0,
 		0,0,
 		nil
 	))
+	lvl[cj][ci-1]=sec
 end
 
 function add_hell_area()
@@ -2411,68 +2255,40 @@ function add_hell_area()
 		local a=i/30
 		local sx,sz=cos(a),sin(a)
 		local sp,sh=spike(
-			sx*pltr2*sp_hd,
-			sz*pltr2*sp_hd,
+			sx*secr2*sp_hd,
+			sz*secr2*sp_hd,
 			true,
 			nil,nil,
 			8,2)
 		add(sec.sp,sp)
 		add(sec.sh,sh)
-		add(sec.rs,{
-			x=sp.x,z=sp.z,
-			r=20
-		})
 	end
 	
 	
-	lvl["0+0"]=sec
-	//lvl[0]={}
-	//lvl[0][0]=sec
-end
-
-function add_db(i,j,a)
-	local sx=i*pltr2+pltr
-	local sy=j*pltr2+pltr
-	local rx=rand(-pltr,pltr)+sx
-	local rz=rand(-pltr,pltr)+sy
-	//local sec=nsec()
-	local db=obj(
-		body_tris,
-		rx,0,rz,
-		a,0,0,
-		0,0,
-		nil
-	)
-	place(i,j,"db",db)
-	place(i,j,"rs",{
-		x=rx,z=rz,
-		r=10
-	})
-	--[[
-	add(sec.db,db)
-	add(sec.rs,{
-		x=rx,z=rz,
-		r=10
-	})
-	if(lvl[j]==nil)lvl[j]={}
-	lvl[j][i]=sec
-	]]--
-end
-
-function place(i,j,k,o,up)
-	i=flr(i/secsz)
-	j=flr(j/secsz)
-	local key=i.."+"..j
-	if lvl[key]==nil then
-		lvl[key]=nsec()
-	end
 	
-	if(up==true)lvl[key].up=true
+	lvl[0]={}
+	lvl[0][0]=sec
+end
+
+--[[
+function free_sec(arr,imin,imax,jmin,jmax)
+	local f=true
+	while f do
+	local ri=rand(imin,imax)
+	local rj=rand(jmin,jmax)
+		f=false
+		for o in all(arr) do
+			if o.i==ri and o.j==rj then
+				f=true
+			end
+		end
 		
-	add(lvl[key][k],o)
-	
-	return lvl[key],i,j
+		if not f then
+			return ri,rj
+		end
+	end
 end
+]]--
 -->8
 -- helpers
 
@@ -2501,9 +2317,7 @@ function nsec()
 		sh={},
 		rs={},
 		ky={},
-		tr={},
-		db={},
-		up=false
+		tr={}
 	}
 end
 
@@ -2549,14 +2363,8 @@ function read_tris(tr)
 end
 
 function get_sec(i,j)
-	local id=i.."+"..j
-	if lvl[id] then
-		
-		if lvl[id].up and spk_t==0 then
-			return nil
-		end
-		
-		return lvl[id]
+	if lvl[j] and lvl[j][i] then
+		return lvl[j][i]
 	end
 	
 	return nil
@@ -2634,7 +2442,6 @@ end
 
 --debug functions
 --todo remove
---[[
 function a_to_s(arr)
 	local s=tostr(arr[1])
 	for i=2,#arr do
@@ -2650,7 +2457,6 @@ end
 function pria(arr,x,y,c)
 	print(a_to_s(arr),x,y,c)
 end
-]]--
 
 --[[
 function dtb2(num)
@@ -2803,49 +2609,49 @@ tr_tris={
 		"-4,0,-4",
 		"4,0,-4",
 		"4,-10,-4",
-		13
+		1
 	},
 	{--front 2
 		"-4,0,-4",
 		"-4,-10,-4",
 		"4,-10,-4",
-		13
+		1
 	},
 	{--back 1
 		"-4,0,4",
 		"4,0,4",
 		"4,-10,4",
-		1
+		13
 	},
 	{--back 2
 		"-4,0,4",
 		"-4,-10,4",
 		"4,-10,4",
-		1
+		13
 	},
 	{--left 1
 		"-4,0,-4",
 		"-4,0,4",
 		"-4,-10,-4",
-		1
+		13
 	},
 	{--left 2
 		"-4,0,4",
 		"-4,-10,4",
 		"-4,-10,-4",
-		1
+		13
 	},
 	{--right 1
 		"4,0,-4",
 		"4,0,4",
 		"4,-10,-4",
-		13
+		1
 	},
 	{--right 2
 		"4,0,4",
 		"4,-10,4",
 		"4,-10,-4",
-		13
+		1
 	}
 }
 	
@@ -2933,31 +2739,7 @@ cube_tris={
 		"1,-1,1",
 		"1,-1,-1",
 		6
-	},
-	{--top 1
-		"-1,1,-1",
-		"-1,1,1",
-		"1,1,1",
-		6
-	},
-	{--top 2
-		"-1,1,-1",
-		"1,1,-1",
-		"1,1,1",
-		6
-	},
-	{--bot 1
-		"-1,-1,-1",
-		"-1,-1,1",
-		"1,-1,1",
-		6
-	},
-	{--bot 2
-		"-1,-1,-1",
-		"1,-1,-1",
-		"1,-1,1",
-		6
-	},
+	}
 }
 
 diam_tris={
@@ -3033,23 +2815,23 @@ swd_tris={
 }
 
 epls={
-	"this place is a message.",
-	"and part of a system\nof messages.",
+	"this place is a message...",
+	"and part of a system\nof messages...",
 	"pay attention to it.",
 	"",
 	"sending this message was\nimportant to us.",
 	"we considered ourselves to\nbe a powerful culture.",
 	"", 
-	"this place is not a place\nof honor.",
-	"no highly esteemed deed is\ncommemorated here.",
+	"this place is not a place\nof honor...",
+	"no highly esteemed deed is\ncommemorated here...",
 	"nothing valued is here.",
 	"",
 	"what is here was dangerous\nand repulsive to us.",
 	"this message is a warning\nabout danger.", 
 	"",
-	"the danger is in a particular\nlocation.",
-	"it increases towards a\ncenter.",
-	"the center of\ndanger is here.",
+	"the danger is in a particular\nlocation...",
+	"it increases towards a\ncenter...",
+	"the center of\ndanger is here...",
 	"of a particular size and shape,\nand below us.",
 	"",
 	"the danger is still present\nin your time, as it was\nin ours.",
@@ -3060,311 +2842,33 @@ epls={
 	"",
 	"the danger is unleashed\nonly if you substantially\ndisturb this place physically.",
 	"",
-	"this place is best shunned\nand left uninhabited.",
-	"",
-	"",
-	"",
-	"",
-	"      menacing earthworks",
-	"",
-	"",
-	"a game by\nraf & ryan @ goldteam",
-	"",
-	"playtesters:",
-	"jacob    nick\njane     ana",
-	"",
-	"",
-	"inspired by studies on nuclear\nsemiotics by the american\ninterference task force.",
-	"text is credited to the 1993\nreport on nuclear semiotics by\nsandia national laboratories.",
-	"",
-	"",
-	"",
-	"",
-	"",
-	"thanks for playing."
+	"this place is best shunned\nand left uninhabited."
 }
-
-body_tris={
-	{ -- left forearm
-		"-7,0,-8",
-		"-5,0,-4.5",
-		"-5,0,-4.5",
-		"-5,0,-5"
-	},
-	{ --left upper arm
-		"-5,0,-4.5",
-		"-5,0,-5",
-		"-2,0,-6"
-	},
-	{ -- right forearm
-		"6,0,0",
-		"4.5,0,-3",
-		"5,0,-3.5"
-	},
-	{ -- right upper arm
-		"4.5,0,-3",
-		"5,0,-3.5",
-		"2,0,-6"
-	},
-	{ -- spine
-		"-0.2,0,0",
-		"-0.2,0,-7",
-		"0.2,0,0"
-	},
-	{
-		"-0.2,0,-7",
-		"0.2,0,-7",
-		"0.2,0,0"
-	},
-	{ -- collar
-		"-2,0,-6",
-		"2,0,-6",
-		"0,0,-5"
-	},
-	{ -- left ribs
-		"-2,-0.5,-5",
-		"0,0,-5",
-		"0,0,-4.5"
-	},
-	{
-		"-2,-0.6,-4.5",
-		"0,0,-4.5",
-		"0,0,-4"
-	},
-	{
-		"-2,-0.5,-4",
-		"0,0,-4",
-		"0,0,-3.5"
-	},
-	{
-		"-2,-0.6,-3.5",
-		"0,0,-3.5",
-		"0,0,-3"
-	},
-	{
-		"-2,-0.5,-3",
-		"0,0,-3",
-		"0,0,-2.5"
-	},
-	{ -- right ribs
-		"2,-0.6,-5",
-		"0,0,-5",
-		"0,0,-4.5"
-	},
-	{
-		"2,-0.7,-4.5",
-		"0,0,-4.5",
-		"0,0,-4"
-	},
-	{
-		"2,-0.5,-4",
-		"0,0,-4",
-		"0,0,-3.5"
-	},
-	{
-		"2,-0.7,-3.5",
-		"0,0,-3.5",
-		"0,0,-3"
-	},
-	{
-		"2,-0.5,-3",
-		"0,0,-3",
-		"0,0,-2.5"
-	},
-	{ -- left pelvis
-		"-2,0,-1.5",
-		"0,0,-1",
-		"0,0,0",
-	},
-	{
-		"-0.8,0,-1",
-		"0,0,0",
-		"-1.5,0,0.5"
-	},
-	{ -- right pelvis
-		"2,0,-1.5",
-		"0,0,-1",
-		"0,0,0",
-	},
-	{
-		"0.8,0,-1",
-		"0,0,0",
-		"1.5,0,0.5"
-	},
-	{ -- left upper leg
-		"-1,0,0",
-		"-6,0,1",
-		"-5,0,1.5"
-	},
-	{ -- left lower leg
-		"-6,0,1",
-		"-5,0,1",
-		"-7,0,6"
-	},
-	{ -- right upper leg
-		"1,0,0",
-		"2.25,0,6",
-		"3,0,6"
-	},
-	{ -- right lower leg
-		"2.25,0,6",
-		"3,0,6",
-		"4,0,10"
-	},
-	{ -- left skull
-		"0,0,-9.5",
-		"-1,0,-9",
-		"0,0,-7.5"
-	},
-	{
-		"-1,0,-9",
-		"0,0,-7.5",
-		"-1,0,-8"
-	},
-	{
-		"-1,0,-7.7",
-		"0,0,-7.3",
-		"0,0,-7"
-	},
-	{ -- right skull
-		"0,0,-9.5",
-		"1,0,-9",
-		"0,0,-7.5"
-	},
-	{
-		"1,0,-9",
-		"0,0,-7.5",
-		"1,0,-8"
-	},
-	{
-		"1,0,-7.7",
-		"0,0,-7.3",
-		"0,0,-7"
-	},
-	{	-- left eye
-		"-0.8,-0.1,-8.8",
-		"-0.4,-0.1,-8.8",
-		"-0.6,-0.1,-8.4",
-		11
-	},
-	{	-- right eye
-		"0.8,-0.1,-8.8",
-		"0.4,-0.1,-8.8",
-		"0.6,-0.1,-8.4",
-		11
-	}
-}
-
---[[
-body_tris_f={
-	{ -- left forearm
-		"-6,0,-8",
-		"-5,0,-8",
-		"-4,0,-4"
-	},
-	{ -- left upper arm
-		"-4,0,-4",
-		"-4,0,-5",
-		"-1,0,-6"
-	},
-	{
-		"-4,0,-4",
-		"-1,0,-6",
-		"-1,0,-5"
-	},	
-	{ -- torso
-		"-1,0,-6",
-		"-1,0,-1",
-		"2,0,-1"
-	},
-	{
-		"-1,0,-6",
-		"1,0,-6",
-		"2,0,-1"
-	},
-	{ -- right arm
-		"1,0,-6",
-		"1,0,-5",
-		"6,0,-1"
-	},
-	{
-		"1,0,-6",
-		"6,0,-1",
-		"6,0,-2"
-	},
-	{ -- left upper leg
-		"-1,0,-1",
-		"2,0,-1",
-		"-3,0,1"
-	},
-	{ -- left lower leg
-		"-2,0,0",
-		"-3,0,1",
-		"-2,0,6"
-	},
-	{
-		"-3,0,1",
-		"-3,0,5",
-		"-2,0,6"
-	},
-	{ -- left foot
-		"-5,0,6",
-		"-3,0,5",
-		"-2,0,6"
-	},
-	{ -- right leg
-		"1,0,-1",
-		"3,0,7",
-		"4,0,7"
-	},
-	{
-		"1,0,-1",
-		"2,0,-1",
-		"4,0,7"
-	},
-	{ -- right foot
-		"3,0,7",
-		"4,0,7",
-		"6,0,8"
-	},
-	{ -- head
-		"1,0,-7",
-		"1,0,-9",
-		"-1,0,-9"
-	},
-	{
-		"1,0,-7",
-		"-1,0,-7",
-		"-1,0,-9"
-	}
-}
-]]--
-
 __gfx__
-00000000009999000000800001100000000000555550000000000011111000000000000000000000000000000000000000000000000000000000000000000000
-00000000090000900000880000110000000055555555000000001111111100000000900000090000000000000000000000000000000000000000000000000000
-00700700900990098888888000110000000555555555500000011111111110000009900000099000000000000000000000000000000000000000000000000000
-00077000909009098888888800011110005555555555500000111111111110000099990000999900000000000000000000000000000000000000009000000000
-0007700090900909888888800000111100555000000005000011100000000100099999000099999000000000000000000000000000000000009000f900000000
-007007009009909000008800100000010055500000000500001110000000010009999900009999900000000000000000000000000000000009900fff00000000
-0000000009000000000080001000000100550000000005000011000000000100999990099009999900000000000000000000000000000000ff990fff00000000
-0000000000999990000000001000000000550555055505000011001000100100000000999900000000000000000000000000000000000000fff99fff00000000
-00000000000000000666666000000000005000500050050000100111011101000000009999000000000000000000000044444444444444440000000000000000
-00000000000000006000000600000000005000005000050000100000100001000000000990000000000000000000000040000000000000040000900000090000
-00000000000000006066066600000000000550005000550000010000000001000000000000000000000000000000000040009000000900040009900000099000
-00000000000000006007007600000000000505000005050000010001110001000000009999000000000000000000000040099900009990040099990000999900
-00000000000000006000000600000000000500555550050000010010001001000000099999900000000000000000000040099990099990040999990000999990
-00000000000000000607777600000000000050000000500000001011111010000000999999990000000000000000000040099909909990040999990000999990
-00000000000000000600000600000000000050000000500000001000000010000000999999990000000000000000000040000009900000049999900990099999
-00000000000000000066666000000000000005555555000000000111111100000000009999000000000000000000000040000000000000040000009999000000
-00010000000700000007000000070000000700000007000000070000000700000007000000070000000700000000000040000009900000040000009999000000
-01010100000000000000000000000000000000000700070007070700070707000707070007070700070007000000000040000099990000040000000990000000
+00000000009999000000800000000000000000000000005555500000000000555550000000000000000000000000000000000000000000000000000000000000
+00000000090000900000880000000000000000000000555555550000000055555555000000009000000900000000000000000000000000000000900000090000
+00700700900990098888888000000000000000000005555555555000000555555555500000099000000990000000000000000000000000000009900000099000
+00077000909009098888888800000000000000000055555555555000005555555555500000999900009999000000000000000000000000000099990000999900
+00077000909009098888888000000000000000000055550000000600005555000000060009999900009999900000006600000000000000000999990000999990
+00700700900990900000880000000000000000000055500000000600005550000000060009999900009999900000000000000000000000000999990000999990
+00000000090000000000800000000000000000000055000000000600005500000000060099999009900999990000000000000000000000009999900990099999
+00000000009999900000000000000000000000000055066606660600005500600060060000000099990000000000000000000000000000000000009999000000
+00000000000000000666666000000000000000000050006000600600005006660666060000000099990000000000000044444444444444440000009999000000
+00000000000000006000000600000000000000000060000060000600006000006000060000000009900000000000000040000000000000040000000990000000
+00000000000000006066066600000000000000000006600060006600000600000000060000000000000000000000000040009000000900040000000000000000
+00000000000000006007007600000000000000000006060000060600000600066600060000000099990000000000000040099900009990040000009999000000
+00000000000000006000000600000000000000000006006666600600000600600060060000000999999000000000000040099990099990040000099999900000
+00000000000000000607777600000000000000000000600000006000000060666660600000009999999900000000000040099909909990040000999999990000
+00000000000000000600000600000000000000000000600000006000000060000000600000009999999900000000000040000009900000040000999999990000
+00000000000000000066666000000000000000000000066666660000000006666666000000000099990000000000000040000000000000040000009999000000
+00010000000700000007000000070000000700000007000000070000000700000007000000070000000700000000000040000009900000040000000000000000
+01010100000000000000000000000000000000000700070007070700070707000707070007070700070007000000000040000099990000040000000000000000
 00111000000700000007000000070000000700000007000000077000000770000007700000777000000000000000000040000099990000040000000000000000
-11111110007770000077707000777070707770707077707077777770777777707777777077777770700000700000000040000000000000040000009999000000
-00111000000700000007000000070000000700000007000000070000000770000077700000777000000000000000000044444444444444440000099999900000
-01010100000000000000000000000000000000000700070007070700070707000707070007070700070007000000000000000000000000000000999999990000
-00010000000000000000000000070000000700000007000000070000000700000007000000070000000700000000000000000000000000000000999999990000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009999000000
+11111110007770000077707000777070707770707077707077777770777777707777777077777770700000700000000040000000000000040000000000000000
+00111000000700000007000000070000000700000007000000070000000770000077700000777000000000000000000044444444444444440000000000000000
+01010100000000000000000000000000000000000700070007070700070707000707070007070700070007000000000000000000000000000000000000000000
+00010000000000000000000000070000000700000007000000070000000700000007000000070000000700000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000700000007000000070000000700000007000000070000000700000007000000070000000000000000770777700000000000000000700000000000
 00000000000000000000000000000000000000000700070000000700000007000000070007000700000000000000007000070000000000000000070000000000
 00070000007070000070700000707000007070000070700000707000007070000070700000707000000000000000070700007000000000000007007000000000
@@ -3389,82 +2893,30 @@ __gfx__
 000dddd1d11d10000000000000000000000000000000000000055555000555550005555400055554000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000055555000555550005555500055544000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000055555000005550005554400055555000000000000000000000000000000000000000000000000
-000000000000000000ddd00000ddd000005555500000000000ddd00000ddd0000000000000000000000000000000000000000000000000000000000000000000
-00022222222220000dbbbd000d333d0005555555000000000d666d000dcccd000000000000009000000000000000000000000000000000000000000000000000
-0022222222222200dbbbbbd0d33333d05555555550000000d66666d0dcccccd00000000000f99900000000000000000000000000000000000000000000000000
-0222222222222220dbbb7bd0d33353d05555555550000000d66656d0dccc7cd000090000ffff9900000000900000000900000000000000000000000000000000
-0222eeeeeeee2220dbb77bd0d33553d05555555550000000d66556d0dcc77cd000f99009fffff990009000f9000000f900000000000000000000000000000000
-0222e222222e22200dbbbd000d333d0000000000000000000d666d000dcccd000f99990f9fffff9909900fff99000ff900000000000000000000000000000000
-02222e2222e2222000ddd00000ddd000000000000000000000ddd00000ddd0000fff999ff9fffff9ff990fff9fff9fff00000000000000000000000000000000
-022222e22e222220000000000000000000000000000000000000000000000000ffffffffff9ffffffff99ffffffff9ff00000000000000000000000000000000
+000000000000000000ddd00000ddd000005555500000000000ddd00000ddd00000aaaaa000aaaaa000aaa0000aaaaa00aaaaaaaaaaaaaaaa00aaaaa00aaaaaa0
+00022222222220000dbbbd000d333d0005555555000000000d666d000dcccd000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa
+0022222222222200dbbbbbd0d33333d05555555550000000d66666d0dcccccd0aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa
+0222222222222220dbbb7bd0d33353d05555555550000000d66656d0dccc7cd0aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa
+0222eeeeeeee2220dbb77bd0d33553d05555555550000000d66556d0dcc77cd0aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa
+0222e222222e22200dbbbd000d333d0000000000000000000d666d000dcccd00aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa
+02222e2222e2222000ddd00000ddd000000000000000000000ddd00000ddd000aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa
+022222e22e2222200000000000000000000000000000000000000000000000000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa
 0222222ee222222000ddd00000ddd0000000000000000000000000000000000000aaaaa000aaaaa000aaa0000aaaaa00aaaaaaaaaaaaaaaa00aaaaa00aaaaaa0
-02222222222222200d888d000d222d00000000000000600000000000000000000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa
-0d22222222222210d88888d0d22222d0000000000066f6000000000000000000aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa
-0dd2222222222110d88878d0d22252d000060000fffff6000000006000000060aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa
-00ddddd1d11d1100d88778d0d22552d0006f600fffffff60006000f600000f60aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa
-000dddd1d11d10000d888d000d222d000fff6fffffffff600f600fff6000fff6aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa
-000000000000000000ddd00000ddd0000ffff6fffffffff6fff60ffff6ffffffaaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa
-00000000000000000000000000000000ffffff6ffffffff6ffffffffffffffff0aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000011000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000011000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000111700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000111700000000000220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00001111700000000002222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00001111170000000022222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00001111170000000222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00011111177000002222222222222222200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00011111177000000002222222222222222200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00011111177000000000000222222222222222200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00111111177700000000000000022222222222222200000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00111111177700000000000000000002222222222222200000000000000000000000000000000000000000000000000000000000000000000000000000000000
-01111111177700000000000000000000000222222222222200000000000000000000000000000000000000000000000000000000000000000000000000000000
-01111111117770000000000000000000000000022222222222200000000000000000000000000000000000000000000000000000000000000000000000000000
-01111111117770000000000000000000000000000002222222222200000000000000000000000000000000000000000000000000000000000000000000000000
-11111111117770000000000000000000000000000000000222222222200000000000000000000000000000000000000000000000000000000000000000000000
-11111111117777000000000000000000000000000000000000022222222000000000000000000000000000000000000000000000000000000000000000000000
-11111111117777000000000000000000000000000000000000000002222222000000000000000000000000000000000000000000000000000000000000000000
-11111111117770000000000000000000000000000000000000000000000222222000000000000000000000000000000000000000000000000000000000000000
-00001111117700000000000000000000000000000000000000000000000000022222000000000000000000000000000000000000000000000000000000000000
-00000000117000000000000000000000000000000000000000000000000000000002220000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-77777100000007777777777777777177777100077777710000000000000007777777777777777777710007777771077777777710000000000000000000000000
-07777100000077771007777100777107777100000771000000000000000077777777771777710777710000077100777777777710000000000000000000000000
-00777710000077771000777100007100777710000771000000000000000777100007771077710077771000077107771000077710000000000000000000000000
-00777710000777771000777100000000777771000771000000000000007771000000771077710077777100077177710000007710000000000000000000000000
-00777771000777771000777100071000777777100771000000000000007771000000771077710077777710077177710000000710000000000000000000000000
-00777771000777771000777100771000771777100771000000000000007771000000071077710077177710077777710000000000000000000000000000000000
-00777777007717771000777777771000771777710771000000000000077771000000000077710077177771077777710000777777000000000000000000000000
-00771777007717771000777777771000771077770771000000000000077771000000000077710077107777177777710000777771000000000000000000000000
-00771777777107771000777100071000771007777771000000000000077771000000000077710077100777777777710000077710000000000000000000000000
-00771077777107771000777100000000771000777771000000000000007771000000000077710077100077777177710000077710000000000000000000000000
-00771077771007771000777100000710771000077771000000000000007771000000000077710077100007777177710000077710000000000000000000000000
-00771077771007771000777100007710771000077771000000000000007777100000077177710077100007777107771000077710000000000000000000000000
-00771007771007771007777100777710771000007771000000000000000777777107771077710077710000777107777710077710000000000000000000000000
-77777717710777777777777777777777777710000771000000000000000007777777710777771777771000077100077777777100000000000000000000000000
-77777710710777777777777777777177777710000071000000000000000000000000777777771777771000007100000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000007777710000000000000000000000000000000000000000000000000000000
-77777777710007710000777777771077777777777777177777777777777007777177777777177777777107777777777177777710000000000000000000000000
-07771007710007771000077717771077177717717771007771077710770007710771000777107771777100777107710077107710000000000000000000000000
-07771007710007771000077710777171077710717771007771077710777007717771000077717771077710777177100777100710000000000000000000000000
-07771077100077777100077710777100077710007771007771007710777007717771000077717771077710777771000077710710000000000000000000000000
-07777777100070777100077777771000077710007777777771007771777777107771000077717777777100777771000077771000000000000000000000000000
-07777777100770077100077777710000077710007777777771007777777777107771000077717777771000777771000007777710000000000000000000000000
-07771007100777777710077777710000077710007771007771000777717771007771000077717777771000777777100000077710000000000000000000000000
-07771000717710007710077717771000077710007771007771000777107771000771000077107771777100777177710710007771000000000000000000000000
-07771007717710007771077710777100077710007771007771000777107771000777100777107771077710777107771771007771000000000000000000000000
-77777777777771077777777771777710777771077777177777100077100710000077777771077777177777777777777777777710000000000000000000000000
-77777777777771077777777771077710777771077777177777100071000710000000000000077777107777777777777777777100000000000000000000000000
+02222222222222200d888d000d222d00000000000000000000000000000000000aaaaaaa0aaaaaaa00aaa0000aaaaaa0aaaaaaaaaaaaaaaa0aaaaaa0aaaaaaaa
+0d22222222222210d88888d0d22222d000000000000000000000000000000000aaa000aaaaa00aaa0aaaa0000aa00aaa000aaa000aa000000aa00aa0aaaaaaaa
+0dd2222222222110d88878d0d22252d000000000000000000000000000000000aa000000aa0000aa0aaa0000aaa000aa00aaaa00aaaaaa00aaa00aa0aa0aa0aa
+00ddddd1d11d1100d88778d0d22552d000000000000000000000000000000000aa00aaaaaa0000aa0aaa0000aaa000aa00aaa000aaaaaa00aa000aaaaa0aa0aa
+000dddd1d11d10000d888d000d222d0000000000000000000000000000000000aaa000aaaaa00aaaaaaa0000aa000aaa0aaaa000aa00000aaaaaaaaaa00000aa
+000000000000000000ddd00000ddd00000000000000000000000000000000000aaaaaaa0aaaaaaa0aaaaaaaaaaaaaaa00aaa0000aaaaaaaaa0000aaaa00000aa
+00000000000000000000000000000000000000000000000000000000000000000aaaaa000aaaaa00aaaaaaaaaaaaa0000aaa0000aaaaaaaaa0000aaaa00000aa
+01100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00011110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00001111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+10000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+10000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
 71117777711177777117711777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
@@ -3595,8 +3047,6 @@ ffffffff777f7777f7777fffffffffffffffffffffff1111111111111ff11111111ff7f77777f777
 fffffff77f77f7f77f777fffffffffffffffffffffff1111111111111ff11111111ff7f77f7f777f77f7ffffffffffffffffffffffffffffffffffffffffffff
 fffffff777f777f77f777ffffffffffffffffffffff11111111111111ff11111111fff777f7777f777f7ffffffffffffffffffffffffffffffffffffffffffff
 
-__map__
-68696a6b68696a6b68696a6b68696a6b68696a6b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 0b1000000017000170001700017000170001700017000170001700017000170001700017000170001700017000170001700017000170001700017000170001700017000170001700017000170001700017000170
 260800003f6503f6503e6403d630336303263031630246302c63018630206300c6300863000630006300063000620006200062000620006100061000610006100061000610006100061000610006000060000600
