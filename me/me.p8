@@ -67,7 +67,6 @@ pltr,pltr2=25,50 -- plot size
 secsz=2
 
 sex,sez=0,0
-s_map=false
 mode="title"
 story=0
 alert=nil
@@ -112,6 +111,21 @@ function _init()
 		add(body_tris[i],0)
 	end
 	//loga({"aaa",#body_tris})
+	
+	--[[
+	skl=obj(
+		body_tris,
+		0,0,0,
+		0,0.25,0,
+		0,0,
+		nil
+	)
+	skl.ft=6
+	for i=#skl.tris,9,-1 do
+		deli(skl.tris,i)
+	end
+	set_key_c(skl,{8,7})
+	]]--
 	
 	term_h=obj(
 		hand_tris,
@@ -278,7 +292,7 @@ function init_story_1()
 	loop_sfx(-1,1)
 	
 	--temp
-	--[[
+	
 	local swd=obj(
 		swd_tris,
 		0,0,0,
@@ -292,7 +306,6 @@ function init_story_1()
 	swd.key_idx=4
 	add(keys,swd)
 	keyi=1
-	]]--
 	
 	set_sun_pos()
 	
@@ -353,6 +366,7 @@ function fade_in(st,cb)
 	if(titt<st)return
 	local i=flr((titt-(st-fat))/fat)
 	pal(7,titp[mid(1,i,#titp)])
+	pal(1,15) --todo remove, change color in sprite
 	cb()
 	pal()
 end
@@ -445,11 +459,6 @@ function draw_ending()
 end
 
 function draw_game()
-	if s_map then
-		//draw_top_down()
-		return
-	end
-	
 	if in_term then
 		proj_term()
 	else
@@ -500,7 +509,7 @@ function _update()
 		
 		// temp for testing
 		// remove after
-		//`if(btnp(❎))trn=331
+		-- if(btnp(❎))trn=331
 		
 		if trn>330 then
 			trn=0
@@ -691,6 +700,16 @@ function update_hell()
 	bossr.x=boss.x
 	bossr.z=boss.z
 	boss.ya=a
+	
+	--[[
+	if atk_t2>0 then
+		local tt=30-(60-atk_t2)
+		
+		skl.x=ppx+sin(pp_ya)*tt
+		skl.z=ppz+cos(pp_ya)*tt
+	end
+	skl.ya=-cam_ya+0.5//a+0.25
+	]]--
 	//loga({boss.ya})
 	
 	-- boss should always be the
@@ -1304,6 +1323,9 @@ function proj_pov()
 		else
 			set_key_c(boss,{0,1,1,0})
 		end
+			//set_key_c(skl,{8,7})
+			//proj_obj(skl)
+			
 	
 		local bx,by=proj(
 			boss.x,boss.y,boss.z) 
@@ -2311,16 +2333,18 @@ function add_me_area(ci,cj,r,up)
 				//add(sec.sh,sh)
 				place(i,j,"sp",sp,up)
 				place(i,j,"sh",sh)
+				
+				place(i,j,"rs",{
+					x=rx,z=rz,
+					r=rand(20,30)
+				})
 			end
 			
 			//add(sec.rs,{
 			//	x=rx,z=rz,
 			//	r=rand(20,30)
 			//})
-			place(i,j,"rs",{
-				x=rx,z=rz,
-				r=rand(20,30)
-			})
+			
 			
 			//if(lvl[j]==nil)lvl[j]={}
 			//lvl[j][i]=sec
@@ -3085,6 +3109,48 @@ epls={
 }
 
 body_tris={
+	{ -- left skull
+		"0,0,-9.5",
+		"-1,0,-9",
+		"0,0,-7.5"
+	},
+	{
+		"-1,0,-9",
+		"0,0,-7.5",
+		"-1,0,-8"
+	},
+	{
+		"-1,0,-7.7",
+		"0,0,-7.3",
+		"0,0,-7"
+	},
+	{ -- right skull
+		"0,0,-9.5",
+		"1,0,-9",
+		"0,0,-7.5"
+	},
+	{
+		"1,0,-9",
+		"0,0,-7.5",
+		"1,0,-8"
+	},
+	{
+		"1,0,-7.7",
+		"0,0,-7.3",
+		"0,0,-7"
+	},
+	{	-- left eye
+		"-0.8,-0.1,-8.8",
+		"-0.4,-0.1,-8.8",
+		"-0.6,-0.1,-8.4",
+		11
+	},
+	{	-- right eye
+		"0.8,-0.1,-8.8",
+		"0.4,-0.1,-8.8",
+		"0.6,-0.1,-8.4",
+		11
+	},
 	{ -- left forearm
 		"-7,0,-8",
 		"-5,0,-4.5",
@@ -3211,48 +3277,6 @@ body_tris={
 		"3,0,6",
 		"4,0,10"
 	},
-	{ -- left skull
-		"0,0,-9.5",
-		"-1,0,-9",
-		"0,0,-7.5"
-	},
-	{
-		"-1,0,-9",
-		"0,0,-7.5",
-		"-1,0,-8"
-	},
-	{
-		"-1,0,-7.7",
-		"0,0,-7.3",
-		"0,0,-7"
-	},
-	{ -- right skull
-		"0,0,-9.5",
-		"1,0,-9",
-		"0,0,-7.5"
-	},
-	{
-		"1,0,-9",
-		"0,0,-7.5",
-		"1,0,-8"
-	},
-	{
-		"1,0,-7.7",
-		"0,0,-7.3",
-		"0,0,-7"
-	},
-	{	-- left eye
-		"-0.8,-0.1,-8.8",
-		"-0.4,-0.1,-8.8",
-		"-0.6,-0.1,-8.4",
-		11
-	},
-	{	-- right eye
-		"0.8,-0.1,-8.8",
-		"0.4,-0.1,-8.8",
-		"0.6,-0.1,-8.4",
-		11
-	}
 }
 
 --[[
