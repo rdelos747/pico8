@@ -3,7 +3,7 @@ version 43
 __lua__
 -- menacing earthworks
 
-ver="0.3.4"
+ver="0.3.5"
 
 -- constants
 l_sfx={-1,-1,-1,-1}
@@ -798,25 +798,8 @@ function update_hand_key_s0()
 		-- all keys destroyed,
 		-- add spike
 		if #keys==0 then
+			music(2)
 			spk_t=1
-			
-			--[[
-			local swd=obj(
-				swd_tris,
-				term.x,-5,term.z,
-				0,0,0,
-				0,0,
-			nil
-			)
-			swd.ft=1
-			swd.t=0
-			swd.gs=true
-			swd.key_idx=4
-			
-			add(term_sec.ky,swd)
-			deli(term_sec.tr,1)	
-			]]--
-				
 			keyi=1 --idx of spike
 		end
 	elseif k.t>=0.1 then
@@ -829,6 +812,7 @@ function update_hand_key_s0()
 			trn=1
 			clear_sfx()
 			sfx(7,-1,8,27)
+			music(-1)
 			return
 		end
 			
@@ -1804,7 +1788,7 @@ function update_player()
 		
 		-- check term
 		for t in all(sec.tr)do
-			local d=dist(ppx,ppz,t.x-15,t.z)
+			local d=dist(ppx,ppz,t.x,t.z)
 			if d<15 and 
 						term.act_t==0 and
 						pp_ya>=0.68 and
@@ -1903,7 +1887,7 @@ end
 
 function proj_term()
 	cls(1)
-	camera(0,0)
+	//camera(0,0)
 	//spr(41,60,60,2,2)
 	srand(term.seed)
 	//fillp(0b0011001111001100)
@@ -1913,9 +1897,8 @@ function proj_term()
 	
 	for j=0,4 do
 	for i=0,1 do
-		s=rand(0,3)
 		spr(
-			86+s,
+			86+rand(0,3),
 			2+i*116,
 			13+j*8,
 			1,1,
@@ -1925,27 +1908,40 @@ function proj_term()
 	
 	for j=0,1 do
 	for i=0,1 do
-		s=rand(0,3)
 		spr(
-			66+s,
+			66+rand(0,3),
 			5+110*i,
 			5+43*j,
 			1,1,
 			i==1,j==1)
-		s=rand(0,3)
-		spr(70+s,5+111*i,5+44*j)
+		spr(70+rand(0,3),5+111*i,5+44*j)
 	end end
 	
 	for j=0,1 do
 	for i=0,12 do
-		s=rand(0,3)
 		spr(
-			82+s,
+			82+rand(0,3),
 			13+i*8,
 			5+43*j,
 			1,1,
 			false,j==1)
 	end end
+	
+	-- lights
+	for i=0,2 do
+		spr(86+rand(0,3),5,67+i*8)
+		spr(86+rand(0,3),4,67+i*8,1,1,true)
+	end
+	spr(100,4,62,2,1)
+	spr(70,5,62)
+	spr(100,4,88,2,1,false,true)
+	spr(70,5,89)
+	spr(
+		term.act_t==0 and t_crt_t<15 and 114 or 115,
+		5,70)
+	spr(
+		term.act_t>0 and flr(term.act_t/8)%2==0 and 98 or 99,
+		5,81)
 	
 	local s //idk if this is really necessary, but it makes me feel better
 	for i=-1,1 do
@@ -2393,23 +2389,24 @@ function add_lk_area(ci,cj)
 	-- add terminal
 	term=obj(
 		tr_tris,
-		(ci-1)*pltr2,0,cj*pltr2,
+		(ci-1)*pltr2+pltr,0,cj*pltr2+pltr,
 		0.75,0,0,
 		5,5,
 		nil
 	)
 	term.inpt={3,3,3}
 	term.act_t=0
-	sec=place(
+	place(
 		ci-1,
 		cj,
 		"tr",
 		term
 	)
+	term.seed=rand(0,30000)
 	
-	place(ci-1,cj,"tr",obj(
+	place(ci-1,cj,"sh",obj(
 		tr_sh_tri,
-		(ci-1)*pltr2+14,0,cj*pltr2,
+		(ci-1)*pltr2+14+pltr,0,cj*pltr2+pltr,
 		0,0,0,
 		0,0,
 		nil
@@ -2421,7 +2418,8 @@ function add_hell_area()
 	
 	local bp,bs=spike(
 		100,100,
-		true
+		true,
+		-100
 	)
 	add(sec.sp,bp)
 	boss=bp
@@ -2438,7 +2436,7 @@ function add_hell_area()
 			sx*pltr2*sp_hd,
 			sz*pltr2*sp_hd,
 			true,
-			nil,nil,
+			-100,nil,
 			8,2)
 		add(sec.sp,sp)
 		add(sec.sh,sh)
@@ -3109,48 +3107,6 @@ epls={
 }
 
 body_tris={
-	{ -- left skull
-		"0,0,-9.5",
-		"-1,0,-9",
-		"0,0,-7.5"
-	},
-	{
-		"-1,0,-9",
-		"0,0,-7.5",
-		"-1,0,-8"
-	},
-	{
-		"-1,0,-7.7",
-		"0,0,-7.3",
-		"0,0,-7"
-	},
-	{ -- right skull
-		"0,0,-9.5",
-		"1,0,-9",
-		"0,0,-7.5"
-	},
-	{
-		"1,0,-9",
-		"0,0,-7.5",
-		"1,0,-8"
-	},
-	{
-		"1,0,-7.7",
-		"0,0,-7.3",
-		"0,0,-7"
-	},
-	{	-- left eye
-		"-0.8,-0.1,-8.8",
-		"-0.4,-0.1,-8.8",
-		"-0.6,-0.1,-8.4",
-		11
-	},
-	{	-- right eye
-		"0.8,-0.1,-8.8",
-		"0.4,-0.1,-8.8",
-		"0.6,-0.1,-8.4",
-		11
-	},
 	{ -- left forearm
 		"-7,0,-8",
 		"-5,0,-4.5",
@@ -3277,6 +3233,48 @@ body_tris={
 		"3,0,6",
 		"4,0,10"
 	},
+	{ -- left skull
+		"0,0,-9.5",
+		"-1,0,-9",
+		"0,0,-7.5"
+	},
+	{
+		"-1,0,-9",
+		"0,0,-7.5",
+		"-1,0,-8"
+	},
+	{
+		"-1,0,-7.7",
+		"0,0,-7.3",
+		"0,0,-7"
+	},
+	{ -- right skull
+		"0,0,-9.5",
+		"1,0,-9",
+		"0,0,-7.5"
+	},
+	{
+		"1,0,-9",
+		"0,0,-7.5",
+		"1,0,-8"
+	},
+	{
+		"1,0,-7.7",
+		"0,0,-7.3",
+		"0,0,-7"
+	},
+	{	-- left eye
+		"-0.8,-0.1,-8.8",
+		"-0.4,-0.1,-8.8",
+		"-0.6,-0.1,-8.4",
+		11
+	},
+	{	-- right eye
+		"0.8,-0.1,-8.8",
+		"0.4,-0.1,-8.8",
+		"0.6,-0.1,-8.4",
+		11
+	}
 }
 
 --[[
