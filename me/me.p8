@@ -50,13 +50,13 @@ znear=-14
 lam=zfar/(zfar-znear)
 pov_scr_t=0
 
-src_dp=20				--search depth
+src_dp=25				--search depth
 src_ns=10				--search num slices
 src_ag=0.1 		--search angle
 src_sd=0.5			--search slice depth
 
 sec_d={ //sec layer rend dists
-	sp=17,
+	sp=25,
 	sh=1,
 	ky=10,
 	tr=20,
@@ -239,7 +239,7 @@ function init_story_0()
 		add_me_sp(i*2,-12,true)
 		add_me_sp(i*2,-13,true)
 	end
-	add_me_area(-22,-12,3,true)
+	add_me_area(-24,-12,3,true)
 	
 	add_db(0,-2,0)
 	add_db(-2,-15,0.9)
@@ -509,7 +509,7 @@ function _update()
 		
 		// temp for testing
 		// remove after
-		-- if(btnp(❎))trn=331
+		if(btnp(❎))trn=331
 		
 		if trn>330 then
 			trn=0
@@ -533,8 +533,8 @@ function _update()
 		ppz+=sin(tita)*200
 		pp_ya=-tita-0.75
 
-		sex=flr((ppx)/(pltr2*secsz))
-		sez=flr((ppz)/(pltr2*secsz))
+		sex=flr(ppx/(pltr2*secsz))
+		sez=flr(ppz/(pltr2*secsz))
 		update_cam()
 		
 		if mode=="title" then
@@ -639,7 +639,8 @@ end
 function update_title()
 	//if(btnp(❎))titt=180
 	titt+=1
-	if titt>=300 then
+	--if titt>=300 then
+	if titt>=0 then
 		if btnp()>0 then
 			sfx(7,-1,0,8)
 			titt=300
@@ -1339,27 +1340,34 @@ end
 
 function proj_secs()
 	local fnd={}
-	for j=sez-2,sez+2 do
-	for i=sex-2,sez+2 do
+	for j=sez-1,sez+1 do
+	for i=sex-1,sex+1 do
 		local id=i.."+"..j
 		//loga({"id", id, rnd()})
 		fnd[id]=true
-		proj_s(i,j,min(abs(i),abs(j)))
+		proj_s(
+			i,
+			j,
+			min(
+				abs(i),
+				abs(j)
+			)
+		)
 	end end
 	
 	local sd=pltr2*src_sd
-	for n=0,src_dp do
+	for n=1,src_dp do
 		local a=pp_ya-src_ag/2
 		local am=src_ag/src_ns
 		for s=0,src_ns do
 			local aa=a+am*s
 			local d=sd*n
-			local d2=sd*(n+1)
-			local x1=ppx+sin(aa)*d
-			local z1=ppz+cos(aa)*d
-			local x2=x1+sin(aa)*d2
-			local z2=z1+cos(aa)*d2
-			
+			//local d2=sd*(n+1)
+			//local x1=ppx+sin(aa)*d
+			//local z1=ppz+cos(aa)*d
+			local x2=ppx+sin(aa)*d
+			local z2=ppz+cos(aa)*d
+		
 			local i=flr(x2/(pltr2*secsz))
 			local j=flr(z2/(pltr2*secsz))
 			local id=i.."+"..j
@@ -1384,11 +1392,10 @@ function proj_s(i,j,n)
 			if n<v then
 				for o in all(sec[k]) do
 					sx,sy,dz=proj(o.x,o.y,o.z)
+					local sv=40
+					if(n<2)sv=100
 					if k=="sh" or 
-								on_scr_x(sx) then
-						//proj_obj(o,k=="sp")
-						//proj_obj(o)
-						//`local nf=
+								on_scr_x(sx,sv) then
 						proj_obj(o)
 					end
 					
@@ -1556,7 +1563,21 @@ function draw_rad()
 	end
 end
 
+--[[
+this doesnt work. stopping the
+render before items are sorted
+caused flickering of distant
+objects.
+
+instead, projecting everything
+and record the length of the
+linked list. then limit the number
+of triangles drawn
+]]--
+
 function stop_rend()
+	return false
+	--[[
 	local tmax=80
 	if hand_t>0 then
 		if story==1 then
@@ -1566,6 +1587,7 @@ function stop_rend()
 		end
 	end
 	return n_t_sorted>tmax
+	]]--
 end
 
 --[[
@@ -2285,9 +2307,9 @@ function add_me_area(ci,cj,r,up)
 			//local sec=nsec()
 		
 			local sx=i*pltr2
-			local sy=j*pltr2
-			local rx=rand(-pltr,pltr)+sx+pltr
-			local rz=rand(-pltr,pltr)+sy+pltr
+			local sz=j*pltr2
+			local rx=rand(0,pltr2)+sx
+			local rz=rand(0,pltr2)+sz
 			
 			if j==kj and i==ki then
 				if cur_me_key>0 then
@@ -2302,7 +2324,9 @@ function add_me_area(ci,cj,r,up)
 						if(lk.n==-1)t=swd_tris
 						local o_key=obj(
 							t,
-							rx,-5,rz,
+							sx+pltr,
+							-5,
+							sz+pltr,
 							0,0,0,
 							5,5,
 							nil
@@ -2319,12 +2343,7 @@ function add_me_area(ci,cj,r,up)
 				end
 			else
 				local sp,sh=spike(rx,rz)
-				sp.per=1
-				sh.per=1
-				if up==true then
-					sp.per=0
-					sh.per=0
-				end
+				
 				//add(sec.sp,sp)
 				//add(sec.sh,sh)
 				place(i,j,"sp",sp,up)
@@ -2335,32 +2354,20 @@ function add_me_area(ci,cj,r,up)
 					r=rand(20,30)
 				})
 			end
-			
-			//add(sec.rs,{
-			//	x=rx,z=rz,
-			//	r=rand(20,30)
-			//})
-			
-			
-			//if(lvl[j]==nil)lvl[j]={}
-			//lvl[j][i]=sec
 		end
 	end
 end
 
 function add_me_sp(i,j,up)
-	local rx=i*pltr2+pltr
-	local rz=j*pltr2+pltr
+	local rx=i*pltr2
+	local rz=j*pltr2
 	if up!=true then
-		rx+=rand(-pltr,pltr)
-		rz+=rand(-pltr,pltr)
+		rx+=rand(0,pltr2)
+		rz+=rand(0,pltr2)
 	end
 	//local sec=nsec()
 	local sp,sh=spike(rx,rz,true)
-	if up==true then
-		sp.per=0
-		sh.per=0
-	end
+	
 	place(i,j,"sp",sp,up)
 	place(i,j,"sh",sh)
 	place(i,j,"rs",{
@@ -2588,12 +2595,14 @@ function rand(bot,top)
 	return flr(rnd((top+1)-bot))+bot
 end
 
+--[[
 function round(n)
 	if n-flr(n)>=0.5 then
 		return flr(n)+1
 	end
 	return flr(n)
 end
+]]--
 
 function rar(a)
 	local o={}
@@ -2615,19 +2624,14 @@ function col_bb(a,b,aox,aoz)
 								az+a.d>=bz
 end
 
-function on_scr_x(x)
-	return x>-40 and 
-								x<168 
+function on_scr_x(x,v)
+	return x>-v and 
+								x<128+v 
 end
 
 function on_scr_y(y)
 	return y>-50 and 
 								y<178
-end
-
-function on_scr(x,y)
-	return on_scr_x(x) and 
-								on_scr_y(y)
 end
 
 function dist(x1,y1,x2,y2)
