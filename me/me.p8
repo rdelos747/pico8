@@ -3,7 +3,7 @@ version 43
 __lua__
 -- menacing earthworks
 
-ver="0.3.5"
+ver="0.3.6"
 
 -- constants
 l_sfx={-1,-1,-1,-1}
@@ -50,17 +50,17 @@ znear=-14
 lam=zfar/(zfar-znear)
 pov_scr_t=0
 
-src_dp=25				--search depth
+src_dp=20				--search depth
 src_ns=10				--search num slices
 src_ag=0.1 		--search angle
 src_sd=0.5			--search slice depth
 
 sec_d={ //sec layer rend dists
-	sp=25,
-	sh=1,
-	ky=10,
+	sp=20,
+	sh=2,
+	ky=5,
 	tr=20,
-	db=10
+	db=2
 }
 
 pltr,pltr2=25,50 -- plot size
@@ -225,6 +225,7 @@ function init_story_0()
 	cur_me_key=1
 	lvl={}
 	lock_sps={}
+	up_secs={}
 	
 	add_me_area(0,-7,2)
  add_me_area(-2,-21,3)
@@ -391,7 +392,7 @@ function draw_title()
 		end)
 		
 		fade_in(240,function()
-			spr(224,12,32,13,2)
+			spr(224,12,30,13,2)
 		end)
 		
 		pal()
@@ -509,7 +510,7 @@ function _update()
 		
 		// temp for testing
 		// remove after
-		if(btnp(❎))trn=331
+		--if(btnp(❎))trn=331
 		
 		if trn>330 then
 			trn=0
@@ -639,8 +640,8 @@ end
 function update_title()
 	//if(btnp(❎))titt=180
 	titt+=1
-	--if titt>=300 then
-	if titt>=0 then
+	if titt>=300 then
+	--if titt>=0 then
 		if btnp()>0 then
 			sfx(7,-1,0,8)
 			titt=300
@@ -677,7 +678,7 @@ function update_story_0()
 	end
 	
 	if spk_t>0 and spk_t<150 do
-		spk_t+=0.2
+		spk_t+=0.3
 		
 		grow_pts(function(sec,p)
 			for k in all({"x","y","z"})do
@@ -917,8 +918,9 @@ function update_ending()
 end
 
 function grow_pts(cb)
-	for _,sec in pairs(lvl)do
-	if sec.up then
+	//for _,sec in pairs(lvl)do
+	//if sec.up then
+	for _,sec in pairs(up_secs)do
 	for k in all({"sp","sh"})do
 	for s in all(sec[k])do
 	for t in all(s.tris)do
@@ -933,7 +935,7 @@ function grow_pts(cb)
 			
 		end
 		]]--
-	end end end end end end
+	end end end end end
 end
 -->8
 -- pov
@@ -954,13 +956,16 @@ function proj_spr(s)
 	})
 end
 
-function proj_obj(o,nf)
+function proj_obj(o,nt)
 	n_o_proj+=1
 	local ts={}
 	//local dz_max_all=-1
 	//local flat_max=-1
 	//loga({#o.tris})
-	for t in all(o.tris)do
+	//for t in all(o.tris)do
+	if(nt==nil)nt=#o.tris
+	for i=1,nt do
+		local t=o.tris[i]
 		local pts={} --projected pts
 		local dz_max=-1
 		for p in all(t.pts) do
@@ -984,6 +989,7 @@ function proj_obj(o,nf)
 			//loga({dz_max})
 			add(pts,{x=px,y=py})
 		end
+		
 		
 		add(ts,{
 			pts=pts,
@@ -1020,11 +1026,15 @@ function proj_obj(o,nf)
 		sort_itm(ts[i])
 	end
 	]]--
-	//if(nf==nil)nf=#ts
-	//for i=#ts+1-nf,#ts do
-		//local t=ts[i]
-	//	sort_itm(ts[i])
-	//end
+	
+	//printh(#ts)
+	--[[
+	if(nf==nil)nf=#ts
+	for i=nf,1,-1 do
+		//printh("  "..i)
+		sort_itm(ts[i])
+	end
+	]]--
 	
 	for t in all(ts)do
 		sort_itm(t)
@@ -1036,13 +1046,6 @@ function sort_itm(itm)
 	if itm.dz>1 then
 		n_t_sorted+=1
 	
-		//local newn={
-		//	tri=tt,
-		//	col=col,
-		//	dz=dz,
-		//	nxt=nil,
-		//	prv=nil
-		//}
 		itm.nxt=nil
 		itm.prv=nil
 		
@@ -1107,19 +1110,9 @@ function proj(x,y,z)
 	return px,py,dz//,pxz,pyz
 end
 
---[[
-	hack for sprites:
-	when creating sprites, we set
-	the "tris" field to its 
-	render function. when the sort
-	function is called, the data
-	is shifted, and t[3] is either
-	the existing tris, or the 
-	render function
-]]--
-
 function draw_sorted()
 	n_t_sorted_d=0
+	//printh(n_t_sorted.." "..n_t_sorted-60)
 	local node=t_sorted_ll
 	while node!=nil do
 		
@@ -1128,11 +1121,13 @@ function draw_sorted()
 			node.draw(node)
 		else
 			n_t_sorted_d+=1
-			draw_tri(
-				node.pts,
-				node.col,
-				node.dz
-			)
+			//if n_t_sorted_d>n_t_sorted-60 then
+				draw_tri(
+					node.pts,
+					node.col,
+					node.dz
+				)
+			//end
 		end
 		node=node.nxt
 	end
@@ -1158,7 +1153,8 @@ end
 dz_cols={1,13,15}
 dz_cols2={1,6,2}
 function draw_tri(t,c,dz)
-	local ddz=min(ceil(dz/200),4)
+	local dzm=mode=="title" and 200 or 170
+	local ddz=min(ceil(dz/dzm),4)
 	if story==0 and ddz>1 then
 		if spk_t>0 then
 			c=dz_cols2[ddz-1]
@@ -1340,6 +1336,7 @@ end
 
 function proj_secs()
 	local fnd={}
+	--[[
 	for j=sez-1,sez+1 do
 	for i=sex-1,sex+1 do
 		local id=i.."+"..j
@@ -1348,38 +1345,39 @@ function proj_secs()
 		proj_s(
 			i,
 			j,
-			min(
-				abs(i),
-				abs(j)
-			)
+			i==sex and j==sez and 0 or 1
 		)
 	end end
-	
-	local sd=pltr2*src_sd
-	for n=1,src_dp do
-		local a=pp_ya-src_ag/2
-		local am=src_ag/src_ns
-		for s=0,src_ns do
-			local aa=a+am*s
-			local d=sd*n
-			//local d2=sd*(n+1)
-			//local x1=ppx+sin(aa)*d
-			//local z1=ppz+cos(aa)*d
-			local x2=ppx+sin(aa)*d
-			local z2=ppz+cos(aa)*d
+	]]--
+	if story==1 then
+		proj_s(sex,sez,0)
+	else
+		local sd=pltr2*src_sd
+		for n=0,src_dp do
+			local a=pp_ya-src_ag/2
+			local am=src_ag/src_ns
+			for s=0,src_ns do
+				local aa=a+am*s
+				local d=sd*n
+				//local d2=sd*(n+1)
+				//local x1=ppx+sin(aa)*d
+				//local z1=ppz+cos(aa)*d
+				local x2=ppx+sin(aa)*d
+				local z2=ppz+cos(aa)*d
 		
-			local i=flr(x2/(pltr2*secsz))
-			local j=flr(z2/(pltr2*secsz))
-			local id=i.."+"..j
-			//loga({id})
-			if fnd[id]==nil then
-				fnd[id]=true
+				local i=flr(x2/(pltr2*secsz))
+				local j=flr(z2/(pltr2*secsz))
+				local id=i.."+"..j
+				//loga({id})
+				if fnd[id]==nil then
+					fnd[id]=true
 				
-				proj_s(i,j,n)
-			end
+					proj_s(i,j,n)
+				end
 			
-			if stop_rend() then
-				return
+				//if stop_rend() then
+				//	return
+				//end
 			end
 		end
 	end
@@ -1394,14 +1392,27 @@ function proj_s(i,j,n)
 					sx,sy,dz=proj(o.x,o.y,o.z)
 					local sv=40
 					if(n<2)sv=100
-					if k=="sh" or 
-								on_scr_x(sx,sv) then
-						proj_obj(o)
+					if	on_scr_x(sx,sv) then
+						local nf=nil
+						local ntmax=80
+						if(story==1)nmax=40
+						if k=="db" and n>1 then
+							nf=4
+						elseif n_t_sorted>ntmax then
+							if k=="sp" then
+								nf=1
+							elseif k=="sh" then
+								nf=0
+							elseif k=="ky" then
+								nf=2
+							end
+						end
+						proj_obj(o,nf)
 					end
 					
-					if stop_rend() then
-						return
-					end
+					//if stop_rend() then
+					//	return
+					//end
 				end
 			end
 		end
@@ -1575,9 +1586,8 @@ linked list. then limit the number
 of triangles drawn
 ]]--
 
+--[[
 function stop_rend()
-	return false
-	--[[
 	local tmax=80
 	if hand_t>0 then
 		if story==1 then
@@ -1587,8 +1597,9 @@ function stop_rend()
 		end
 	end
 	return n_t_sorted>tmax
-	]]--
+
 end
+]]--
 
 --[[
 function draw_top_down()
@@ -2477,15 +2488,6 @@ function add_db(i,j,a)
 		x=rx,z=rz,
 		r=10
 	})
-	--[[
-	add(sec.db,db)
-	add(sec.rs,{
-		x=rx,z=rz,
-		r=10
-	})
-	if(lvl[j]==nil)lvl[j]={}
-	lvl[j][i]=sec
-	]]--
 end
 
 function place(i,j,k,o,up)
@@ -2496,7 +2498,10 @@ function place(i,j,k,o,up)
 		lvl[key]=nsec()
 	end
 	
-	if(up==true)lvl[key].up=true
+	if up==true then 
+		lvl[key].up=true
+		up_secs[key]=lvl[key]
+	end
 		
 	add(lvl[key][k],o)
 	
