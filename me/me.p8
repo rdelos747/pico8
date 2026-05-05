@@ -110,22 +110,6 @@ function _init()
 	for i=1,#body_tris-1 do
 		add(body_tris[i],0)
 	end
-	//loga({"aaa",#body_tris})
-	
-	--[[
-	skl=obj(
-		body_tris,
-		0,0,0,
-		0,0.25,0,
-		0,0,
-		nil
-	)
-	skl.ft=6
-	for i=#skl.tris,9,-1 do
-		deli(skl.tris,i)
-	end
-	set_key_c(skl,{8,7})
-	]]--
 	
 	term_h=obj(
 		hand_tris,
@@ -972,10 +956,7 @@ end
 function proj_obj(o,nt)
 	n_o_proj+=1
 	local ts={}
-	//local dz_max_all=-1
-	//local flat_max=-1
-	//loga({#o.tris})
-	//for t in all(o.tris)do
+
 	if(nt==nil)nt=#o.tris
 	for i=1,nt do
 		local t=o.tris[i]
@@ -999,55 +980,15 @@ function proj_obj(o,nt)
 				x+o.x,y+o.y,z+o.z)
 			if(not on_scr_y(py))dz=0 
 			dz_max=max(dz_max,dz)
-			//loga({dz_max})
 			add(pts,{x=px,y=py})
 		end
-		
 		
 		add(ts,{
 			pts=pts,
 			col=t.c,
 			dz=dz_max
 		})
-		
-		--[[
-		local i=1
-		while i<=#ts+1 do
-			if i>#ts or
-						dz_max>ts[i].dz then
-				//loga({dz_max})
-				add(ts,{
-					pts=pts,
-					col=t.c,
-					dz=dz_max
-				},i)
-				i=#ts+2
-			end
-			i+=1
-		end
-		]]--
 	end
-	
-	//printh(#ts)
-	
-	--[[
-	local imin=1
-	if(f)imin=#ts-1
-	//if(nf==nil)nf=1
-	for i=max(1,imin),#ts do
-		//local t=ts[i]
-		sort_itm(ts[i])
-	end
-	]]--
-	
-	//printh(#ts)
-	--[[
-	if(nf==nil)nf=#ts
-	for i=nf,1,-1 do
-		//printh("  "..i)
-		sort_itm(ts[i])
-	end
-	]]--
 	
 	for t in all(ts)do
 		sort_itm(t)
@@ -1055,7 +996,6 @@ function proj_obj(o,nt)
 end
 
 function sort_itm(itm)
-	//loga({itm.dz})
 	if itm.dz>1 then
 		n_t_sorted+=1
 	
@@ -1223,15 +1163,6 @@ function pelogen_tri_hvb(l,t,c,m,r,b,col,ddz)
 		end
 		l,t,m,c,b=c,m,b,r
 	end
-	--[[
-	if i<8 and i>-8 then
-		if col then
-			pset(r,t)
-		else
-			pset(t,r)
-		end
-	end
-	]]--
 end
 -->8
 -- proj
@@ -1349,19 +1280,7 @@ end
 
 function proj_secs()
 	local fnd={}
-	--[[
-	for j=sez-1,sez+1 do
-	for i=sex-1,sex+1 do
-		local id=i.."+"..j
-		//loga({"id", id, rnd()})
-		fnd[id]=true
-		proj_s(
-			i,
-			j,
-			i==sex and j==sez and 0 or 1
-		)
-	end end
-	]]--
+	
 	if story==1 then
 		proj_s(sex,sez,0)
 	else
@@ -1372,25 +1291,18 @@ function proj_secs()
 			for s=0,src_ns do
 				local aa=a+am*s
 				local d=sd*n
-				//local d2=sd*(n+1)
-				//local x1=ppx+sin(aa)*d
-				//local z1=ppz+cos(aa)*d
+	
 				local x2=ppx+sin(aa)*d
 				local z2=ppz+cos(aa)*d
 		
 				local i=flr(x2/(pltr2*secsz))
 				local j=flr(z2/(pltr2*secsz))
 				local id=i.."+"..j
-				//loga({id})
 				if fnd[id]==nil then
 					fnd[id]=true
 				
 					proj_s(i,j,n)
 				end
-			
-				//if stop_rend() then
-				//	return
-				//end
 			end
 		end
 	end
@@ -1422,10 +1334,7 @@ function proj_s(i,j,n)
 						end
 						proj_obj(o,nf)
 					end
-					
-					//if stop_rend() then
-					//	return
-					//end
+				
 				end
 			end
 		end
@@ -1586,128 +1495,6 @@ function draw_rad()
 			0)
 	end
 end
-
---[[
-this doesnt work. stopping the
-render before items are sorted
-caused flickering of distant
-objects.
-
-instead, projecting everything
-and record the length of the
-linked list. then limit the number
-of triangles drawn
-]]--
-
---[[
-function stop_rend()
-	local tmax=80
-	if hand_t>0 then
-		if story==1 then
-			tmax=40
-		else
-			tmax=60
-		end
-	end
-	return n_t_sorted>tmax
-
-end
-]]--
-
---[[
-function draw_top_down()
-	cls(0)
-	local zm=10
-	local pmx=ppx/zm
-	local pmz=ppz/zm
-	camera(pmx-64,pmz-64)
-		
-	for i=0,sec_s_n-1 do
-		local a=sec_s_a*(i/(sec_s_n-1))-(sec_s_a/2)
-		
-		line(
-			pmx,pmz,
-			pmx+sin(pp_ya-a)*64,
-			pmz+cos(pp_ya-a)*64,
-			1)
-	end
-	
-	local chkd={}	
-	local dpt=12
-	if(hand_t>0)dpt=8
-	for n=0,dpt do
-		//local n=nn*1
-		if n<2 then
-			sec_s_n=20
-			sec_s_a=0.25
-		else
-			sec_s_n=11
-			sec_s_a=0.15
-		end
-	for ai=0,sec_s_n-1 do
-		local a=sec_s_a*(ai/(sec_s_n-1))-(sec_s_a/2)
-		n_sec_chk+=1
-		
-		line(
-			pmx,pmz,
-			pmx+sin(pp_ya-a)*n*10,
-			pmz+cos(pp_ya-a)*n*10,
-			1)
-			
-		local i=round(
-			sex+sin(pp_ya+a)*n)
-		local j=round(
-			sez+cos(pp_ya+a)*n)
-		
-		local id=(j>>8)+i
-		local sec=get_sec(i,j)
-		if chkd[id] then
-			//lol
-		elseif sec then
-			loga({"found",i,j,id})
-			n_sec_fnd+=1
-				//loga({dtb2(i)})
-				//loga({dtb2(j)})
-				//loga({dtb2(id)})
-				chkd[id]=true
-			
-				local x=(i*secr2)-secr
-				local z=(j*secr2)-secr
-			
-				rect(
-					x/zm,
-					z/zm,
-					(x+secr2)/zm,
-					(z+secr2)/zm,
-					n<3 and 13 or 1)
-		
-				for o in all(sec.sp)do
-					sx,sy,dz=proj(o.x,o.y,o.z)
-					loga({sx})
-					if on_scr_x(sx) then
-						pset(
-							o.x/zm,
-							o.z/zm,
-							5)
-					end
-				end
-				
-				for sp in all(sec.ky)do
-					pset(
-						sp.x/zm,
-						sp.z/zm,
-						12)
-				end
-			end
-		end
-	end
-	
-	pria({ppx,ppz},
-		pmx-64,pmz-64,8)
-	pria({sex,sez},
-		pmx-64,pmz-58,8)
-end
-]]--
 
 
 -->8
@@ -2613,15 +2400,6 @@ function rand(bot,top)
 	return flr(rnd((top+1)-bot))+bot
 end
 
---[[
-function round(n)
-	if n-flr(n)>=0.5 then
-		return flr(n)+1
-	end
-	return flr(n)
-end
-]]--
-
 function rar(a)
 	local o={}
 	for _=1,#a do
@@ -2675,53 +2453,6 @@ function t2(s,x,y,c1,c2)
 	end
 	print(s,x,y,c1)
 end
-
---debug functions
---todo remove
---[[
-function a_to_s(arr)
-	local s=tostr(arr[1])
-	for i=2,#arr do
-		s=s.." "..tostr(arr[i])
-	end
-	return s
-end
-
-function loga(arr)
-	printh(a_to_s(arr))
-end
-
-function pria(arr,x,y,c)
-	print(a_to_s(arr),x,y,c)
-end
-]]--
-
---[[
-function dtb2(num)
-	local n1=num
-	local n2=num
- local bin=""
-	
-	n2<<=1
-	for i=1,16 do
-  bin=n2 %2\1 ..bin
-  n2<<=1
-  if i%4==0 and i<32 then
-   bin=" "..bin
-  end
-	end
-	
-	for i=1,16 do
-  bin=n1 %2\1 ..bin
-  n1>>>=1
-  if i%4==0 and i<32 then
-   bin=" "..bin
-  end
-	end
- 
- return bin
-end
-]]--
 -->8
 -- models
 
@@ -3411,6 +3142,136 @@ __gfx__
 07771007717710007771077710777100077710007771007771000777107771000777100777107771077710777107771771007771000000000000000000000000
 77777777777771077777777771777710777771077777177777100077100710000077777771077777177777777777777777777710000000000000000000000000
 77777777777771077777777771077710777771077777177777100071000710000000000000077777107777777777777777777100000000000000000000000000
+__label__
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777177777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777ff777777777777777777777777777777777d777777777777777777777777777777
+77777777777777777777777777777777777777777777777777777777777777ff777777777777777777777777777777777d777777777777777777777777777777
+7777777777777777777777777777777777777777777777777777777777777fff077777777777777777777777777777777d777777777777777777777777777777
+77777777777700000f77777770000000000000000f00000f777000000f777fff07777777700000000000000000000f77d000000f7000000000f7777777777777
+77777777777770000f7777770000f770000f77000f70000f7777700f7777ffff077777770000000000f0000f70000f77dd700f170000000000f7777777777777
+777777777777770000f777770000f777000f77770f770000f777700f7777fffff077777000f7777000f7000f770000f7dd700f1000f7777000f7777777777777
+777777777777770000f777700000f777000f7777777700000f77700f7777fffff07777000f77777700f7000f7700000fdd700f000f77777700f7777777777777
+7777777777777700000f77700000f777000f7770f777000000f7700f777ffffff00777000f77777700f7000f77000000fd700f000f77777770f7777777777777
+7777777777777700000f77700000f777000f7700f77700f000f7700f777ffffff00777000f77777770f7000f7700f000fd7000000f7777777777777777777777
+777777777777770000007700f000f77700000000f77700f0000f700f777ffffff00770000f7777777777000f7700f0000f7000000f7777000000777777777777
+7777777777777700f0007700f000f77700000000f77700f70000700f77fffffff00070000f7777777777000f7700f70000f000000f777700000f777777777777
+7777777777777700f000000f7000f777000f7770f77700f77000000f77fffffff00070000f7777777777000f7700f7d0000000000f77777000f7777777777777
+7777777777777700f700000f7000f777000f7777777700f77700000f7ffffffff00077000f7777777777000f7700f7dd00000f000f77777000f7777777777777
+7777777777777700f70000f77000f777000f777770f700f77770000f7fffffffff0007000f7777777777000f7700f7ddd0000f000f77777000f7777777777777
+7777777777777700f70000f77000f777000f777700f700f77770000f7fffffffff00070000f77777700f000f7700fdddd0000f1000f7777000f7777777777777
+7777777777777700f77000f77000f770000f770000f700f77777000fffffffffff00077000000f7000f7000f77000fddd7000f700000f77000f7777777777777
+777777777777000000f00f70000000000000000000000000f777700fffffffffff000077700000000f700000f00000fdd7700f71100000000f77777777777777
+777777777777000000f70f7000000000000000000f000000f777770fffffffffff000022777777700000f000f00000fdd7770f71117777777777777777777777
+777777777777000000000f77700f777700000000f700000000000000f00000000000000220000f00000000f00000000fd0000000000f000000f7777777777777
+7777777777777000f7700f777000f7777000f000f700f000f00f000f77000ff000f00022200f200f777000f7000f000fd7000f700f1d00f700f7777777777777
+7777777777777000f7700f777000f7777000f7000f0f7000f70f000f77000f7000f20002200f000f2777000f000fd000f7000f00f11000f770f7777777777777
+7777777777777000f700f77700000f777000f7000f777000f777000f77000f7700f20002200f000f2227000f000fd000f700000f111d000f70f7777777777777
+77777777777770000000f77707000f7770000000f7777000f777000000000f77000f000000f2000f2222000f0000000f7700000f11110000f777777777777777
+77777777777770000000f77007700f777000000f77777000f777000000000f770000000000f2000f2222000f000000fd7700000f1111d00000f7777777777777
+7777777777777000f770f770000000f77000000f77777000f777000f77000f7770000f000f77000f2222000f000000fd77000000f111d77000f7777777777777
+7777777777777000f7770f00f77700f77000f000f7777000f777000f77000f777000f7000f77700f722200f2000f000f77000f000f10f777000f777777777777
+7777777777777000f7700f00f777000f7000f7000f777000f777000f7d000fd77000f7000f777000f77000f2000f2000f2000f7000f00f77000f777777777777
+7777777777770000000000000f70000000000f0000f700000f700000f00000f77700f770f777770000000f700000f000000000000000000000f7777777777777
+7777777777770000000000000f70000000000f7000f700000f700000f00000fd770f7770f7777777777777700000f20000000000000000000f77777777777777
+777777777777777777777777777777777777777777777777777777777d7777dd77777777d7777777777777777ddddddd72222222222111777777777777777777
+7777777777777777777777777777777777777777777777777d7777777d7777ddd7777d77d7777777777777777ddddddd77777222222221d777d7777777777777
+7777777777777777777777777777777777777777777777777d7777777d7d777dd777dd77d7777777777777777ddddddd77777777122222227dd7777777777771
+7777777777777777777777777777777777777777777777777d7777777d77777dd777dd7dd777777777777777dddddddd77777777111112222227777777777771
+777777777777777777777777777777777777777777777777d7777777ddd7d77ddd7dd77dd777777777777777ddddddd7777777771111111dd222227777777771
+77777777777777777777777777777777777777777777777dd7777777ddd7d77ddd7dd7ddd777777777777777ddddddd7777777771111111ddd77722277777771
+77777777777777777777777777777777777777777777777dd7777777ddd7dd7dddddd7ddd77777777777777dddddddd7777777771111111dd777777777777711
+7777777777777777777777777777777777777777777777dd77777777ddd7dd77dddd77ddd77777777777777dddddddd77777777711111111d777777777777711
+7777777777777777777777777777777777777777777777dd77777777ddd7ddd7dddd7dddd77777777777777dddddddd77777777711111111d777777777777711
+777777777777777777777777777777777777777777777ddd77777777ddd77dd7dddd7dddd77777777777777dddddddd77777777711111111d777777777777711
+777777777777777777777777777777777777777777777ddd7777777dddd77dddddddddddd7777777777777ddddddddd77777777711111111d777777777777111
+77777777777777777777777777777777777777777777ddd77777777ddddd7dddddddddddd7777777777777ddddddddd777777777111111111d77777777777111
+7777777777777777777777777777777777777777777dddd77777777ddddd7dddddddddddd7777777777777ddddddddd777777777111111111d77777777777111
+7777777777777777777777777777777777777777777dddd77777777ddddd7dddddddddddd7777777777777ddddddddd777777777111111111d77777777777111
+f777f777f777f777f777f777f777f777f777f777f7ddddd7f777f77dddddf7ddddddddddd777f777f777fddddddddd77f777f777111111111d77f777f777f111
+777777779777777777777777777777777777777797dddd777777777ddddd7dddddddddddd777777777777ddddddddd7777777777d111111111d7777777771111
+7f7f7ff9997f7f7f7f7f7f7f7f7f7f7f7f7f7ff99ddddd7f7f7f7fddddddddddddddddddd97f7f7f7f7f7ddddddddd7f7f7f7ffdd111111111df7f7f7f7f1111
+fff7ffff99f7fff7ff97fff7fff9fff9fff7ffffddddddf7ff97ffddddddddddddddddddd9f7fff7ff97ddddddddddf9fff7fffdd111111111d7fff7fff91111
+9779fffff997779777f9777777f977f99779ffffddddd79777f977ddddddddddddddddddd997779777f9ddddddddddf99779ffddd111111111d9777777f91111
+997f9fffff9979977fff99777ff97f99997f9ffdddddd9977fff99dddddddddddddddddddf9979977fffdddddddddd99997f9dddd1111111111d99777ff11111
+999ff9fffff9ff997fff9fff9fff7fff999ff9fddddddf997fff9fdddddddddddddddddddff9ff997fffddddddddddff999fddddd1111111111d9fff9ff11111
+ffffff9ffffffff99ffffffff9ffffffffffffdddddddff99fffffddddddddddddddddddddfffff99ffdddddddddddffffffddddd1111111111dfffff9f11111
+fffffffffffffffffffffffffffffffffffffdddddddfffffffffdddddddddddddddddddddfffffffffdddddddddddfffffdddddd11111111111dffffff11111
+fffffffffffffffffffffffffffffffffffffdddddddfffffffffdddddddddddddddddddddfffffffffdddddddddddffffddddddd11111111111dfffff111111
+ffffffffffffffffffffffffffffffffffffddddddddfffffffffddddddddddddddddddddddfffffffddddddddddddffffddddddd11111111111dfffff111111
+ffffffffffffffffffffffffffffffffffffddddddddfffffffffddddddddddddddddddddddfffffffdddddddddddffffdddddddd11111111111dfffff111111
+fffffffffffffffffffffffffffffffffffddddddddffffffffffdddddddddddddddddddddddffffffdddddddddddfffddddddddd111111111111dffff111111
+fffffffffffffffffffffffffffffffffffddddddddffffffffffdddddddddddddddddddddddffffffdddddddddddffdddddddddd111111111111dfff1111111
+ffffffffffffffffffffffffffffffffffdddddddddfffffffffdddddddddddddddddddddddddffffddddddddddddffdddddddddd111111111111dfff1111111
+fffffffffffffffffffffffffffffffffddddddddddfffffffffdddddddddddddddddddddddddffffddddddddddddfddddddddddd111111111111dfff1111111
+fffffffffffffffffffffffffffffffffdddddddddffffffffffddddddddddddddddddddddddddfffdddddddddddddddddddddddf1111111111111dff1111111
+ffffffffffffffffffffffffffffffffddddddddddffffffffffddddddddddddddddddddddddddffddddddddddddddddddddddddf1111111111111dff1111111
+ffffffffffffffffffffffffffffffffddddddddddfffffffffdddddddddddddddddddddddddddffddddddddddddddddddddddddf1111111111111df11111111
+fffffffffffffffffffffffffffffffdddddddddddffffffffffddddddddddddddddddddddddddffdddddddddddddddddddddddff1111111111111df11111111
+fffffffffffffffffffffffffffffffffffffffffffffffffffdddddddddddddddddddddffffffffdddddddddddddddddddddddff1111111111111ff11111111
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdddddddddddddfffffffdddddddddddddddddddddddfff1111111111111ff11111111
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdfffffffffffffffff1111111111111f111111111
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffffffffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffff0fffffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111111111ffffffffffffffff10ffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1fffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1fffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff100fffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff100fffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1100fffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1100fffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff11000ffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111000ffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111100ffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111100ffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff111100ffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1111100ffffffffff
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff10fffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+
 __map__
 68696a6b68696a6b68696a6b68696a6b68696a6b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
