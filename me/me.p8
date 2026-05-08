@@ -165,6 +165,7 @@ function init_title()
 	ppy=-30
 	pp_ya,pp_pi=0.2299,0
 	tit_idx=0
+	tita=0.1
 	trn=0
 	show_c=false
 	music(2)
@@ -307,6 +308,7 @@ function init_ending()
 	ppz=0
 	pp_ya,pp_pi=0.2299,0
 	edt=0
+	tita=0.1
 	add_me_area(0,-7,2)
 	
 	music(48)
